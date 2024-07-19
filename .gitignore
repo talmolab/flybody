@@ -3,5 +3,6 @@ __pycache__/
 *.ipynb
 .ipynb_checkpoints
 data/
+cps/
 *.egg-info
 
