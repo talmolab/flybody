@@ -1,0 +1,25 @@
+name: flybody
+channels:
+  - conda-forge
+  - anaconda
+  - menpo
+dependencies:
+  - python=3.10
+  - numpy=1.26.4
+  - matplotlib
+  - cudatoolkit # cuda related
+  - cudnn
+  - pandas
+  - pip
+  - glew
+  - mesalib
+  - mesa-libgl-cos6-x86_64
+  - glfw3
+  - ipykernel
+  - pip: 
+    - -r requirements.txt 
+
+variables:             # Set MuJoCo environment variables
+  MUJOCO_GL: osmesa
+  PYOPENGL_PLATFORM: osmesa
+  LD_LIBRARY_PATH: $LD_LIBRARY_PATH:/root/anaconda3/envs/flybody/lib

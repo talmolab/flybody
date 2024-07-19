@@ -1,0 +1,13 @@
+matplotlib
+ipykernel
+mujoco
+wandb
+mediapy
+dm_control
+tqdm
+numba
+hydra-core
+imageio
+h5py
+imageio[pyav]
+imageio[ffmpeg]
