@@ -39,8 +39,10 @@ from flybody.agents.remote_as_local_wrapper import RemoteAsLocal
 from flybody.agents.counting import PicklableCounter
 from flybody.agents.network_factory import policy_loss_module_dmpo
 from flybody.agents.losses_mpo import PenalizationCostRealActions
+from flybody.basic_rodent_2020 import rodent_run_gaps, rodent_maze_forage
+from flybody.wrapper import SinglePrecisionWrapperFloat, RemoveVisionWrapper
 
-from flybody.fly_envs import walk_on_ball
+from flybody.fly_envs import walk_on_ball, vision_guided_flight
 from flybody.agents.network_factory import make_network_factory_dmpo
 
 from flybody.agents.ray_distributed_dmpo import (
@@ -84,9 +86,10 @@ print(ray_resources)
 def environment_factory(training: bool) -> 'composer.Environment':
     """Creates replicas of environment for the agent."""
     del training  # Unused.
-    env = walk_on_ball()
-    env = wrappers.SinglePrecisionWrapper(env)
-    env = wrappers.CanonicalSpecWrapper(env, clip=True)
+    # env = vision_guided_flight(wpg_pattern_path="/root/vast/scott-yang/flybody/data/wing_pattern_fmech.npy")
+    env = rodent_run_gaps()
+    env = wrappers.SinglePrecisionWrapper(env) # Swap out to our float warpper
+    env = wrappers.CanonicalSpecWrapper(env)
     return env
 # Create network factory for RL task.
 network_factory = make_network_factory_dmpo()
@@ -99,11 +102,11 @@ environment_spec = specs.make_environment_spec(dummy_env)
 
 # This callable will be calculating penalization cost by converting canonical
 # actions to real (not wrapped) environment actions inside DMPO agent.
-penalization_cost = PenalizationCostRealActions(dummy_env.environment.action_spec())
+penalization_cost = None # PenalizationCostRealActions(dummy_env.environment.action_spec())
 
 # Distributed DMPO agent configuration.
 dmpo_config = DMPOConfig(
-    num_actors=test_num_actors or 32,
+    num_actors=test_num_actors or 60, # 60 threads, leave some for learner/evaluator
     batch_size=256,
     prefetch_size=4,
     num_learner_steps=100,
@@ -129,9 +132,9 @@ dmpo_config = DMPOConfig(
     log_every=test_log_every or 5*60,
     logger_save_csv_data=False,
     checkpoint_max_to_keep=None,
-    checkpoint_directory='~/ray-ckpts/',
+    checkpoint_directory='~/ray-rodent-run-ckpts/',
     checkpoint_to_load=None,
-    print_fn=print
+    print_fn=None#print # this causes issue 
 )
 
 # Print full job config and full environment specs.
