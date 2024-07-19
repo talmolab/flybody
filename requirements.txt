@@ -9,5 +9,6 @@ numba
 hydra-core
 imageio
 h5py
+pickle5 # ray needs it
 imageio[pyav]
 imageio[ffmpeg]
