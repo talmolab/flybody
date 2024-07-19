@@ -99,7 +99,7 @@ environment_spec = specs.make_environment_spec(dummy_env)
 
 # This callable will be calculating penalization cost by converting canonical
 # actions to real (not wrapped) environment actions inside DMPO agent.
-penalization_cost = PenalizationCostRealActions(dummy_env.action_spec())
+penalization_cost = PenalizationCostRealActions(dummy_env.environment.action_spec())
 
 # Distributed DMPO agent configuration.
 dmpo_config = DMPOConfig(
@@ -147,20 +147,20 @@ del dummy_net
 # Environment variables for learner, actor, and replay buffer processes.
 runtime_env_learner = {
     'env_vars': {
-        'MUJOCO_GL': 'egl',
-        'CUDA_VISIBLE_DEVICES': '0',
+        'MUJOCO_GL': 'osmesa',
+        # 'CUDA_VISIBLE_DEVICES': '0',
         'TF_FORCE_GPU_ALLOW_GROWTH': 'true',
         'PYTHONPATH': PYHTONPATH,
         'LD_LIBRARY_PATH': LD_LIBRARY_PATH,
     }
 }
 runtime_env_actor = {
-    'env_vars': {
-        'MUJOCO_GL': 'egl',
-        'MUJOCO_EGL_DEVICE_ID': '0',
-        'CUDA_VISIBLE_DEVICES': '-1',  # CPU-actors don't use CUDA.
-        'PYTHONPATH': PYHTONPATH,
-        'LD_LIBRARY_PATH': LD_LIBRARY_PATH,
+    "env_vars": {
+        "MUJOCO_GL": "osmesa",
+        # "MUJOCO_EGL_DEVICE_ID": "0",
+        "CUDA_VISIBLE_DEVICES": "-1",  # CPU-actors don't use CUDA.
+        "PYTHONPATH": PYHTONPATH,
+        "LD_LIBRARY_PATH": LD_LIBRARY_PATH,
     }
 }
 
@@ -178,7 +178,7 @@ print(f'Started Replay Server on {addr}')
 
 # === Create Counter.
 counter = ray.remote(PicklableCounter)  # This is class (direct call to
-                                        # ray.remote decorator).
+# ray.remote decorator).
 counter = counter.remote()  # Instantiate.
 counter = RemoteAsLocal(counter)
 
