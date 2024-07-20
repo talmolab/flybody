@@ -19,12 +19,12 @@ import ray
 import wandb
 import logging
 
-# # init wandb
-# run = wandb.init(
-#     # Set the project where this run will be logged
-#     project="Rodent-Run-CPU-MuJoCo",
-#     name="Rodent Run"
-# )
+# init wandb
+run = wandb.init(
+    # Set the project where this run will be logged
+    project="CPU-Mujoco-Ray-SingleClip",
+    name="Fly Walk"
+)
 
 try:
     # Try connecting to existing Ray cluster.
@@ -51,7 +51,7 @@ from flybody.agents.remote_as_local_wrapper import RemoteAsLocal
 from flybody.agents.counting import PicklableCounter
 from flybody.agents.network_factory import policy_loss_module_dmpo
 from flybody.agents.losses_mpo import PenalizationCostRealActions
-from flybody.basic_rodent_2020 import rodent_run_gaps, rodent_maze_forage, rodent_escape_bowl, rodent_two_touch
+# from flybody.basic_rodent_2020 import rodent_run_gaps, rodent_maze_forage, rodent_escape_bowl, rodent_two_touch
 from flybody.wrapper import SinglePrecisionWrapperFloat, RemoveVisionWrapper
 
 from flybody.fly_envs import walk_on_ball, vision_guided_flight, walk_imitation
@@ -94,11 +94,15 @@ ray_resources = ray.available_resources()
 print('\nAvailable Ray cluster resources:')
 print(ray_resources)
 
+# for some reason only abs path works here
+ref_walking_path = '/root/talmolab-smb/kaiwen/flybody/demos/data/walking-dataset_female-only_snippets-16252_trk-files-0-9.hdf5'
+
 # Create environment factory for walk-on-ball fly RL task.
 def environment_factory(training: bool) -> 'composer.Environment':
     """Creates replicas of environment for the agent."""
     del training  # Unused.
-    env = walk_imitation()
+    # env = walk_imitation(ref_walking_path)
+    env = walk_imitation(ref_walking_path)
     env = wrappers.SinglePrecisionWrapper(env) # Swap out to our float warpper
     env = wrappers.CanonicalSpecWrapper(env)
     return env
@@ -115,7 +119,6 @@ environment_spec = specs.make_environment_spec(dummy_env)
 # actions to real (not wrapped) environment actions inside DMPO agent.
 penalization_cost = None # PenalizationCostRealActions(dummy_env.environment.action_spec())
 
-import pprint
 # Distributed DMPO agent configuration.
 dmpo_config = DMPOConfig(
     num_actors=test_num_actors or 60, # 60 threads, leave some for learner/evaluator
