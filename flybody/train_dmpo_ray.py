@@ -16,14 +16,26 @@ training hyperparameters specified in the DMPOConfig data structure.
 
 # Start Ray cluster first, before imports.
 import ray
+import wandb
+import logging
+
+# # init wandb
+# run = wandb.init(
+#     # Set the project where this run will be logged
+#     project="Rodent-Run-CPU-MuJoCo",
+#     name="Rodent Run"
+# )
+
 try:
     # Try connecting to existing Ray cluster.
     ray_context = ray.init(address='auto', 
                            include_dashboard=True,
-                           dashboard_host='0.0.0.0')
+                           dashboard_host='0.0.0.0',
+                           logging_level=logging.INFO
+                           )
 except:
     # Spin up new Ray cluster.
-    ray_context = ray.init(include_dashboard=True, dashboard_host='0.0.0.0')
+    ray_context = ray.init(include_dashboard=True, dashboard_host='0.0.0.0', logging_level=logging.INFO)
 
 
 import argparse
@@ -39,7 +51,7 @@ from flybody.agents.remote_as_local_wrapper import RemoteAsLocal
 from flybody.agents.counting import PicklableCounter
 from flybody.agents.network_factory import policy_loss_module_dmpo
 from flybody.agents.losses_mpo import PenalizationCostRealActions
-from flybody.basic_rodent_2020 import rodent_run_gaps, rodent_maze_forage
+from flybody.basic_rodent_2020 import rodent_run_gaps, rodent_maze_forage, rodent_escape_bowl, rodent_two_touch
 from flybody.wrapper import SinglePrecisionWrapperFloat, RemoveVisionWrapper
 
 from flybody.fly_envs import walk_on_ball, vision_guided_flight
@@ -87,7 +99,11 @@ def environment_factory(training: bool) -> 'composer.Environment':
     """Creates replicas of environment for the agent."""
     del training  # Unused.
     # env = vision_guided_flight(wpg_pattern_path="/root/vast/scott-yang/flybody/data/wing_pattern_fmech.npy")
-    env = rodent_run_gaps()
+    # env = rodent_run_gaps() #dev
+    # env = walk_on_ball()
+    # env = rodent_two_touch() #t1
+    # env = rodent_maze_forage() #t2
+    env = rodent_escape_bowl() #t3
     env = wrappers.SinglePrecisionWrapper(env) # Swap out to our float warpper
     env = wrappers.CanonicalSpecWrapper(env)
     return env
@@ -104,6 +120,7 @@ environment_spec = specs.make_environment_spec(dummy_env)
 # actions to real (not wrapped) environment actions inside DMPO agent.
 penalization_cost = None # PenalizationCostRealActions(dummy_env.environment.action_spec())
 
+import pprint
 # Distributed DMPO agent configuration.
 dmpo_config = DMPOConfig(
     num_actors=test_num_actors or 60, # 60 threads, leave some for learner/evaluator
@@ -132,9 +149,9 @@ dmpo_config = DMPOConfig(
     log_every=test_log_every or 5*60,
     logger_save_csv_data=False,
     checkpoint_max_to_keep=None,
-    checkpoint_directory='~/ray-rodent-run-ckpts/',
+    checkpoint_directory='~/ray-rodent-bowl-escape-ckpts/',
     checkpoint_to_load=None,
-    print_fn=None#print # this causes issue 
+    print_fn=None#print # this causes issue pprint does not work
 )
 
 # Print full job config and full environment specs.
@@ -146,6 +163,7 @@ print('\ndiscount_spec:\n', dummy_env.discount_spec())
 print('\nreward_spec:\n', dummy_env.reward_spec(), '\n')
 del dummy_env
 del dummy_net
+
 
 # Environment variables for learner, actor, and replay buffer processes.
 runtime_env_learner = {

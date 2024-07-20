@@ -107,6 +107,7 @@ def network_factory_dmpo(
         'policy': policy_network,
         'critic': critic_network,
         'observation': VisNetRodent(),
+        # 'observation': tf2_utils.batch_concat
     }
 
 
