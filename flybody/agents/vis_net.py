@@ -21,8 +21,8 @@ class VisNetFly(snt.Module):
         super().__init__()
 
         # Mean and std from the "trench" task.
-        self._mean = 77.
-        self._std = 56.
+        self._mean = 77. # TODO: Need to change it to rodent run gaps
+        self._std = 56. # TODO
 
         # Visual network.
         self._layers = [
