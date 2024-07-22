@@ -99,16 +99,16 @@ def environment_factory(training: bool) -> 'composer.Environment':
     """Creates replicas of environment for the agent."""
     del training  # Unused.
     # env = vision_guided_flight(wpg_pattern_path="/root/vast/scott-yang/flybody/data/wing_pattern_fmech.npy")
-    # env = rodent_run_gaps() #dev
+    env = rodent_run_gaps() #dev
     # env = walk_on_ball()
     # env = rodent_two_touch() #t1
     # env = rodent_maze_forage() #t2
-    env = rodent_escape_bowl() #t3
+    # env = rodent_escape_bowl() #t3
     env = wrappers.SinglePrecisionWrapper(env) # Swap out to our float warpper
     env = wrappers.CanonicalSpecWrapper(env)
     return env
 # Create network factory for RL task.
-network_factory = make_network_factory_dmpo()
+network_factory = make_network_factory_dmpo(policy_layer_sizes=(512, 512, 512, 512, 512), critic_layer_sizes=(512, 512, 512, 256))
 
 # Dummy environment and network for quick use, deleted later.
 dummy_env = environment_factory(training=True)
@@ -149,7 +149,7 @@ dmpo_config = DMPOConfig(
     log_every=test_log_every or 5*60,
     logger_save_csv_data=False,
     checkpoint_max_to_keep=None,
-    checkpoint_directory='~/ray-rodent-bowl-escape-ckpts/',
+    checkpoint_directory='./training/ray-rodent-run-gaps-ckpts/',
     checkpoint_to_load=None,
     print_fn=None#print # this causes issue pprint does not work
 )
