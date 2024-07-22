@@ -7,3 +7,4 @@ cps/
 *.egg-info
 nohup/
 wandb/
+training/
