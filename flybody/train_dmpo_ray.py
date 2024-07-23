@@ -82,7 +82,11 @@ else:
     test_log_every = None
     test_min_replay_size = None
     
-tasks = {"run-gaps": rodent_run_gaps, "maze-forage": rodent_maze_forage, "escape-bowl": rodent_escape_bowl, "two-taps": rodent_two_touch}
+tasks = {"run-gaps": rodent_run_gaps,
+         "maze-forage": rodent_maze_forage,
+         "escape-bowl": rodent_escape_bowl,
+         "two-taps": rodent_two_touch,
+         "imitation": walk_imitation}
 
 
 @hydra.main(version_base=None, config_path="./config", config_name="train_config_two_taps")
@@ -96,19 +100,19 @@ def main(config : DictConfig) -> None:
     print('\nRay context:')
     print(ray_context)
 
-ray_resources = ray.available_resources()
-print("\nAvailable Ray cluster resources:")
-print(ray_resources)
-
-# for some reason only abs path works here
-ref_walking_path = "/root/talmolab-smb/kaiwen/flybody/demos/data/walking-dataset_female-only_snippets-16252_trk-files-0-9.hdf5"
-
+    ray_resources = ray.available_resources()
+    print("\nAvailable Ray cluster resources:")
+    print(ray_resources)
 
     # Create environment factory for walk-on-ball fly RL task.
     def environment_factory(training: bool) -> 'composer.Environment':
         """Creates replicas of environment for the agent."""
         del training  # Unused.
         env = tasks[config["task_name"]]()
+
+        if config["task_name"] == "imitation":
+            env = tasks[config["task_name"]](config["ref_traj_path"])
+
         env = wrappers.SinglePrecisionWrapper(env)
         env = wrappers.CanonicalSpecWrapper(env)
         return env
