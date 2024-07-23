@@ -1,12 +1,11 @@
 __pycache__/
 
-# *.ipynb
 .ipynb_checkpoints
 clips/
 cps/
 demos/
 *.out
 *.egg-info
-nohup/
-wandb/wandb/
+nohup.out
+wandb/
 policy/

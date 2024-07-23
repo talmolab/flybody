@@ -25,25 +25,11 @@ _RAT_MOCAP_JOINTS = [
 ]
 
 _RAT_MOCAP_BODY = [
-    "torso",
-    "pelvis",
-    "upper_leg_L",
-    "lower_leg_L",
-    "foot_L",
-    "upper_leg_R",
-    "lower_leg_R",
-    "foot_R",
-    "skull",
-    "jaw",
-    "scapula_L",
-    "upper_arm_L",
-    "lower_arm_L",
-    "finger_L",
-    "scapula_R",
-    "upper_arm_R",
-    "lower_arm_R",
-    "finger_R"
-]
+    "torso","pelvis","upper_leg_L",
+    "lower_leg_L","foot_L","upper_leg_R",
+    "lower_leg_R","foot_R","skull","jaw",
+    "scapula_L","upper_arm_L","lower_arm_L",
+    "finger_L","scapula_R","upper_arm_R","lower_arm_R","finger_R"]
 
 def read_h5_file(filename):
     '''Read everything in the h5 file'''
@@ -118,7 +104,7 @@ def extract_feature(input_path, output_path):
             trajectory_lengths = []
             
             for clip_key in clip_lst:
-                print(f'Now processing {clip_key}')
+                # print(f'Now processing {clip_key}')
 
                 if clip_key in input_file:
                     walkers_group = input_file[f"{clip_key}/walkers"]
@@ -141,7 +127,7 @@ def extract_feature(input_path, output_path):
                     
                     
                     # qpos is just joints here
-                    qpos = joints.T #np.hstack((position.T, quaternion.T, joints.T))
+                    qpos = np.hstack((position.T, quaternion.T, joints.T))
                     qvel = np.hstack((velocity.T, angular_velocity.T, joints_velocity.T))
                     joint_quat = body_quaternions.T
 
@@ -158,8 +144,8 @@ def extract_feature(input_path, output_path):
                     traj_group.create_dataset("qpos", data=qpos.astype(np.float32))
                     traj_group.create_dataset("qvel", data=qvel.astype(np.float32))
                     traj_group.create_dataset("joint_quat", data=joint_quat.astype(np.float32))
-                    traj_group.create_dataset("root_qpos", data=root_qpos)
-                    traj_group.create_dataset("root2site", data=root2site)
-                    traj_group.create_dataset("root_qvel", data=root_qvel)
+                    traj_group.create_dataset("root_qpos", data=root_qpos.astype(np.float32))
+                    traj_group.create_dataset("root2site", data=root2site.astype(np.float32))
+                    traj_group.create_dataset("root_qvel", data=root_qvel.astype(np.float32))
             
             output_file.create_dataset('trajectory_lengths', data=np.array(trajectory_lengths, dtype=np.int64))
