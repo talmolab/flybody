@@ -54,8 +54,7 @@ from flybody.agents.remote_as_local_wrapper import RemoteAsLocal
 from flybody.agents.counting import PicklableCounter
 from flybody.agents.network_factory import policy_loss_module_dmpo
 from flybody.agents.losses_mpo import PenalizationCostRealActions
-
-# from flybody.basic_rodent_2020 import rodent_run_gaps, rodent_maze_forage, rodent_escape_bowl, rodent_two_touch
+from flybody.basic_rodent_2020 import rodent_run_gaps, rodent_maze_forage, rodent_escape_bowl, rodent_two_touch
 from flybody.wrapper import SinglePrecisionWrapperFloat, RemoveVisionWrapper
 
 from flybody.fly_envs import walk_on_ball, vision_guided_flight, walk_imitation
@@ -133,6 +132,7 @@ penalization_cost = (
     None  # PenalizationCostRealActions(dummy_env.environment.action_spec())
 )
 
+import pprint
 # Distributed DMPO agent configuration.
 dmpo_config = DMPOConfig(
     num_actors=test_num_actors or 60,  # 60 threads, leave some for learner/evaluator
@@ -176,6 +176,7 @@ print("\ndiscount_spec:\n", dummy_env.discount_spec())
 print("\nreward_spec:\n", dummy_env.reward_spec(), "\n")
 del dummy_env
 del dummy_net
+
 
 
 # Environment variables for learner, actor, and replay buffer processes.

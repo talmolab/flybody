@@ -25,6 +25,7 @@ from acme.tf import variable_utils
 from acme.tf import networks as network_utils
 from acme.adders import reverb as reverb_adders
 
+from flybody.default_logger import make_default_logger
 from flybody.agents.learning_dmpo import DistributionalMPOLearner
 from flybody.agents import agent_dmpo
 from flybody.agents.actors import DelayedFeedForwardActor
@@ -140,7 +141,7 @@ class Learner(DistributionalMPOLearner):
         dataset = self._make_dataset_iterator(self._reverb_client)
         counter = counting.Counter(parent=counter, prefix=label)
         if self._config.logger is None:
-            logger = loggers.make_default_logger(
+            logger = make_default_logger( # swap out to our logger
                 label=label,
                 time_delta=self._config.log_every,
                 steps_key=f"{label}_steps",
@@ -324,7 +325,7 @@ class EnvironmentLoop(acme.EnvironmentLoop):
         # Create logger and counter; actors will not spam bigtable.
         counter = counting.Counter(parent=counter, prefix=actor_or_evaluator)
         if self._config.logger is None:
-            logger = loggers.make_default_logger(
+            logger = make_default_logger( # swap out logger
                 label=label,
                 save_data=save_data,
                 time_delta=self._config.log_every,
