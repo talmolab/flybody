@@ -1,0 +1,9 @@
+agent_name: rodent
+algo_name: dmpo
+task_name: run-gaps
+run_name: rodent-run-gaps
+batch_size: 512
+policy_layer_sizes: [512, 512, 512, 512]
+critic_layer_sizes: [512, 512, 512, 256]
+num_actors: 61
+group_name: rodent-maze-forage-v1

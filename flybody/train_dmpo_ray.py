@@ -50,13 +50,8 @@ from flybody.agents.losses_mpo import PenalizationCostRealActions
 from flybody.basic_rodent_2020 import rodent_run_gaps, rodent_maze_forage, rodent_escape_bowl, rodent_two_touch
 from flybody.fly_envs import walk_on_ball, vision_guided_flight
 from flybody.agents.network_factory import make_network_factory_dmpo
-from flybody.agents.ray_distributed_dmpo import (
-    DMPOConfig,
-    ReplayServer,
-    Learner,
-    EnvironmentLoop,
-)
 from flybody.default_logger import make_default_logger
+from flybody.single_precision import SinglePrecisionWrapper
 
 PYHTONPATH = os.path.dirname(os.path.dirname(flybody.__file__))
 LD_LIBRARY_PATH = (
@@ -79,10 +74,10 @@ else:
     test_log_every = None
     test_min_replay_size = None
     
-tasks = {"run-gaps": rodent_run_gaps, "maze-forage": rodent_maze_forage, "escape-bowl": rodent_escape_bowl, "two-touch": rodent_two_touch}
+tasks = {"run-gaps": rodent_run_gaps, "maze-forage": rodent_maze_forage, "escape-bowl": rodent_escape_bowl, "two-taps": rodent_two_touch}
 
 
-@hydra.main(version_base=None, config_path="./config", config_name="train_config")
+@hydra.main(version_base=None, config_path="./config", config_name="train_config_two_taps")
 def main(config : DictConfig) -> None:
     from flybody.agents.ray_distributed_dmpo import (
         DMPOConfig,
@@ -106,7 +101,7 @@ def main(config : DictConfig) -> None:
         env = wrappers.CanonicalSpecWrapper(env)
         return env
     # Create network factory for RL task.
-    network_factory = make_network_factory_dmpo(policy_layer_sizes=(512, 512, 512, 512, 512), critic_layer_sizes=(512, 512, 512, 256))
+    network_factory = make_network_factory_dmpo(policy_layer_sizes=config["policy_layer_sizes"], critic_layer_sizes=config["critic_layer_sizes"])
 
     # Dummy environment and network for quick use, deleted later.
     dummy_env = environment_factory(training=True)
@@ -119,8 +114,8 @@ def main(config : DictConfig) -> None:
     penalization_cost = None # PenalizationCostRealActions(dummy_env.environment.action_spec())
     # Distributed DMPO agent configuration.
     dmpo_config = DMPOConfig(
-        num_actors=test_num_actors or 60, # 60 threads, leave some for learner/evaluator
-        batch_size=256,
+        num_actors=test_num_actors or config["num_actors"], # 62 threads, leave some for learner/evaluator
+        batch_size=config["batch_size"],
         prefetch_size=4,
         num_learner_steps=100,
         min_replay_size=test_min_replay_size or 10_000,

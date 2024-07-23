@@ -157,6 +157,7 @@ class Learner(DistributionalMPOLearner):
                 label=label,
                 time_delta=self._config.log_every,
                 wandb_project=True,
+                identity="learner",
                 **logger_kwargs)
 
         # Maybe checkpoint and snapshot the learner (saved in ~/acme/).
@@ -338,7 +339,8 @@ class EnvironmentLoop(acme.EnvironmentLoop):
             logger = self._config.logger(
                 label=label,
                 time_delta=self._config.log_every,
-                wandb_project=actor_or_evaluator=="evaluator", # only create project for evaluators
+                wandb_project=actor_or_evaluator=="evaluator", # only create project for evaluators,
+                identity="evaluator",
                 **logger_kwargs)
 
         super().__init__(environment, actor, counter, logger)

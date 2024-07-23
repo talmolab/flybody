@@ -55,6 +55,7 @@ def make_default_logger(
     steps_key: str = 'steps',
     wandb_project: Optional[bool] = False,
     config: dict = None,
+    identity: str = ""
 ) -> base.Logger:
   """Makes a default Acme logger.
 
@@ -83,7 +84,7 @@ def make_default_logger(
 
   if wandb_project:
     # initialize wandb logging
-    wandb = setup_wandb(config=config, rank_zero_only=True, trial_name=config["run_name"], trial_id=nanoid.generate()) # with unit uuid
+    wandb = setup_wandb(config=config, rank_zero_only=False, trial_name=f"{config['run_name']}-{identity}", trial_id=nanoid.generate(), group=config["group_name"]) # with unit uuid
     loggers.append(WandBLogger(wandb=wandb))
 
 

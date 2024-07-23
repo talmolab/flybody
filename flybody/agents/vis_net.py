@@ -135,7 +135,7 @@ class VisNetRodent(snt.Module):
         if not hasattr(self, '_task_input'):
             # If task input is present in the observation, it will be popped
             # and concatenated at specific position in the output vector.
-            self._task_input = 'walker/task_input' in observation.keys()
+            self._task_input = 'task_logic' in observation.keys()
 
         # Pop eyes from `observation`.
         egocentric_camera = tf.cast(observation.pop('walker/egocentric_camera'), dtype=tf.float32)
@@ -153,7 +153,8 @@ class VisNetRodent(snt.Module):
             x = layer(x)
 
         if self._task_input:
-            task_input = observation.pop('walker/task_input')
+            task_input = observation.pop('task_logic')
+            task_input = tf.cast(task_input, tf.float32)
             # Concatenate the visual network output with the rest of
             # observations and task input.
             observation = tf2_utils.batch_concat(observation)

@@ -59,7 +59,7 @@ def rodent_escape_bowl(random_state=None):
                               strip_singleton_obs_buffer_dim=True)
 
 
-def rodent_run_gaps(random_state=None):
+def rodent_run_gaps(random_state=None, contact_termination=True): # enable contact termination
   """Requires a rodent to run down a corridor with gaps."""
 
   # Build a position-controlled rodent walker.
@@ -83,7 +83,7 @@ def rodent_run_gaps(random_state=None):
       walker_spawn_position=(5, 0, 0),
       walker_spawn_rotation=0,
       target_velocity=1.0,
-      contact_termination=False,
+      contact_termination=contact_termination, 
       terminate_at_height=-0.3,
       physics_timestep=_PHYSICS_TIMESTEP,
       control_timestep=_CONTROL_TIMESTEP)
