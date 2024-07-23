@@ -12,41 +12,61 @@ from flybody.fruitfly.fruitfly import FruitFly
 TEST_ACTION = 0.3561
 JOINT_FILTER = 0.0123
 ADHESION_FILTER = 0.0234
-OBS_NAMES = ['thorax_height', 'abdomen_height', 'world_zaxis_hover',
-             'world_zaxis', 'world_zaxis_abdomen', 'world_zaxis_head',
-             'force', 'touch', 'accelerometer', 'gyro', 'velocimeter',
-             'actuator_activation', 'appendages_pos']
+OBS_NAMES = [
+    "thorax_height",
+    "abdomen_height",
+    "world_zaxis_hover",
+    "world_zaxis",
+    "world_zaxis_abdomen",
+    "world_zaxis_head",
+    "force",
+    "touch",
+    "accelerometer",
+    "gyro",
+    "velocimeter",
+    "actuator_activation",
+    "appendages_pos",
+]
 # For local testing only.
-if 'MUJOCO_GL' in os.environ and os.environ['MUJOCO_GL'] == 'egl':
-    OBS_NAMES = OBS_NAMES + ['right_eye', 'left_eye']
+if "MUJOCO_GL" in os.environ and os.environ["MUJOCO_GL"] == "egl":
+    OBS_NAMES = OBS_NAMES + ["right_eye", "left_eye"]
 
 # Prepare all possible configurations to test fly walker with.
-uses = [(i, j, k, l) for i in range(2) for j in range(2)
-                     for k in range(2) for l in range(2)]  # noqa: E741
-filters = [(0, 0), (JOINT_FILTER, 0), (0, ADHESION_FILTER), 
-           (JOINT_FILTER, ADHESION_FILTER)]
+uses = [
+    (i, j, k, l) for i in range(2) for j in range(2) for k in range(2) for l in range(2)
+]  # noqa: E741
+filters = [
+    (0, 0),
+    (JOINT_FILTER, 0),
+    (0, ADHESION_FILTER),
+    (JOINT_FILTER, ADHESION_FILTER),
+]
 user_actions = [0, 1, 2]
-configs = [{'use': use, 'filter': filter, 'user_action': user_action}
-           for use in uses
-           for filter in filters
-           for user_action in user_actions]
+configs = [
+    {"use": use, "filter": filter, "user_action": user_action}
+    for use in uses
+    for filter in filters
+    for user_action in user_actions
+]
 
 
 def test_fly_bulletproof():
     """Test fly walker in all possible configurations."""
 
     for config in configs:
-        use = config['use']
-        filter = config['filter']
-        user_action = config['user_action']
+        use = config["use"]
+        filter = config["filter"]
+        user_action = config["user_action"]
 
-        fly = FruitFly(use_legs=use[0],
-                       use_wings=use[1],
-                       use_mouth=use[2],
-                       use_antennae=use[3],
-                       joint_filter=filter[0],
-                       adhesion_filter=filter[1],
-                       num_user_actions=user_action)
+        fly = FruitFly(
+            use_legs=use[0],
+            use_wings=use[1],
+            use_mouth=use[2],
+            use_antennae=use[3],
+            joint_filter=filter[0],
+            adhesion_filter=filter[1],
+            num_user_actions=user_action,
+        )
 
         # Test can compile and step simulation.
         physics = mjcf.Physics.from_mjcf_model(fly.mjcf_model)
@@ -54,20 +74,24 @@ def test_fly_bulletproof():
         for i in range(100):
             # Emulate control_timestep.
             if i % 10 == 0:
-                physics.data.ctrl[:] = np.random.uniform(-.2, .2, n_actions)
+                physics.data.ctrl[:] = np.random.uniform(-0.2, 0.2, n_actions)
             physics.step()
 
         # Test action_spec consistency.
         spec = fly.action_spec
-        assert (spec.shape[0] == len(spec.name.split()) 
-                == len(spec.minimum) == len(spec.maximum))
+        assert (
+            spec.shape[0]
+            == len(spec.name.split())
+            == len(spec.minimum)
+            == len(spec.maximum)
+        )
 
         # Test that all action values are passed correctly to their
         # corresponding ctrl elements in MuJoCo.
         n_actions = fly.action_spec.shape[0] + user_action
         physics.reset()
         for key, action_indices in fly._action_indices.items():
-            if key == 'user':
+            if key == "user":
                 continue
             for i, action_idx in enumerate(action_indices):
                 # Set all ctrl to zero.
@@ -85,7 +109,7 @@ def test_fly_bulletproof():
         m = physics.model
         for i in range(m.nu):
             # Regular joint actuators.
-            if m.actuator_trntype[i] == 0:        
+            if m.actuator_trntype[i] == 0:
                 # print(m.actuator_dynprm[i])
                 if filter[0] == 0:
                     # Case of joint_filter == 0.
@@ -111,13 +135,14 @@ def test_fly_bulletproof():
         action_spec = fly.get_action_spec(physics)
         for i, name in enumerate(action_spec.name.split()):
             for idx in range(physics.model.nu):
-                if name == physics.model.id2name(idx, 'actuator'):
+                if name == physics.model.id2name(idx, "actuator"):
                     minimum, maximum = physics.model.actuator_ctrlrange[idx]
                     assert action_spec.minimum[i] == minimum
                     assert action_spec.maximum[i] == maximum
-                elif 'user' in name:
+                elif "user" in name:
                     assert action_spec.minimum[i] == -1
                     assert action_spec.maximum[i] == 1
+
 
 def test_prev_action():
     for num_user_actions in user_actions:
@@ -126,9 +151,10 @@ def test_prev_action():
         action_size = fly.action_spec.shape[0] + num_user_actions
         physics = mjcf.Physics.from_mjcf_model(fly.mjcf_model)
         for _ in range(10):
-            action = np.random.uniform(-1., 1, action_size)
+            action = np.random.uniform(-1.0, 1, action_size)
             fly.apply_action(physics, action, random_state=None)
             assert all(np.isclose(action, fly.prev_action))
+
 
 def test_evaluate_observables():
     fly = FruitFly()
@@ -138,22 +164,26 @@ def test_evaluate_observables():
         observation = observable(physics)
         assert isinstance(observation, (float, np.ndarray))
 
+
 def test_proprioception():
     fly = FruitFly()
     for item in fly.observables.proprioception:
         assert isinstance(item, observable_base.Observable)
+
 
 def test_vestibular():
     fly = FruitFly()
     for item in fly.observables.vestibular:
         assert isinstance(item, observable_base.Observable)
 
+
 def test_orientation():
     fly = FruitFly()
     for item in fly.observables.orientation:
         assert isinstance(item, observable_base.Observable)
 
+
 def test_set_name():
-    name = 'fruity'
+    name = "fruity"
     fly = FruitFly(name=name)
     assert fly.name == name

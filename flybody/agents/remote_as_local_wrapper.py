@@ -4,7 +4,7 @@ import inspect
 import ray
 
 
-class RemoteAsLocal():
+class RemoteAsLocal:
     """This wrappers allows calling methods of remote Ray actors (e.g. classes
     decorated with @ray.remote) as if they were local. It can be used to wrap
     classes from external libraries to simplify their integration with Ray.
@@ -49,11 +49,11 @@ class RemoteAsLocal():
         def remote_caller(method_name):
             # Wrapper for remote class's methods to mimic local calling.
             def wrapper(*args, block=True, **kwargs):
-                obj_ref = getattr(self._remote_handle,
-                                  method_name).remote(*args, **kwargs)
+                obj_ref = getattr(self._remote_handle, method_name).remote(
+                    *args, **kwargs
+                )
                 if block:
-                    return ray.get(
-                        obj_ref)  # Block until called method returns.
+                    return ray.get(obj_ref)  # Block until called method returns.
                 else:
                     return obj_ref  # Don't block and return a future.
 
@@ -61,7 +61,7 @@ class RemoteAsLocal():
 
         for member in inspect.getmembers(self._remote_handle):
             name = member[0]
-            if not name.startswith('__'):
+            if not name.startswith("__"):
                 # Wrap public methods for remote-as-local calls.
                 setattr(self, name, remote_caller(name))
             else:

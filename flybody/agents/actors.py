@@ -65,13 +65,11 @@ class DelayedFeedForwardActor(core.Actor):
         policy = self._policy_network(batched_observation)
 
         # Sample from the policy if it is stochastic.
-        action = policy.sample() if isinstance(
-            policy, tfd.Distribution) else policy
+        action = policy.sample() if isinstance(policy, tfd.Distribution) else policy
 
         return action
 
-    def select_action(self,
-                      observation: types.NestedArray) -> np.ndarray:
+    def select_action(self, observation: types.NestedArray) -> np.ndarray:
         """Samples from the policy and returns an action."""
         if self._observation_callback is not None:
             observation = self._observation_callback(observation)
@@ -94,8 +92,7 @@ class DelayedFeedForwardActor(core.Actor):
         if self._adder:
             self._adder.add_first(timestep)
 
-    def observe(self, action: types.NestedArray,
-                next_timestep: dm_env.TimeStep):
+    def observe(self, action: types.NestedArray, next_timestep: dm_env.TimeStep):
         if self._adder:
             self._adder.add(action, next_timestep)
 

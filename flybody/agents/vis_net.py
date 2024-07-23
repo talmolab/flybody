@@ -21,22 +21,42 @@ class VisNetFly(snt.Module):
         super().__init__()
 
         # Mean and std from the "trench" task.
-        self._mean = 77.
-        self._std = 56.
+        self._mean = 77.0
+        self._std = 56.0
 
         # Visual network.
         self._layers = [
-            snt.Conv2D(output_channels=2, kernel_shape=(3, 3),
-                       stride=1, padding='VALID', data_format='NHWC'),
+            snt.Conv2D(
+                output_channels=2,
+                kernel_shape=(3, 3),
+                stride=1,
+                padding="VALID",
+                data_format="NHWC",
+            ),
             tf.keras.layers.ReLU(),
-            snt.Conv2D(output_channels=4, kernel_shape=(3, 3),
-                       stride=1, padding='VALID', data_format='NHWC'),
+            snt.Conv2D(
+                output_channels=4,
+                kernel_shape=(3, 3),
+                stride=1,
+                padding="VALID",
+                data_format="NHWC",
+            ),
             tf.keras.layers.ReLU(),
-            snt.Conv2D(output_channels=8, kernel_shape=(3, 3),
-                       stride=2, padding='VALID', data_format='NHWC'),
+            snt.Conv2D(
+                output_channels=8,
+                kernel_shape=(3, 3),
+                stride=2,
+                padding="VALID",
+                data_format="NHWC",
+            ),
             tf.keras.layers.ReLU(),
-            snt.Conv2D(output_channels=16, kernel_shape=(3, 3),
-                       stride=2, padding='VALID', data_format='NHWC'),
+            snt.Conv2D(
+                output_channels=16,
+                kernel_shape=(3, 3),
+                stride=2,
+                padding="VALID",
+                data_format="NHWC",
+            ),
             tf.keras.layers.ReLU(),
             snt.Flatten(),
             snt.Linear(output_size=vis_output_dim),
@@ -48,14 +68,14 @@ class VisNetFly(snt.Module):
         # (the modification is done with .pop() below.)
         observation = observation.copy()
 
-        if not hasattr(self, '_task_input'):
+        if not hasattr(self, "_task_input"):
             # If task input is present in the observation, it will be popped
             # and concatenated at specific position in the output vector.
-            self._task_input = 'walker/task_input' in observation.keys()
+            self._task_input = "walker/task_input" in observation.keys()
 
         # Pop eyes from `observation`.
-        left_eye = tf.cast(observation.pop('walker/left_eye'), dtype=tf.float32)
-        right_eye = tf.cast(observation.pop('walker/right_eye'), dtype=tf.float32)
+        left_eye = tf.cast(observation.pop("walker/left_eye"), dtype=tf.float32)
+        right_eye = tf.cast(observation.pop("walker/right_eye"), dtype=tf.float32)
 
         # If RGB, transform from RGB to 1-channel gray scale.
         if left_eye.shape[-1] == 3:  # Is RGB?
@@ -74,7 +94,7 @@ class VisNetFly(snt.Module):
             x = layer(x)
 
         if self._task_input:
-            task_input = observation.pop('walker/task_input')
+            task_input = observation.pop("walker/task_input")
             # Concatenate the visual network output with the rest of
             # observations and task input.
             observation = tf2_utils.batch_concat(observation)
