@@ -16,6 +16,9 @@ import numpy as np
 import sonnet as snt
 import tensorflow as tf
 
+# inject our wandb logger for learner only
+
+
 
 class DistributionalMPOLearner(acme.Learner):
     """Distributional MPO learner."""

@@ -68,8 +68,8 @@ def rodent_escape_bowl(random_state=None):
     )
 
 
-def rodent_run_gaps(random_state=None):
-    """Requires a rodent to run down a corridor with gaps."""
+def rodent_run_gaps(random_state=None, contact_termination=True): # enable contact termination
+  """Requires a rodent to run down a corridor with gaps."""
 
     # Build a position-controlled rodent walker.
     walker = rodent.Rat(observable_options={"egocentric_camera": dict(enabled=True)})
@@ -84,19 +84,18 @@ def rodent_run_gaps(random_state=None):
         aesthetic="outdoor_natural",
     )
 
-    # Build a task that rewards the agent for running down the corridor at a
-    # specific velocity.
-    task = corr_tasks.RunThroughCorridor(
-        walker=walker,
-        arena=arena,
-        walker_spawn_position=(5, 0, 0),
-        walker_spawn_rotation=0,
-        target_velocity=1.0,
-        contact_termination=False,
-        terminate_at_height=-0.3,
-        physics_timestep=_PHYSICS_TIMESTEP,
-        control_timestep=_CONTROL_TIMESTEP,
-    )
+  # Build a task that rewards the agent for running down the corridor at a
+  # specific velocity.
+  task = corr_tasks.RunThroughCorridor(
+      walker=walker,
+      arena=arena,
+      walker_spawn_position=(5, 0, 0),
+      walker_spawn_rotation=0,
+      target_velocity=1.0,
+      contact_termination=contact_termination, 
+      terminate_at_height=-0.3,
+      physics_timestep=_PHYSICS_TIMESTEP,
+      control_timestep=_CONTROL_TIMESTEP)
 
     return composer.Environment(
         time_limit=30,

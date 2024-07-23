@@ -77,8 +77,9 @@ class DMPONetworks:
 
         # Create variables for the observation net and, as a side-effect, get a
         # spec describing the embedding space.
+        # print("DEBUG: ", obs_spec)
         emb_spec = utils.create_variables(self.observation_network, [obs_spec])
-
+        # print("DEBUG: ", emb_spec)
         # Create variables for the policy and critic nets.
         _ = utils.create_variables(self.policy_network, [emb_spec])
         _ = utils.create_variables(self.critic_network, [emb_spec, act_spec])

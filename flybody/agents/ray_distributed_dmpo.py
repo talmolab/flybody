@@ -25,7 +25,6 @@ from acme.tf import variable_utils
 from acme.tf import networks as network_utils
 from acme.adders import reverb as reverb_adders
 
-from flybody.default_logger import make_default_logger
 from flybody.agents.learning_dmpo import DistributionalMPOLearner
 from flybody.agents import agent_dmpo
 from flybody.agents.actors import DelayedFeedForwardActor
@@ -63,6 +62,7 @@ class DMPOConfig:
     print_fn: Callable = logging.info
     userdata: dict | None = None
     actor_observation_callback: Callable | None = None
+    config_dict: dict | None = None
 
 
 class ReplayServer:
@@ -141,7 +141,7 @@ class Learner(DistributionalMPOLearner):
         dataset = self._make_dataset_iterator(self._reverb_client)
         counter = counting.Counter(parent=counter, prefix=label)
         if self._config.logger is None:
-            logger = make_default_logger( # swap out to our logger
+            logger = loggers.make_default_logger( 
                 label=label,
                 time_delta=self._config.log_every,
                 steps_key=f"{label}_steps",
@@ -154,8 +154,11 @@ class Learner(DistributionalMPOLearner):
             else:
                 logger_kwargs = {}
             logger = self._config.logger(
-                label=label, time_delta=self._config.log_every, **logger_kwargs
-            )
+                label=label,
+                time_delta=self._config.log_every,
+                wandb_project=True,
+                identity="learner",
+                **logger_kwargs)
 
         # Maybe checkpoint and snapshot the learner (saved in ~/acme/).
         checkpoint_enable = self._config.checkpoint_directory is not None
@@ -274,7 +277,7 @@ class EnvironmentLoop(acme.EnvironmentLoop):
         label = label or actor_or_evaluator
 
         # Create the environment.
-        environment = environment_factory(actor_or_evaluator == "evaluator")
+        environment = environment_factory(actor_or_evaluator == 'Evaluator')
         environment_spec = specs.make_environment_spec(environment)
 
         def wrapped_network_factory(action_spec):
@@ -325,7 +328,7 @@ class EnvironmentLoop(acme.EnvironmentLoop):
         # Create logger and counter; actors will not spam bigtable.
         counter = counting.Counter(parent=counter, prefix=actor_or_evaluator)
         if self._config.logger is None:
-            logger = make_default_logger( # swap out logger
+            logger = loggers.make_default_logger(
                 label=label,
                 save_data=save_data,
                 time_delta=self._config.log_every,
@@ -337,9 +340,14 @@ class EnvironmentLoop(acme.EnvironmentLoop):
                 logger_kwargs = self._config.userdata["logger_kwargs"]
             else:
                 logger_kwargs = {}
+            if actor_or_evaluator=="evaluator":
+                print("Evaluator Node for Logger!")
             logger = self._config.logger(
-                label=label, time_delta=self._config.log_every, **logger_kwargs
-            )
+                label=label,
+                time_delta=self._config.log_every,
+                wandb_project=actor_or_evaluator=="evaluator", # only create project for evaluators,
+                identity="evaluator",
+                **logger_kwargs)
 
         super().__init__(environment, actor, counter, logger)
 

@@ -21,8 +21,8 @@ class VisNetFly(snt.Module):
         super().__init__()
 
         # Mean and std from the "trench" task.
-        self._mean = 77.0
-        self._std = 56.0
+        self._mean = 77. # TODO: Need to change it to rodent run gaps
+        self._std = 56. # TODO
 
         # Visual network.
         self._layers = [
@@ -152,10 +152,10 @@ class VisNetFly(snt.Module):
 #         # (the modification is done with .pop() below.)
 #         observation = observation.copy()
 
-#         if not hasattr(self, '_task_input'):
-#             # If task input is present in the observation, it will be popped
-#             # and concatenated at specific position in the output vector.
-#             self._task_input = 'walker/task_input' in observation.keys()
+        if not hasattr(self, '_task_input'):
+            # If task input is present in the observation, it will be popped
+            # and concatenated at specific position in the output vector.
+            self._task_input = 'task_logic' in observation.keys()
 
 #         # Pop eyes from `observation`.
 #         egocentric_camera = tf.cast(observation.pop('walker/egocentric_camera'), dtype=tf.float32)
@@ -172,15 +172,16 @@ class VisNetFly(snt.Module):
 #         for layer in self._layers:
 #             x = layer(x)
 
-#         if self._task_input:
-#             task_input = observation.pop('walker/task_input')
-#             # Concatenate the visual network output with the rest of
-#             # observations and task input.
-#             observation = tf2_utils.batch_concat(observation)
-#             out = tf.concat((task_input, x, observation), axis=-1)  # (batch, -1)
-#         else:
-#             # Concatenate the visual network output with the rest of observation.
-#             observation = tf2_utils.batch_concat(observation)
-#             out = tf.concat((x, observation), axis=-1)  # (batch, -1)
+        if self._task_input:
+            task_input = observation.pop('task_logic')
+            task_input = tf.cast(task_input, tf.float32)
+            # Concatenate the visual network output with the rest of
+            # observations and task input.
+            observation = tf2_utils.batch_concat(observation)
+            out = tf.concat((task_input, x, observation), axis=-1)  # (batch, -1)
+        else:
+            # Concatenate the visual network output with the rest of observation.
+            observation = tf2_utils.batch_concat(observation)
+            out = tf.concat((x, observation), axis=-1)  # (batch, -1)
 
 #         return out
