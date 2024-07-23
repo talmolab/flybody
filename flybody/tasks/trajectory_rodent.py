@@ -120,18 +120,17 @@ def extract_feature(input_path, output_path):
 
                     body_positions = walkers_group[f"walker_0/body_positions"][()] #shape: (54, 250)
                     body_quaternions = walkers_group[f"walker_0/body_quaternions"][()] #shape: (72, 250)
-                    
+
                     velocity = walkers_group[f"walker_0/velocity"][()] #shape: (3, 250)
                     joints_velocity = walkers_group[f"walker_0/joints_velocity"][()] #shape: (67, 250)
                     angular_velocity = walkers_group[f"walker_0/angular_velocity"][()] #shape: (3, 250)
                     
-                    
-                    # qpos is just joints here
-                    qpos = np.hstack((position.T, quaternion.T, joints.T))
-                    qvel = np.hstack((velocity.T, angular_velocity.T, joints_velocity.T))
+                    # qpos is just joints, shuld be the same with # of joints
+                    qpos = joints.T
+                    #np.hstack((position.T, quaternion.T, joints.T))
+                    qvel = joints_velocity.T
+                    #np.hstack((velocity.T, angular_velocity.T, joints_velocity.T))
                     joint_quat = body_quaternions.T
-
-                    # Dummy data for other not-sure data
                     root_qpos = center_of_mass.T
                     root_qvel = angular_velocity.T
                     root2site = np.zeros((body_positions.shape[1], 6, 3), dtype=np.float32)

@@ -29,7 +29,6 @@ class WalkImitation(RodentWalking):
         mocap_joint_names: Sequence[str],
         mocap_site_names: Sequence[str],
         terminal_com_dist: float = 0.33,
-        claw_friction: float | None = 1.0,
         trajectory_sites: bool = True,
         inference_mode: bool = False,
         **kwargs
@@ -43,7 +42,6 @@ class WalkImitation(RodentWalking):
             mocap_site_names: Names of mocap sites.
             terminal_com_dist: Episode will be terminated when CoM distance
                 from model to ghost exceeds terminal_com_dist.
-            claw_friction: Friction of claw.
             trajectory_sites: Whether to render trajectory sites.
             inference_mode: Whether to run in test mode and skip full-body
                 reward calculation.
@@ -72,12 +70,6 @@ class WalkImitation(RodentWalking):
             self._mocap_sites.append(
                 self._walker.mjcf_model.find("site", mocap_site_name)
             )
-
-        # # Maybe change default claw friction.
-        # if claw_friction is not None:
-        #     self._walker.mjcf_model.find(
-        #         "default", "adhesion-collision"
-        #     ).geom.friction = (claw_friction,)
 
         # Maybe add trajectory sites, one every 10 steps.
         if self._trajectory_sites:

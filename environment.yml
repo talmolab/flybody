@@ -22,4 +22,5 @@ dependencies:
 variables:             # Set MuJoCo environment variables
   MUJOCO_GL: osmesa
   PYOPENGL_PLATFORM: osmesa
-  LD_LIBRARY_PATH: $LD_LIBRARY_PATH:/root/anaconda3/envs/flybody/lib
+  LD_LIBRARY_PATH: $LD_LIBRARY_PATH:/opt/conda/condabin/conda/envs/flybody/lib
+  #/root/anaconda3/envs/flybody/lib

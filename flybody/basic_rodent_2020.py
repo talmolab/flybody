@@ -30,9 +30,10 @@ from dm_control.locomotion.tasks import corridors as corr_tasks
 from dm_control.locomotion.tasks import escape
 from dm_control.locomotion.tasks import random_goal_maze
 from dm_control.locomotion.tasks import reach
-from dm_control.locomotion.walkers import rodent
 
+from flybody.fruitfly import rodent
 from flybody.tasks.rodent_imitation import WalkImitation
+
 from flybody.tasks.trajectory_loaders import (
     HDF5WalkingTrajectoryLoader,
     InferenceWalkingTrajectoryLoader,
@@ -69,11 +70,10 @@ def rodent_escape_bowl(random_state=None):
 
 
 def rodent_run_gaps(random_state=None, contact_termination=True): # enable contact termination
-  """Requires a rodent to run down a corridor with gaps."""
-
+    """Requires a rodent to run down a corridor with gaps."""
     # Build a position-controlled rodent walker.
     walker = rodent.Rat(observable_options={"egocentric_camera": dict(enabled=True)})
-
+  
     # Build a corridor-shaped arena with gaps, where the sizes of the gaps and
     # platforms are uniformly randomized.
     arena = corr_arenas.GapsCorridor(
@@ -84,9 +84,9 @@ def rodent_run_gaps(random_state=None, contact_termination=True): # enable conta
         aesthetic="outdoor_natural",
     )
 
-  # Build a task that rewards the agent for running down the corridor at a
-  # specific velocity.
-  task = corr_tasks.RunThroughCorridor(
+    # Build a task that rewards the agent for running down the corridor at a
+    # specific velocity.
+    task = corr_tasks.RunThroughCorridor(
       walker=walker,
       arena=arena,
       walker_spawn_position=(5, 0, 0),
