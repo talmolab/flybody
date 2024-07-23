@@ -8,3 +8,4 @@ cps/
 nohup/
 wandb/
 training/
+outputs/

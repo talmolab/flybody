@@ -16,6 +16,9 @@
 
 import logging
 from typing import Any, Callable, Mapping, Optional
+import nanoid
+
+from ray.air.integrations.wandb import WandbLoggerCallback, setup_wandb
 
 from acme.utils.loggers import aggregators
 from acme.utils.loggers import asynchronous as async_logger
@@ -23,16 +26,20 @@ from acme.utils.loggers import base
 from acme.utils.loggers import csv
 from acme.utils.loggers import filters
 from acme.utils.loggers import terminal
-import wandb
+
 
 class WandBLogger(base.Logger):
     """Weights & Biases logger."""
+    
+    def __init__(self, wandb) -> None:
+      self.wandb = wandb
+      super().__init__()
 
     def write(self, data: base.LoggingData):
-        wandb.log(data)
+        self.wandb.log(data)
 
     def close(self):
-        wandb.finish()
+        self.wandb.finish()
 
     def flush(self):
         pass
@@ -47,6 +54,7 @@ def make_default_logger(
     serialize_fn: Optional[Callable[[Mapping[str, Any]], str]] = base.to_numpy,
     steps_key: str = 'steps',
     wandb_project: Optional[bool] = False,
+    config: dict = None,
 ) -> base.Logger:
   """Makes a default Acme logger.
 
@@ -74,7 +82,9 @@ def make_default_logger(
     loggers.append(csv.CSVLogger(label=label))
 
   if wandb_project:
-    loggers.append(WandBLogger())
+    # initialize wandb logging
+    wandb = setup_wandb(config=config, rank_zero_only=True, trial_name=config["run_name"], trial_id=nanoid.generate()) # with unit uuid
+    loggers.append(WandBLogger(wandb=wandb))
 
 
   # Dispatch to all writers and filter Nones and by time.

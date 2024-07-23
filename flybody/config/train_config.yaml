@@ -1,0 +1,4 @@
+agent_name: rodent
+algo_name: dmpo
+task_name: maze-forage
+run_name: rodent-maze-forage
