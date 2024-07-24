@@ -1,5 +1,7 @@
 import h5py
 import numpy as np
+from flybody import quaternions
+from dm_control import mjcf
 
 _RAT_MOCAP_JOINTS = [
     'vertebra_1_extend', 'vertebra_2_bend', 'vertebra_3_twist',
@@ -23,29 +25,34 @@ _RAT_MOCAP_JOINTS = [
     'scapula_R_abduct', 'scapula_R_extend', 'shoulder_R', 'shoulder_sup_R',
     'elbow_R', 'wrist_R', 'finger_R'
 ]
-
 _RAT_MOCAP_BODY = [
     "torso","pelvis","upper_leg_L",
     "lower_leg_L","foot_L","upper_leg_R",
     "lower_leg_R","foot_R","skull","jaw",
     "scapula_L","upper_arm_L","lower_arm_L",
-    "finger_L","scapula_R","upper_arm_R","lower_arm_R","finger_R"]
+    "finger_L","scapula_R","upper_arm_R","lower_arm_R","finger_R"
+]
+_RAT_MOCAP_SITE = [
+    'hip_L', 'hip_R', 'knee_L', 'ankle_L', 'toe_L',
+    'sole_L', 'knee_R', 'ankle_R', 'toe_R', 'sole_R', 'head',
+    'shoulder_L', 'elbow_L', 'wrist_L', 'finger_L', 'palm_L',
+    'shoulder_R', 'elbow_R', 'wrist_R', 'finger_R', 'palm_R'
+]
 
 def read_h5_file(filename):
-    '''Read everything in the h5 file'''
-    
+    '''Read everything in the h5 file and print only shapes'''
     with h5py.File(filename, "r") as hf:
 
         def print_attrs(name, obj):
             print(f"{name}:")
             for key, val in obj.attrs.items():
                 print(f"    {key}: {val}")
-
+        
         def print_dataset(name, obj):
             print(f"Dataset: {name}")
             print(f"    shape: {obj.shape}")
             print(f"    dtype: {obj.dtype}")
-        
+
         def visit_items(name, obj):
             if isinstance(obj, h5py.Group):
                 print(f"Group: {name}")
@@ -56,7 +63,7 @@ def read_h5_file(filename):
         hf.visititems(visit_items)
 
 def read_id(filename):
-    '''Read only the ids in the h5 file'''
+    '''Read only the ids in the h5 file and print raw data'''
     with h5py.File(filename, "r") as hf:
 
         def print_attrs(name, obj):
@@ -83,16 +90,25 @@ def read_id(filename):
         hf.visititems(visit_items)
 
 
-def extract_feature(input_path, output_path):
+def extract_feature(input_path,
+                    output_path,
+                    xml_path="/root/talmolab-smb/kaiwen/flybody/flybody/fruitfly/assets_rodent/rodent.xml"
+                    ):
     '''Main function for data conversion from STAC to DMC format'''
+
+    xml = mjcf.from_path(xml_path)
+    physics = mjcf.Physics.from_mjcf_model(xml)
+    rat_joints = xml.find_all("joint")
+    rat_sites = xml.find_all("site")
+    
     with h5py.File(input_path, 'r') as input_file:
         with h5py.File(output_path, 'w') as output_file:
 
             # id2name group
             id2name_group = output_file.create_group('id2name')
-            id2name_group.create_dataset('joints', data=np.array(_RAT_MOCAP_JOINTS, dtype='S')) #shape: (67)
-            id2name_group.create_dataset('qpos', data=np.array(_RAT_MOCAP_JOINTS, dtype='S')) #shape: (67)
-            id2name_group.create_dataset('sites', data=np.array(_RAT_MOCAP_BODY, dtype='S')) #shape: (18)
+            id2name_group.create_dataset('joints', data=np.array(rat_joints, dtype='S')) #shape: (67)
+            id2name_group.create_dataset('qpos', data=np.array(rat_joints, dtype='S')) #shape: (67)
+            id2name_group.create_dataset('sites', data=np.array(rat_sites, dtype='S')) #shape: (21)
 
             # Timestep_seconds dataset
             output_file.create_dataset('timestep_seconds', data=0.02)
@@ -102,38 +118,43 @@ def extract_feature(input_path, output_path):
             clip_lst = list(input_file.keys())
 
             trajectory_lengths = []
-            
             for clip_key in clip_lst:
-                # print(f'Now processing {clip_key}')
-
                 if clip_key in input_file:
                     walkers_group = input_file[f"{clip_key}/walkers"]
                     n_traj = len(walkers_group)
-                    n_zeros = len(str(n_traj))
-                    
                     key = str(clip_key)[5:]
                     
                     position = walkers_group[f"walker_0/position"][()] #shape: (3, 250)
                     quaternion = walkers_group[f"walker_0/quaternion"][()] #shape: (4, 250)
                     center_of_mass = walkers_group[f"walker_0/center_of_mass"][()] #shape: (3, 250)
-                    joints = walkers_group[f"walker_0/joints"][()] #shape: (67, 250)
+                    angular_velocity = walkers_group[f"walker_0/angular_velocity"][()] #shape: (3, 250)
+                    velocity = walkers_group[f"walker_0/velocity"][()] #shape: (3, 250)
 
+                    joints = walkers_group[f"walker_0/joints"][()] #shape: (67, 250)
+                    joints_velocity = walkers_group[f"walker_0/joints_velocity"][()] #shape: (67, 250)
                     body_positions = walkers_group[f"walker_0/body_positions"][()] #shape: (54, 250)
                     body_quaternions = walkers_group[f"walker_0/body_quaternions"][()] #shape: (72, 250)
-
-                    velocity = walkers_group[f"walker_0/velocity"][()] #shape: (3, 250)
-                    joints_velocity = walkers_group[f"walker_0/joints_velocity"][()] #shape: (67, 250)
-                    angular_velocity = walkers_group[f"walker_0/angular_velocity"][()] #shape: (3, 250)
                     
-                    # qpos is just joints, shuld be the same with # of joints
-                    qpos = joints.T
-                    #np.hstack((position.T, quaternion.T, joints.T))
-                    qvel = joints_velocity.T
-                    #np.hstack((velocity.T, angular_velocity.T, joints_velocity.T))
-                    joint_quat = body_quaternions.T
+                    qpos = np.hstack((position.T, quaternion.T, joints.T))
+                    qvel = np.hstack((velocity.T, angular_velocity.T, joints_velocity.T))
+                    sites = position.T
+                    root2site = quaternions.get_egocentric_vec(qpos[:,:3], sites, qpos[:,3:7])
+
+                    # Joint quaternions in local egocentric reference frame, except root quaternion,
+                    # which is in world reference frame
+
+                    root_quat = quaternion.T #shape: (250, 4)
+
+                    # xaxis1 = physics.bind(rat_joints).xaxis #[1:, :] # point directions for 66 joints, neglect root
+                    # xaxis1 = quaternions.rotate_vec_with_quat(xaxis1, quaternions.reciprocal_quat(root_quat)) # rotate_vec take cares of tile
+                    
+                    # joint_quat = quaternions.joint_orientation_quat(xaxis1, qpos[:,7:]) #shape: (250, 67)
+                    # joint_quat = np.vstack((root_quat, joint_quat)) # stack root with rest of joints, shape: (250, 68)
+
+                    joint_quat = np.arange(250*68).reshape([250,68])
+
                     root_qpos = center_of_mass.T
                     root_qvel = angular_velocity.T
-                    root2site = np.zeros((body_positions.shape[1], 6, 3), dtype=np.float32)
 
                     trajectory_length = body_positions.shape[1]
                     trajectory_lengths.append(trajectory_length)

@@ -31,7 +31,8 @@ from dm_control.locomotion.tasks import escape
 from dm_control.locomotion.tasks import random_goal_maze
 from dm_control.locomotion.tasks import reach
 
-from flybody.fruitfly import rodent
+# from flybody.fruitfly import rodent
+from dm_control.locomotion.walkers import rodent
 from flybody.tasks.rodent_imitation import WalkImitation
 
 from flybody.tasks.trajectory_loaders import (
