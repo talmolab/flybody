@@ -134,7 +134,6 @@ class MPO(snt.Module):
     def create_dual_variables_once(self, shape: tf.TensorShape,
                                    dtype: tf.DType):
         """Creates the dual variables the first time the loss module is called."""
-
         # Create the dual variables.
         self._log_temperature = tf.Variable(
             initial_value=[self._init_log_temperature],

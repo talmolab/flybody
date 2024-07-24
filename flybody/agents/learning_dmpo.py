@@ -141,6 +141,7 @@ class DistributionalMPOLearner(acme.Learner):
                 time_delta_minutes=time_delta_minutes)
 
         # Maybe load checkpoint.
+        print(checkpoint_to_load)
         if checkpoint_to_load is not None:
             _checkpoint = tf.train.Checkpoint(
                 counter=tf2_savers.SaveableAdapter(self._counter),
@@ -157,12 +158,13 @@ class DistributionalMPOLearner(acme.Learner):
                 num_steps=self._num_steps,
             )
             status = _checkpoint.restore(checkpoint_to_load)  # noqa: F841
+            print(f"DEBUG: LOADED checkpoint from {checkpoint_to_load}")
             # The assert below will not work because at this point not all variables have
             # been created in tf.train.Checkpoint argument objects. However, it's good
             # enough to revive a job from its checkpoint. Another option is to put
             # the checkpoint loading in the self.step method below, then the assertion
             # will work.
-            # status.assert_consumed()  # Sanity check.
+            # status.assert_existing_objects_matched()  # Sanity check.
 
         # Do not record timestamps until after the first learning step is done.
         # This is to avoid including the time it takes for actors to come online and

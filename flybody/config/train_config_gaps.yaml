@@ -5,5 +5,6 @@ run_name: rodent-run-gaps
 batch_size: 512
 policy_layer_sizes: [512, 512, 512, 512]
 critic_layer_sizes: [512, 512, 512, 256]
-num_actors: 61
+num_actors: 60
 group_name: rodent-maze-forage-v1
+checkpoint_to_load: /root/vast/scott-yang/flybody/training/ray-rodent-run-gaps-ckpts/0f23eff6-4786-11ef-901e-92b7cce0b003/checkpoints/dmpo_learner/ckpt-104

@@ -16,6 +16,7 @@ training hyperparameters specified in the DMPOConfig data structure.
 
 # Start Ray cluster first, before imports.
 import ray
+from ray.util.placement_group import placement_group
 import logging
 try:
     # Try connecting to existing Ray cluster.
@@ -77,7 +78,7 @@ else:
 tasks = {"run-gaps": rodent_run_gaps, "maze-forage": rodent_maze_forage, "escape-bowl": rodent_escape_bowl, "two-taps": rodent_two_touch}
 
 
-@hydra.main(version_base=None, config_path="./config", config_name="train_config_two_taps")
+@hydra.main(version_base=None, config_path="./config", config_name="train_config_gaps")
 def main(config : DictConfig) -> None:
     from flybody.agents.ray_distributed_dmpo import (
         DMPOConfig,
@@ -142,7 +143,7 @@ def main(config : DictConfig) -> None:
         logger_save_csv_data=False,
         checkpoint_max_to_keep=None,
         checkpoint_directory=f"./training/ray-{config['agent_name']}-{config['task_name']}-ckpts/",
-        checkpoint_to_load=None,
+        checkpoint_to_load=config["checkpoint_to_load"],
         print_fn=None,#print # this causes issue pprint does not work
         userdata=dict(),
     )

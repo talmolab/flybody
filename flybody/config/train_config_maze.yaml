@@ -5,5 +5,6 @@ run_name: rodent-maze-forage
 batch_size: 512
 policy_layer_sizes: [512, 512, 512, 512]
 critic_layer_sizes: [512, 512, 512, 256]
-num_actors: 61
+num_actors: 55
 group_name: rodent-maze-forage-v1
+checkpoint_to_load: /root/vast/scott-yang/flybody/training/ray-rodent-maze-forage-ckpts/25a43c8e-4891-11ef-b0df-72c2eabc3b6a/checkpoints/dmpo_learner/ckpt-4 # load the checkpoint to continue training
