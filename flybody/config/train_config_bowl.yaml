@@ -7,3 +7,4 @@ policy_layer_sizes: [512, 512, 512, 512]
 critic_layer_sizes: [512, 512, 512, 256]
 num_actors: 61
 group_name: rodent-maze-forage-v1
+checkpoint_to_load: 
