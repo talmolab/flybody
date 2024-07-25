@@ -72,8 +72,8 @@ def get_reference_features(reference_data, step):
 
     qpos_ref = reference_data["qpos"][step, :]
     qvel_ref = reference_data["qvel"][step, :]
-    root2site_ref = reference_data["root2site"][step, :, :]
-    joint_quat_ref = reference_data["joint_quat"][step, :, :]
+    root2site_ref = reference_data["root2site"][step, :] #[step, :, :]
+    joint_quat_ref = reference_data["joint_quat"][step, :]#[step, :, :]
     joint_quat_ref = np.vstack((qpos_ref[3:7], joint_quat_ref))
 
     reference_features = {

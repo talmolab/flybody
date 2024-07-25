@@ -150,6 +150,7 @@
   </asset>
   <worldbody>
     <body name="torso" pos="0.03099526054578288 2.058524937651458e-07 0.06508957263119967">
+      <freejoint name="free"/>
       <light name="tracking_light" mode="trackcom" pos="0 0 3"/>
       <camera name="back" mode="trackcom" pos="-1 0 0.5" xyaxes="0 -1 0 1 0 2"/>
       <camera name="side" mode="trackcom" pos="0 -1 0.5" xyaxes="1 0 0 0 1 2"/>

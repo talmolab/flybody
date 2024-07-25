@@ -17,6 +17,7 @@
 import os
 import re
 
+import collections as col
 from dm_control import composer
 from dm_control import mjcf
 from dm_control.composer.observation import observable
@@ -25,6 +26,10 @@ from dm_control.locomotion.walkers import legacy_base
 from dm_control.mujoco import wrapper as mj_wrapper
 import numpy as np
 from dm_env import specs
+
+_ACTION_CLASSES = col.OrderedDict(
+    adhesion=0, head=0, mouth=0, antennae=0, wings=0, abdomen=0, legs=0, user=0
+)
 
 _XML_PATH = os.path.join(os.path.dirname(__file__),
                          'assets_rodent/rodent.xml')
@@ -52,7 +57,6 @@ _RAT_MOCAP_JOINTS = [
     'elbow_R', 'wrist_R', 'finger_R'
 ]
 
-
 _UPRIGHT_POS = (0.0, 0.0, 0.0)
 _UPRIGHT_QUAT = (1., 0., 0., 0.)
 _TORQUE_THRESHOLD = 60
@@ -66,7 +70,10 @@ class Rat(legacy_base.Walker):
              name='walker',
              torque_actuators=False,
              foot_mods=False,
-             initializer=None):
+             initializer=None,
+             num_user_actions=0,
+             control_timestep=2e-3,
+             physics_timestep=1e-4,):
     self.params = params
     self._mjcf_root = mjcf.from_path(_XML_PATH)
     if name:
@@ -86,6 +93,28 @@ class Rat(legacy_base.Walker):
     if foot_mods:
       self._mjcf_root.find('default', 'ankle').joint.range = [-0.1, 2.]
       self._mjcf_root.find('default', 'toe').joint.range = [-0.7, 0.87]
+    
+    # Remove freejoint.
+    self._mjcf_root.find("joint", "free").remove()
+
+    # Initialize previous action.
+    self._prev_action = np.zeros(
+          shape=self.action_spec.shape[0] + num_user_actions,
+          dtype=self.action_spec.dtype,
+        )
+    
+    self._action_indices = _ACTION_CLASSES.copy()
+    self._ctrl_indices = _ACTION_CLASSES.copy()
+    self._buffer_size = int(round(control_timestep / physics_timestep))
+
+    # counter = 0
+    # for act_class in _ACTION_CLASSES.keys():
+    #     if self._num_actions[act_class]:
+    #         indices = list(range(counter, counter + self._num_actions[act_class]))
+    #         self._action_indices[act_class] = indices
+    #         counter += self._num_actions[act_class]
+    #     else:
+    #         self._action_indices[act_class] = []
 
   @property
   def upright_pose(self):
@@ -96,6 +125,10 @@ class Rat(legacy_base.Walker):
   def mjcf_model(self):
     """Return the model root."""
     return self._mjcf_root
+  
+  @property
+  def prev_action(self):
+      return self._prev_action
 
   @composer.cached_property
   def actuators(self):
@@ -257,11 +290,62 @@ class Rat(legacy_base.Walker):
     return actuator_order
 
   def _build_observables(self):
-    return RodentObservables(self)
+    return RodentObservables(self, self._buffer_size)
+  
+  def get_action_spec(self, physics):
+        """Returns a `BoundedArray` spec matching this walker's actuators."""
+        minimum = []
+        maximum = []
+
+        # MuJoCo actions.
+        indices = []
+        for key, _ in self._action_indices.items():
+            if self._ctrl_indices[key] and self._num_actions[key]:
+                indices.extend(self._ctrl_indices[key])
+        mj_minima, mj_maxima = physics.model.actuator_ctrlrange[indices].T
+        names = [physics.model.id2name(i, "actuator") or str(i) for i in indices]
+        names = [s.split("/")[-1] for s in names]
+        num_actions = len(indices)
+        minimum.extend(mj_minima)
+        maximum.extend(mj_maxima)
+
+        # User actions.
+        if self._num_actions["user"]:
+            minimum.extend(self._num_actions["user"] * [-1.0])
+            maximum.extend(self._num_actions["user"] * [1.0])
+            names.extend([f"user_{i}" for i in range(self._num_actions["user"])])
+            num_actions += self._num_actions["user"]
+
+        return specs.BoundedArray(
+            shape=(num_actions,),
+            dtype=float,
+            minimum=np.asarray(minimum),
+            maximum=np.asarray(maximum),
+            name="\t".join(names),
+        )
+  
+  def apply_action(self, physics, action, random_state):
+        """Apply action to walker's actuators."""
+        del random_state  # Unused.
+        if not self.mjcf_model.find_all("actuator"):
+            return
+        # Update previous action.
+        self._prev_action[:] = action
+        # Apply MuJoCo actions.
+        ctrl = np.zeros(physics.model.nu)
+        for key, indices in self._action_indices.items():
+            if self._ctrl_indices[key] and indices:
+                ctrl[self._ctrl_indices[key]] = action[indices]
+        physics.set_control(ctrl)
 
 
 class RodentObservables(legacy_base.WalkerObservables):
   """Observables for the Rat."""
+
+  def __init__(self, walker, buffer_size):
+        self._walker = walker
+        self._buffer_size = buffer_size
+        super().__init__(walker)
 
   @composer.observable
   def head_height(self):
@@ -334,34 +418,22 @@ class RodentObservables(legacy_base.WalkerObservables):
                                  scene_option=self._scene_options
                                 )
   
-  def get_action_spec(self, physics):
-        """Returns a `BoundedArray` spec matching this walker's actuators."""
-        minimum = []
-        maximum = []
-
-        # MuJoCo actions.
-        indices = []
-        for key, _ in self._action_indices.items():
-            if self._ctrl_indices[key] and self._num_actions[key]:
-                indices.extend(self._ctrl_indices[key])
-        mj_minima, mj_maxima = physics.model.actuator_ctrlrange[indices].T
-        names = [physics.model.id2name(i, "actuator") or str(i) for i in indices]
-        names = [s.split("/")[-1] for s in names]
-        num_actions = len(indices)
-        minimum.extend(mj_minima)
-        maximum.extend(mj_maxima)
-
-        # User actions.
-        if self._num_actions["user"]:
-            minimum.extend(self._num_actions["user"] * [-1.0])
-            maximum.extend(self._num_actions["user"] * [1.0])
-            names.extend([f"user_{i}" for i in range(self._num_actions["user"])])
-            num_actions += self._num_actions["user"]
-
-        return specs.BoundedArray(
-            shape=(num_actions,),
-            dtype=float,
-            minimum=np.asarray(minimum),
-            maximum=np.asarray(maximum),
-            name="\t".join(names),
+  @composer.observable
+  def velocimeter(self):
+        """Velocimeter readings."""
+        return observable.MJCFFeature(
+            "sensordata",
+            self._entity.mjcf_model.sensor.velocimeter,
+            buffer_size=self._buffer_size,
+            aggregator="mean",
+        )
+  
+  @composer.observable
+  def gyro(self):
+        """Gyro readings."""
+        return observable.MJCFFeature(
+            "sensordata",
+            self._entity.mjcf_model.sensor.gyro,
+            buffer_size=self._buffer_size,
+            aggregator="mean",
         )

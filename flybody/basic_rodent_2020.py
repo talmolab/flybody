@@ -31,18 +31,25 @@ from dm_control.locomotion.tasks import escape
 from dm_control.locomotion.tasks import random_goal_maze
 from dm_control.locomotion.tasks import reach
 
-# from flybody.fruitfly import rodent
-from dm_control.locomotion.walkers import rodent
+from dm_control.utils import io as resources
+from dm_control.locomotion.tasks.reference_pose import types
+import os
+import h5py
+
+from flybody.fruitfly import rodent
+# from dm_control.locomotion.walkers import rodent
+
 from flybody.tasks.rodent_imitation import WalkImitation
+from dm_control.locomotion.tasks.reference_pose import tracking
 
 from flybody.tasks.trajectory_loaders import (
     HDF5WalkingTrajectoryLoader,
     InferenceWalkingTrajectoryLoader,
 )
 
-
 _CONTROL_TIMESTEP = 0.02
 _PHYSICS_TIMESTEP = 0.001
+GHOST_OFFSET = np.array((0, 0, 0))
 
 
 def rodent_escape_bowl(random_state=None):
@@ -192,36 +199,31 @@ def walk_imitation(
     terminal_com_dist: float = 0.3,
 ):
     """
-    Rodent walking imitation
+    Rodent walking imitation, following similar calling with fruitfly imitation
     """
-    # Build a fruitfly walker and arena.
     walker = rodent.Rat # pass callable
     arena = floors.Floor()
 
-    # Initialize a walking trajectory loader.
-    if ref_path is not None:
-        inference_mode = False
-        traj_generator = HDF5WalkingTrajectoryLoader(
-            path=ref_path, random_state=random_state
-        )
-    else:
-        inference_mode = True
-        traj_generator = InferenceWalkingTrajectoryLoader()
-    # Build a task that rewards the agent for tracking a walking ghost.
-    time_limit = 10.0
+    current_directory = os.getcwd()
+    TEST_FILE_PATH = os.path.join(current_directory, ref_path)
 
-    task = WalkImitation(
+    with h5py.File(TEST_FILE_PATH, 'r') as f:
+        dataset_keys = tuple(f.keys())
+        dataset = types.ClipCollection(ids=dataset_keys,)
+
+    # Set up the mocap tracking task
+    task = tracking.MultiClipMocapTracking(
         walker=walker,
         arena=arena,
-        traj_generator=traj_generator,
-        terminal_com_dist=terminal_com_dist,
-        mocap_joint_names=traj_generator.get_joint_names(),
-        mocap_site_names=traj_generator.get_site_names(),
-        inference_mode=inference_mode,
-        joint_filter=0.01,
-        future_steps=64,
-        time_limit=time_limit,
+        ref_path=resources.GetResourceFilename(TEST_FILE_PATH),
+        ref_steps=(1, 2, 3, 4, 5),
+        min_steps=1,
+        dataset=dataset,
+        reward_type='comic',
+        always_init_at_clip_start=True,
+        ghost_offset=GHOST_OFFSET
     )
+    time_limit = 10.0
 
     return composer.Environment(
         time_limit=time_limit,

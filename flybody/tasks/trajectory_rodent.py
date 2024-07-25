@@ -1,3 +1,5 @@
+'''For transforming dataset from STAC to DMC format'''
+
 import h5py
 import numpy as np
 from flybody import quaternions
@@ -104,16 +106,12 @@ def extract_feature(input_path,
     with h5py.File(input_path, 'r') as input_file:
         with h5py.File(output_path, 'w') as output_file:
 
-            # id2name group
             id2name_group = output_file.create_group('id2name')
-            id2name_group.create_dataset('joints', data=np.array(rat_joints, dtype='S')) #shape: (67)
-            id2name_group.create_dataset('qpos', data=np.array(rat_joints, dtype='S')) #shape: (67)
-            id2name_group.create_dataset('sites', data=np.array(rat_sites, dtype='S')) #shape: (21)
+            id2name_group.create_dataset('joints', data=np.array(_RAT_MOCAP_JOINTS, dtype='S')) #shape: (67)
+            id2name_group.create_dataset('qpos', data=np.array(_RAT_MOCAP_JOINTS, dtype='S')) #shape: (67)
+            id2name_group.create_dataset('sites', data=np.array(_RAT_MOCAP_SITE, dtype='S')) #shape: (21)
 
-            # Timestep_seconds dataset
             output_file.create_dataset('timestep_seconds', data=0.02)
-
-            # Trajectories group
             trajectories_group = output_file.create_group('trajectories')
             clip_lst = list(input_file.keys())
 
@@ -121,7 +119,6 @@ def extract_feature(input_path,
             for clip_key in clip_lst:
                 if clip_key in input_file:
                     walkers_group = input_file[f"{clip_key}/walkers"]
-                    n_traj = len(walkers_group)
                     key = str(clip_key)[5:]
                     
                     position = walkers_group[f"walker_0/position"][()] #shape: (3, 250)
@@ -134,8 +131,9 @@ def extract_feature(input_path,
                     joints_velocity = walkers_group[f"walker_0/joints_velocity"][()] #shape: (67, 250)
                     body_positions = walkers_group[f"walker_0/body_positions"][()] #shape: (54, 250)
                     body_quaternions = walkers_group[f"walker_0/body_quaternions"][()] #shape: (72, 250)
-                    
-                    qpos = np.hstack((position.T, quaternion.T, joints.T))
+
+                    # qpos root at index 0
+                    qpos = np.hstack((quaternion.T, joints.T))
                     qvel = np.hstack((velocity.T, angular_velocity.T, joints_velocity.T))
                     sites = position.T
                     root2site = quaternions.get_egocentric_vec(qpos[:,:3], sites, qpos[:,3:7])
@@ -145,13 +143,14 @@ def extract_feature(input_path,
 
                     root_quat = quaternion.T #shape: (250, 4)
 
-                    # xaxis1 = physics.bind(rat_joints).xaxis #[1:, :] # point directions for 66 joints, neglect root
+                    #TODO: find the correct batched xaxis
+                    # xaxis1 = physics.bind(rat_joints).xaxis[1:, :] # point directions for 66 joints, neglect root
                     # xaxis1 = quaternions.rotate_vec_with_quat(xaxis1, quaternions.reciprocal_quat(root_quat)) # rotate_vec take cares of tile
                     
-                    # joint_quat = quaternions.joint_orientation_quat(xaxis1, qpos[:,7:]) #shape: (250, 67)
-                    # joint_quat = np.vstack((root_quat, joint_quat)) # stack root with rest of joints, shape: (250, 68)
+                    # joint_quat = quaternions.joint_orientation_quat(xaxis1, qpos[:,8:]) #shape: (250, 66)
+                    # joint_quat = np.vstack((root_quat, joint_quat)) # stack root with rest of joints, shape: (250, 67)
 
-                    joint_quat = np.arange(250*68).reshape([250,68])
+                    joint_quat = np.arange(67*250).reshape(250,67)
 
                     root_qpos = center_of_mass.T
                     root_qvel = angular_velocity.T
@@ -159,7 +158,6 @@ def extract_feature(input_path,
                     trajectory_length = body_positions.shape[1]
                     trajectory_lengths.append(trajectory_length)
 
-                    # Group for each trajectory
                     traj_group = trajectories_group.create_group(key)
                     traj_group.create_dataset("qpos", data=qpos.astype(np.float32))
                     traj_group.create_dataset("qvel", data=qvel.astype(np.float32))
