@@ -16,6 +16,7 @@ training hyperparameters specified in the DMPOConfig data structure.
 
 # Start Ray cluster first, before imports.
 import ray
+from ray.util.scheduling_strategies import PlacementGroupSchedulingStrategy
 from ray.util.placement_group import placement_group
 import logging
 try:
@@ -94,19 +95,22 @@ def main(config : DictConfig) -> None:
     print(ray_resources)
 
     # Create environment factory for walk-on-ball fly RL task.
-    def environment_factory(training: bool) -> 'composer.Environment':
+    def environment_factory(training: bool, task:str=config["task_name"]) -> 'composer.Environment':
         """Creates replicas of environment for the agent."""
         del training  # Unused.
-        env = tasks[config["task_name"]]()
+        env = tasks[task]()
         env = wrappers.SinglePrecisionWrapper(env)
         env = wrappers.CanonicalSpecWrapper(env)
         return env
+    
+    environment_factories = {task: environment_factory(task) for task in tasks.keys()}
+    
     # Create network factory for RL task.
     network_factory = make_network_factory_dmpo(policy_layer_sizes=config["policy_layer_sizes"], critic_layer_sizes=config["critic_layer_sizes"])
 
     # Dummy environment and network for quick use, deleted later.
     dummy_env = environment_factory(training=True)
-    dummy_net = network_factory(dummy_env.action_spec())
+    dummy_net = network_factory(dummy_env.action_spec()) # we should share this net for joint training
     # Get full environment specs.
     environment_spec = specs.make_environment_spec(dummy_env)
 
@@ -122,7 +126,7 @@ def main(config : DictConfig) -> None:
         min_replay_size=test_min_replay_size or 10_000,
         max_replay_size=4_000_000,
         samples_per_insert=15,
-        n_step=5,
+        n_step=50,
         num_samples=20,
         policy_loss_module=policy_loss_module_dmpo(
                                 epsilon=0.1,
@@ -144,7 +148,7 @@ def main(config : DictConfig) -> None:
         checkpoint_max_to_keep=None,
         checkpoint_directory=f"./training/ray-{config['agent_name']}-{config['task_name']}-ckpts/",
         checkpoint_to_load=config["checkpoint_to_load"],
-        print_fn=None,#print # this causes issue pprint does not work
+        print_fn=None, #print # this causes issue pprint does not work
         userdata=dict(),
     )
     
@@ -183,7 +187,11 @@ def main(config : DictConfig) -> None:
             "LD_LIBRARY_PATH": LD_LIBRARY_PATH,
         }
     }
+    
 
+    # Define resources and placement group
+    gpu_pg = placement_group([{"GPU": 1, "CPU": 10}], strategy="STRICT_PACK") 
+    
     # === Create Replay Server.
     runtime_env_replay = {
         'env_vars': {
@@ -191,7 +199,7 @@ def main(config : DictConfig) -> None:
         }
     }
     ReplayServer = ray.remote(
-        num_gpus=0, runtime_env=runtime_env_replay)(ReplayServer)
+        num_gpus=0, runtime_env=runtime_env_replay, num_cpus=3, scheduling_strategy=PlacementGroupSchedulingStrategy(placement_group=gpu_pg))(ReplayServer)
     replay_server = ReplayServer.remote(dmpo_config, environment_spec)
     addr = ray.get(replay_server.get_server_address.remote())
     print(f'Started Replay Server on {addr}')
@@ -204,12 +212,13 @@ def main(config : DictConfig) -> None:
 
     # === Create Learner.
     Learner = ray.remote(
-        num_gpus=1, runtime_env=runtime_env_learner)(Learner)
+        num_gpus=1, runtime_env=runtime_env_learner, scheduling_strategy=PlacementGroupSchedulingStrategy(placement_group=gpu_pg))(Learner)
     learner = Learner.remote(replay_server.get_server_address.remote(),
                             counter,
                             environment_spec,
                             dmpo_config,
-                            network_factory)
+                            network_factory,
+                            )
     learner = RemoteAsLocal(learner)
 
     print('Waiting until learner is ready...')
@@ -226,7 +235,7 @@ def main(config : DictConfig) -> None:
 
     n_actors = dmpo_config.num_actors
 
-    def create_actors(n_actors):
+    def create_actors(n_actors, environment_factory): # callalbe env factory
         """Return list of requested number of actor instances."""
         actors = []
         for _ in range(n_actors):
@@ -243,9 +252,16 @@ def main(config : DictConfig) -> None:
             actors.append(actor)
             time.sleep(0.2)
         return actors
-
-    # Get actors.
-    actors = create_actors(n_actors)
+    
+    actors = []
+    if "actor_envs" in config:
+        # if the config file specify diverse actor envs
+        print(config.actor_envs)
+        for name, num_actors in config.actor_envs.items():
+            actors.append(create_actors(num_actors, environment_factories[name]))
+    else:
+        # Get actors.
+        actors = create_actors(n_actors, environment_factory)
 
     # Get evaluator.
     evaluator = EnvironmentLoop.remote(
