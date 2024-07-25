@@ -99,8 +99,10 @@ class ReplayServer():
         self._replay_server = reverb.Server(tables=[replay_buffer], port=None)
         # Get hostname and port of the server.
         hostname = socket.gethostname()
+        ip_address = socket.gethostbyname(hostname)
+        print("DEBUG: ", hostname, ip_address)
         port = self._replay_server.port
-        self._replay_server_address = f'{hostname}:{port}'
+        self._replay_server_address = f'{ip_address}:{port}'
 
     def get_server_address(self):
         return self._replay_server_address
