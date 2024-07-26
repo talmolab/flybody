@@ -79,7 +79,7 @@ else:
 tasks = {"run-gaps": rodent_run_gaps, "maze-forage": rodent_maze_forage, "escape-bowl": rodent_escape_bowl, "two-taps": rodent_two_touch, "general": rodent_run_gaps}
 
 
-@hydra.main(version_base=None, config_path="./config", config_name="train_config_generalist")
+@hydra.main(version_base=None, config_path="./config", config_name="train_config_gaps")
 def main(config : DictConfig) -> None:
     print("CONFIG:", config)
     from flybody.agents.ray_distributed_dmpo import (
@@ -263,7 +263,7 @@ def main(config : DictConfig) -> None:
             print(f"ACTOR Creation: {name}, # is {num_actors}")
     else:
         # Get actors.
-        print(f"ACTOR Creation: {num_actors}")
+        print(f"ACTOR Creation: {n_actors}")
         actors = create_actors(n_actors, environment_factory)
 
     # Get evaluator. # TODO: Create evaluator for multiple task.

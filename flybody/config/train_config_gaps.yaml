@@ -2,9 +2,10 @@ agent_name: rodent
 algo_name: dmpo
 task_name: run-gaps
 run_name: rodent-run-gaps
+# need to be consistent with the rest of the task if we want to task swichting
 batch_size: 4096
-policy_layer_sizes: [1024, 1024, 1024, 1024]
-critic_layer_sizes: [512, 512, 512, 256]
+policy_layer_sizes: [1024,1024,1024,1024]
+critic_layer_sizes: [1024,512,512,256]
 num_actors: 178
 group_name: rodent-maze-forage-v1
-checkpoint_to_load: # /root/vast/scott-yang/flybody/training/ray-rodent-run-gaps-ckpts/0f23eff6-4786-11ef-901e-92b7cce0b003/checkpoints/dmpo_learner/ckpt-104
+checkpoint_to_load: 
