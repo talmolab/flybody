@@ -5,14 +5,14 @@ from acme import types
 from acme.tf import utils as tf2_utils
 
 
-class TestPolicyWrapper():
+class TestPolicyWrapper:
     """At test time, wraps policy to work with non-batched observations.
     Works with distributional policies, e.g. trained with the DMPO agent."""
 
     def __init__(self, policy, sample=False):
         """
         Args:
-            policy: Test policy, e.g. trained policy loaded as 
+            policy: Test policy, e.g. trained policy loaded as
                 policy = tf.saved_model.load('path/to/snapshot').
             sample: Whether to return sample or mean of the distribution.
         """

@@ -30,142 +30,153 @@ from dm_control.locomotion.tasks import random_goal_maze
 from dm_control.locomotion.tasks import reach
 from dm_control.locomotion.walkers import rodent
 
-_CONTROL_TIMESTEP = .02
+_CONTROL_TIMESTEP = 0.02
 _PHYSICS_TIMESTEP = 0.001
+
+# Normalize the Observation space -- Namely adding additional
+# dummy origin and dummy task logic to the agent
 
 
 def rodent_escape_bowl(random_state=None):
-  """Requires a rodent to climb out of a bowl-shaped terrain."""
+    """Requires a rodent to climb out of a bowl-shaped terrain."""
 
-  # Build a position-controlled rodent walker.
-  walker = rodent.Rat(
-      observable_options={'egocentric_camera': dict(enabled=True)})
+    # Build a position-controlled rodent walker.
+    walker = rodent.Rat(observable_options={"egocentric_camera": dict(enabled=True)})
 
-  # Build a bowl-shaped arena.
-  arena = bowl.Bowl(
-      size=(20., 20.),
-      aesthetic='outdoor_natural')
+    # Build a bowl-shaped arena.
+    arena = bowl.Bowl(size=(20.0, 20.0), aesthetic="outdoor_natural")
 
-  # Build a task that rewards the agent for being far from the origin.
-  task = escape.Escape(
-      walker=walker,
-      arena=arena,
-      physics_timestep=_PHYSICS_TIMESTEP,
-      control_timestep=_CONTROL_TIMESTEP)
+    # Build a task that rewards the agent for being far from the origin.
+    task = escape.Escape(
+        walker=walker,
+        arena=arena,
+        physics_timestep=_PHYSICS_TIMESTEP,
+        control_timestep=_CONTROL_TIMESTEP,
+    )
 
-  return composer.Environment(time_limit=20,
-                              task=task,
-                              random_state=random_state,
-                              strip_singleton_obs_buffer_dim=True)
+    return composer.Environment(
+        time_limit=20,
+        task=task,
+        random_state=random_state,
+        strip_singleton_obs_buffer_dim=True,
+    )
 
 
-def rodent_run_gaps(random_state=None, contact_termination=True): # enable contact termination
-  """Requires a rodent to run down a corridor with gaps."""
+def rodent_run_gaps(
+    random_state=None, contact_termination=True
+):  # enable contact termination
+    """Requires a rodent to run down a corridor with gaps."""
 
-  # Build a position-controlled rodent walker.
-  walker = rodent.Rat(
-      observable_options={'egocentric_camera': dict(enabled=True)})
+    # Build a position-controlled rodent walker.
+    walker = rodent.Rat(observable_options={"egocentric_camera": dict(enabled=True)})
 
-  # Build a corridor-shaped arena with gaps, where the sizes of the gaps and
-  # platforms are uniformly randomized.
-  arena = corr_arenas.GapsCorridor(
-      platform_length=distributions.Uniform(.4, .8),
-      gap_length=distributions.Uniform(.05, .2),
-      corridor_width=2,
-      corridor_length=40,
-      aesthetic='outdoor_natural')
+    # Build a corridor-shaped arena with gaps, where the sizes of the gaps and
+    # platforms are uniformly randomized.
+    arena = corr_arenas.GapsCorridor(
+        platform_length=distributions.Uniform(0.4, 0.8),
+        gap_length=distributions.Uniform(0.05, 0.2),
+        corridor_width=2,
+        corridor_length=40,
+        aesthetic="outdoor_natural",
+    )
 
-  # Build a task that rewards the agent for running down the corridor at a
-  # specific velocity.
-  task = corr_tasks.RunThroughCorridor(
-      walker=walker,
-      arena=arena,
-      walker_spawn_position=(5, 0, 0),
-      walker_spawn_rotation=0,
-      target_velocity=1.0,
-      contact_termination=contact_termination, 
-      terminate_at_height=-0.3,
-      physics_timestep=_PHYSICS_TIMESTEP,
-      control_timestep=_CONTROL_TIMESTEP)
+    # Build a task that rewards the agent for running down the corridor at a
+    # specific velocity.
+    task = corr_tasks.RunThroughCorridor(
+        walker=walker,
+        arena=arena,
+        walker_spawn_position=(5, 0, 0),
+        walker_spawn_rotation=0,
+        target_velocity=1.0,
+        contact_termination=contact_termination,
+        terminate_at_height=-0.3,
+        physics_timestep=_PHYSICS_TIMESTEP,
+        control_timestep=_CONTROL_TIMESTEP,
+    )
 
-  return composer.Environment(time_limit=30,
-                              task=task,
-                              random_state=random_state,
-                              strip_singleton_obs_buffer_dim=True)
+    return composer.Environment(
+        time_limit=30,
+        task=task,
+        random_state=random_state,
+        strip_singleton_obs_buffer_dim=True,
+    )
 
 
 def rodent_maze_forage(random_state=None):
-  """Requires a rodent to find all items in a maze."""
+    """Requires a rodent to find all items in a maze."""
 
-  # Build a position-controlled rodent walker.
-  walker = rodent.Rat(
-      observable_options={'egocentric_camera': dict(enabled=True)})
+    # Build a position-controlled rodent walker.
+    walker = rodent.Rat(observable_options={"egocentric_camera": dict(enabled=True)})
 
-  # Build a maze with rooms and targets.
-  wall_textures = labmaze_textures.WallTextures(style='style_01')
-  arena = mazes.RandomMazeWithTargets(
-      x_cells=11,
-      y_cells=11,
-      xy_scale=.5,
-      z_height=.3,
-      max_rooms=4,
-      room_min_size=4,
-      room_max_size=5,
-      spawns_per_room=1,
-      targets_per_room=3,
-      wall_textures=wall_textures,
-      aesthetic='outdoor_natural')
+    # Build a maze with rooms and targets.
+    wall_textures = labmaze_textures.WallTextures(style="style_01")
+    arena = mazes.RandomMazeWithTargets(
+        x_cells=11,
+        y_cells=11,
+        xy_scale=0.5,
+        z_height=0.3,
+        max_rooms=4,
+        room_min_size=4,
+        room_max_size=5,
+        spawns_per_room=1,
+        targets_per_room=3,
+        wall_textures=wall_textures,
+        aesthetic="outdoor_natural",
+    )
 
-  # Build a task that rewards the agent for obtaining targets.
-  task = random_goal_maze.ManyGoalsMaze(
-      walker=walker,
-      maze_arena=arena,
-      target_builder=functools.partial(
-          target_sphere.TargetSphere,
-          radius=0.05,
-          height_above_ground=.125,
-          rgb1=(0, 0, 0.4),
-          rgb2=(0, 0, 0.7)),
-      target_reward_scale=50.,
-      contact_termination=False,
-      physics_timestep=_PHYSICS_TIMESTEP,
-      control_timestep=_CONTROL_TIMESTEP)
+    # Build a task that rewards the agent for obtaining targets.
+    task = random_goal_maze.ManyGoalsMaze(
+        walker=walker,
+        maze_arena=arena,
+        target_builder=functools.partial(
+            target_sphere.TargetSphere,
+            radius=0.05,
+            height_above_ground=0.125,
+            rgb1=(0, 0, 0.4),
+            rgb2=(0, 0, 0.7),
+        ),
+        target_reward_scale=50.0,
+        contact_termination=False,
+        physics_timestep=_PHYSICS_TIMESTEP,
+        control_timestep=_CONTROL_TIMESTEP,
+    )
 
-  return composer.Environment(time_limit=30,
-                              task=task,
-                              random_state=random_state,
-                              strip_singleton_obs_buffer_dim=True)
+    return composer.Environment(
+        time_limit=30,
+        task=task,
+        random_state=random_state,
+        strip_singleton_obs_buffer_dim=True,
+    )
 
 
 def rodent_two_touch(random_state=None):
-  """Requires a rodent to tap an orb, wait an interval, and tap it again."""
+    """Requires a rodent to tap an orb, wait an interval, and tap it again."""
 
-  # Build a position-controlled rodent walker.
-  walker = rodent.Rat(
-      observable_options={'egocentric_camera': dict(enabled=True)})
+    # Build a position-controlled rodent walker.
+    walker = rodent.Rat(observable_options={"egocentric_camera": dict(enabled=True)})
 
-  # Build an open floor arena
-  arena = floors.Floor(
-      size=(10., 10.),
-      aesthetic='outdoor_natural')
+    # Build an open floor arena
+    arena = floors.Floor(size=(10.0, 10.0), aesthetic="outdoor_natural")
 
-  # Build a task that rewards the walker for touching/reaching orbs with a
-  # specific time interval between touches
-  task = reach.TwoTouch(
-      walker=walker,
-      arena=arena,
-      target_builders=[
-          functools.partial(target_sphere.TargetSphereTwoTouch, radius=0.025),
-      ],
-      randomize_spawn_rotation=True,
-      target_type_rewards=[25.],
-      shuffle_target_builders=False,
-      target_area=(1.5, 1.5),
-      physics_timestep=_PHYSICS_TIMESTEP,
-      control_timestep=_CONTROL_TIMESTEP,
-  )
+    # Build a task that rewards the walker for touching/reaching orbs with a
+    # specific time interval between touches
+    task = reach.TwoTouch(
+        walker=walker,
+        arena=arena,
+        target_builders=[
+            functools.partial(target_sphere.TargetSphereTwoTouch, radius=0.025),
+        ],
+        randomize_spawn_rotation=True,
+        target_type_rewards=[25.0],
+        shuffle_target_builders=False,
+        target_area=(1.5, 1.5),
+        physics_timestep=_PHYSICS_TIMESTEP,
+        control_timestep=_CONTROL_TIMESTEP,
+    )
 
-  return composer.Environment(time_limit=30,
-                              task=task,
-                              random_state=random_state,
-                              strip_singleton_obs_buffer_dim=True)
+    return composer.Environment(
+        time_limit=30,
+        task=task,
+        random_state=random_state,
+        strip_singleton_obs_buffer_dim=True,
+    )

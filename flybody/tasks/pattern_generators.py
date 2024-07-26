@@ -3,10 +3,10 @@
 from typing import Optional
 import numpy as np
 
-from flybody.tasks.constants import (_WING_PARAMS, _FLY_CONTROL_TIMESTEP)
+from flybody.tasks.constants import _WING_PARAMS, _FLY_CONTROL_TIMESTEP
 
 
-class WingBeatPatternGenerator():
+class WingBeatPatternGenerator:
     """Class for controllable frequency-modulation of cyclic wing beat data.
 
     This class generates wing beat patterns at beat frequencies requested by
@@ -18,13 +18,13 @@ class WingBeatPatternGenerator():
     def __init__(
         self,
         base_pattern_path: str,
-        base_beat_freq=_WING_PARAMS['base_freq'],
-        rel_freq_range=_WING_PARAMS['rel_freq_range'],
-        num_freqs=_WING_PARAMS['num_freqs'],
+        base_beat_freq=_WING_PARAMS["base_freq"],
+        rel_freq_range=_WING_PARAMS["rel_freq_range"],
+        num_freqs=_WING_PARAMS["num_freqs"],
         min_repeats: int = 10,
         max_repeats: int = 20,
         dt_ctrl: float = _FLY_CONTROL_TIMESTEP,
-        ctrl_filter: float = 0.5 / _WING_PARAMS['base_freq'],
+        ctrl_filter: float = 0.5 / _WING_PARAMS["base_freq"],
     ):
         """Initialize and construct wing sequencies at different flapping freqs.
 
@@ -49,23 +49,24 @@ class WingBeatPatternGenerator():
               0: not used.
         """
         # Load base pattern for WBPG, shape (timesteps, 3).
-        with open(base_pattern_path, 'rb') as f:
+        with open(base_pattern_path, "rb") as f:
             base_pattern = np.load(f)
-        base_pattern = np.tile(base_pattern,
-                               (1, 2))  # Duplicate for two wings.
+        base_pattern = np.tile(base_pattern, (1, 2))  # Duplicate for two wings.
 
         self.base_beat_freq = base_beat_freq
         self.rel_freq_range = rel_freq_range
         self.ctrl_filter = ctrl_filter
         self._dt_ctrl = dt_ctrl
 
-        if ctrl_filter != 0.:
+        if ctrl_filter != 0.0:
             self._rate = np.exp(-dt_ctrl / ctrl_filter)
 
         # Beat frequencies in the requested range.
-        self.beat_freqs = np.linspace((1 - rel_freq_range) * base_beat_freq,
-                                      (1 + rel_freq_range) * base_beat_freq,
-                                      num_freqs)
+        self.beat_freqs = np.linspace(
+            (1 - rel_freq_range) * base_beat_freq,
+            (1 + rel_freq_range) * base_beat_freq,
+            num_freqs,
+        )
 
         # For each beat frequency, construct a wing beat sequence while finding
         # such number of repeats that make sure smoothest possible connection
@@ -88,7 +89,7 @@ class WingBeatPatternGenerator():
                 shift = dt_ctrl
             else:
                 argmin = argmin2  # Undershoot error.
-                shift = 0.
+                shift = 0.0
             n_reps = argmin + 1
             self._rel_errors.append(rel_error[argmin])
             self._n_repeats.append(n_reps)
@@ -96,10 +97,9 @@ class WingBeatPatternGenerator():
             # Repeat wing kinematics n_reps times.
             repeated_traj = np.tile(base_pattern, reps=(n_reps, 1))
             # Phase within current repeated beat sequence.
-            phase = np.linspace(0,
-                                n_reps,
-                                n_reps * base_pattern.shape[0],
-                                endpoint=False)
+            phase = np.linspace(
+                0, n_reps, n_reps * base_pattern.shape[0], endpoint=False
+            )
             # Time axes for interpolation.
             dt_data = beat_time / base_pattern.shape[0]  # Data timestep.
             traj_duration = repeated_traj.shape[0] * dt_data
@@ -109,20 +109,25 @@ class WingBeatPatternGenerator():
             n_angles = base_pattern.shape[1]
             repeated_traj_ctrl = np.zeros((t_axis_ctrl.shape[0], n_angles))
             for i in range(n_angles):
-                repeated_traj_ctrl[:, i] = np.interp(t_axis_ctrl, t_axis_data,
-                                                     repeated_traj[:, i])
+                repeated_traj_ctrl[:, i] = np.interp(
+                    t_axis_ctrl, t_axis_data, repeated_traj[:, i]
+                )
             phase_ctrl = np.interp(t_axis_ctrl, t_axis_data, phase)
 
-            self.traj_ctrl.append({
-                'traj': repeated_traj_ctrl,
-                't_axis': t_axis_ctrl,
-                'phase': phase_ctrl,
-            })
+            self.traj_ctrl.append(
+                {
+                    "traj": repeated_traj_ctrl,
+                    "t_axis": t_axis_ctrl,
+                    "phase": phase_ctrl,
+                }
+            )
 
-    def reset(self,
-              ctrl_freq: Optional[float] = None,
-              initial_phase: float = 0.,
-              return_qvel: bool = False) -> np.ndarray:
+    def reset(
+        self,
+        ctrl_freq: Optional[float] = None,
+        initial_phase: float = 0.0,
+        return_qvel: bool = False,
+    ) -> np.ndarray:
         """Reset wing sequence to step 0 and set initial phase.
 
         Args:
@@ -142,17 +147,19 @@ class WingBeatPatternGenerator():
         # Frequency index closest to ctrl_freq.
         self._freq_idx = np.argmin(np.abs(self.beat_freqs - self._ctrl_freq))
         # Initialize wing beat sequence.
-        self._traj = self.traj_ctrl[self._freq_idx]['traj']
+        self._traj = self.traj_ctrl[self._freq_idx]["traj"]
         self._cycle_len = self._traj.shape[0]
         # Position inside current wing beat sequence.
         self._step = np.argmin(
-            np.abs(initial_phase - self.traj_ctrl[self._freq_idx]['phase']))
+            np.abs(initial_phase - self.traj_ctrl[self._freq_idx]["phase"])
+        )
 
         if return_qvel:
             return (
                 self._traj[self._step, :],
-                (self._traj[self._step + 1, :] - self._traj[self._step, :]) /
-                self._dt_ctrl)
+                (self._traj[self._step + 1, :] - self._traj[self._step, :])
+                / self._dt_ctrl,
+            )
 
         return self._traj[self._step, :]
 
@@ -168,26 +175,27 @@ class WingBeatPatternGenerator():
         self._step = (self._step + 1) % self._cycle_len
 
         # Maybe apply control filter.
-        if self.ctrl_filter == 0.:
+        if self.ctrl_filter == 0.0:
             self._ctrl_freq = ctrl_freq
         else:
-            self._ctrl_freq = (self._ctrl_freq * self._rate + ctrl_freq *
-                               (1 - self._rate))
+            self._ctrl_freq = self._ctrl_freq * self._rate + ctrl_freq * (
+                1 - self._rate
+            )
 
         # Maybe switch to another wing beat frequency sequence, while making
         # sure that the phase in the new sequence matches the current phase as
         # closely as possible.
         idx_new = np.argmin(np.abs(self.beat_freqs - self._ctrl_freq))
         if idx_new != self._freq_idx:
-            current_phase = self.traj_ctrl[self._freq_idx]['phase'][self._step]
+            current_phase = self.traj_ctrl[self._freq_idx]["phase"][self._step]
             # Get new step inside new beat sequence, while preserving the phase
             # within beat cycle.
             self._step = np.argmin(
-                np.abs(current_phase % 1 -
-                       self.traj_ctrl[idx_new]['phase'] % 1))
+                np.abs(current_phase % 1 - self.traj_ctrl[idx_new]["phase"] % 1)
+            )
 
             # Pick new wing beat sequence.
-            self._traj = self.traj_ctrl[idx_new]['traj']
+            self._traj = self.traj_ctrl[idx_new]["traj"]
             self._cycle_len = self._traj.shape[0]
             self._freq_idx = idx_new
 

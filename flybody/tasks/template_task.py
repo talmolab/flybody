@@ -1,4 +1,5 @@
 """Template class for walking fly tasks."""
+
 # ruff: noqa: F821
 
 from typing import Callable
@@ -12,11 +13,13 @@ from flybody.tasks.base import Walking
 class TemplateTask(Walking):
     """Template class for walking fly tasks."""
 
-    def __init__(self,
-                 claw_friction: float = 1.0,
-                 mjcb_control: Callable | None = None,
-                 action_corruptor: Callable | None = None,
-                 **kwargs):
+    def __init__(
+        self,
+        claw_friction: float = 1.0,
+        mjcb_control: Callable | None = None,
+        action_corruptor: Callable | None = None,
+        **kwargs
+    ):
         """Template class for walking fly tasks.
 
         Args:
@@ -39,8 +42,8 @@ class TemplateTask(Walking):
         # Maybe change default claw friction.
         if claw_friction is not None:
             self._walker.mjcf_model.find(
-                'default',
-                'adhesion-collision').geom.friction = (claw_friction, )
+                "default", "adhesion-collision"
+            ).geom.friction = (claw_friction,)
 
     def initialize_episode_mjcf(self, random_state: np.random.RandomState):
         """Modifies the MJCF model of this task before the next episode begins."""
@@ -56,16 +59,18 @@ class TemplateTask(Walking):
         # Restore control callback, if any.
         mujoco.set_mjcb_control(self._mjcb_control)
 
-    def initialize_episode(self, physics: 'mjcf.Physics',
-                           random_state: np.random.RandomState):
+    def initialize_episode(
+        self, physics: "mjcf.Physics", random_state: np.random.RandomState
+    ):
         """Modifies the physics state before the next episode begins."""
         super().initialize_episode(physics, random_state)
         if self._mjcb_control is not None:
             self._mjcb_control.reset()
         # Maybe do something here.
 
-    def before_step(self, physics: 'mjcf.Physics', action,
-                    random_state: np.random.RandomState):
+    def before_step(
+        self, physics: "mjcf.Physics", action, random_state: np.random.RandomState
+    ):
         """A callback which is executed before an agent control step."""
         if self._action_corruptor is not None:
             action = self._action_corruptor(action, random_state)
@@ -77,7 +82,7 @@ class TemplateTask(Walking):
         # Calculate reward factors here.
         return (1,)
 
-    def check_termination(self, physics: 'mjcf.Physics') -> bool:
+    def check_termination(self, physics: "mjcf.Physics") -> bool:
         """Check various termination conditions."""
         # Maybe add some termination conditions.
         should_terminate = False

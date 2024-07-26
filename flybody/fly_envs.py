@@ -26,12 +26,14 @@ from flybody.tasks.trajectory_loaders import (
 )
 
 
-def flight_imitation(wpg_pattern_path: str,
-                     ref_path: str,
-                     random_state: np.random.RandomState | None = None,
-                     terminal_com_dist: float = 2.0):
+def flight_imitation(
+    wpg_pattern_path: str,
+    ref_path: str,
+    random_state: np.random.RandomState | None = None,
+    terminal_com_dist: float = 2.0,
+):
     """Requires a fruitfly to track a flying reference.
-  
+
     Args:
         wpg_pattern_path: Path to baseline wing beat pattern for WPG.
         ref_path: Path to reference trajectory dataset.
@@ -47,29 +49,36 @@ def flight_imitation(wpg_pattern_path: str,
     arena = floors.Floor()
     # Initialize wing pattern generator and flight trajectory loader.
     wbpg = WingBeatPatternGenerator(base_pattern_path=wpg_pattern_path)
-    traj_generator = HDF5FlightTrajectoryLoader(path=ref_path,
-                                                random_state=random_state)
+    traj_generator = HDF5FlightTrajectoryLoader(
+        path=ref_path, random_state=random_state
+    )
     # Build the task.
     time_limit = 0.6
-    task = FlightImitationWBPG(walker=walker,
-                               arena=arena,
-                               wbpg=wbpg,
-                               traj_generator=traj_generator,
-                               terminal_com_dist=terminal_com_dist,
-                               initialize_qvel=True,
-                               time_limit=time_limit,
-                               joint_filter=0.,
-                               future_steps=5)
+    task = FlightImitationWBPG(
+        walker=walker,
+        arena=arena,
+        wbpg=wbpg,
+        traj_generator=traj_generator,
+        terminal_com_dist=terminal_com_dist,
+        initialize_qvel=True,
+        time_limit=time_limit,
+        joint_filter=0.0,
+        future_steps=5,
+    )
 
-    return composer.Environment(time_limit=time_limit,
-                                task=task,
-                                random_state=random_state,
-                                strip_singleton_obs_buffer_dim=True)
+    return composer.Environment(
+        time_limit=time_limit,
+        task=task,
+        random_state=random_state,
+        strip_singleton_obs_buffer_dim=True,
+    )
 
 
-def walk_imitation(ref_path: str | None = None,
-                   random_state: np.random.RandomState | None = None,
-                   terminal_com_dist: float = 0.3):
+def walk_imitation(
+    ref_path: str | None = None,
+    random_state: np.random.RandomState | None = None,
+    terminal_com_dist: float = 0.3,
+):
     """Requires a fruitfly to track a reference walking fly.
 
     Args:
@@ -89,27 +98,32 @@ def walk_imitation(ref_path: str | None = None,
     if ref_path is not None:
         inference_mode = False
         traj_generator = HDF5WalkingTrajectoryLoader(
-            path=ref_path, random_state=random_state)
+            path=ref_path, random_state=random_state
+        )
     else:
         inference_mode = True
         traj_generator = InferenceWalkingTrajectoryLoader()
     # Build a task that rewards the agent for tracking a walking ghost.
     time_limit = 10.0
-    task = WalkImitation(walker=walker,
-                         arena=arena,
-                         traj_generator=traj_generator,
-                         terminal_com_dist=terminal_com_dist,
-                         mocap_joint_names=traj_generator.get_joint_names(),
-                         mocap_site_names=traj_generator.get_site_names(),
-                         inference_mode=inference_mode,
-                         joint_filter=0.01,
-                         future_steps=64,
-                         time_limit=time_limit)
+    task = WalkImitation(
+        walker=walker,
+        arena=arena,
+        traj_generator=traj_generator,
+        terminal_com_dist=terminal_com_dist,
+        mocap_joint_names=traj_generator.get_joint_names(),
+        mocap_site_names=traj_generator.get_site_names(),
+        inference_mode=inference_mode,
+        joint_filter=0.01,
+        future_steps=64,
+        time_limit=time_limit,
+    )
 
-    return composer.Environment(time_limit=time_limit,
-                                task=task,
-                                random_state=random_state,
-                                strip_singleton_obs_buffer_dim=True)
+    return composer.Environment(
+        time_limit=time_limit,
+        task=task,
+        random_state=random_state,
+        strip_singleton_obs_buffer_dim=True,
+    )
 
 
 def walk_on_ball(random_state: np.random.RandomState | None = None):
@@ -123,28 +137,36 @@ def walk_on_ball(random_state: np.random.RandomState | None = None):
     """
     # Build a fruitfly walker and arena.
     walker = fruitfly.FruitFly
-    arena = BallFloor(ball_pos=(-0.05, 0, -0.419),
-                      ball_radius=0.454,
-                      ball_density=0.0025,
-                      skybox=False)
+    arena = BallFloor(
+        ball_pos=(-0.05, 0, -0.419),
+        ball_radius=0.454,
+        ball_density=0.0025,
+        skybox=False,
+    )
     # Build a task that rewards the agent for tracking a walking ghost.
-    time_limit = 2.
-    task = WalkOnBall(walker=walker,
-                      arena=arena,
-                      joint_filter=0.01,
-                      adhesion_filter=0.007,
-                      time_limit=time_limit)
+    time_limit = 2.0
+    task = WalkOnBall(
+        walker=walker,
+        arena=arena,
+        joint_filter=0.01,
+        adhesion_filter=0.007,
+        time_limit=time_limit,
+    )
 
-    return composer.Environment(time_limit=time_limit,
-                                task=task,
-                                random_state=random_state,
-                                strip_singleton_obs_buffer_dim=True)
+    return composer.Environment(
+        time_limit=time_limit,
+        task=task,
+        random_state=random_state,
+        strip_singleton_obs_buffer_dim=True,
+    )
 
 
-def vision_guided_flight(wpg_pattern_path: str,
-                         bumps_or_trench: str = 'bumps',
-                         random_state: np.random.RandomState | None = None,
-                         **kwargs_arena):
+def vision_guided_flight(
+    wpg_pattern_path: str,
+    bumps_or_trench: str = "bumps",
+    random_state: np.random.RandomState | None = None,
+    **kwargs_arena
+):
     """Vision-guided flight tasks: 'bumps' and 'trench'.
 
     Args:
@@ -157,9 +179,9 @@ def vision_guided_flight(wpg_pattern_path: str,
         Environment for vision-guided flight task.
     """
 
-    if bumps_or_trench == 'bumps':
+    if bumps_or_trench == "bumps":
         arena = SineBumps
-    elif bumps_or_trench == 'trench':
+    elif bumps_or_trench == "trench":
         arena = SineTrench
     else:
         raise ValueError("Only 'bumps' and 'trench' terrains are supported.")
@@ -170,27 +192,33 @@ def vision_guided_flight(wpg_pattern_path: str,
     wbpg = WingBeatPatternGenerator(base_pattern_path=wpg_pattern_path)
     # Build task.
     time_limit = 0.4
-    task = VisionFlightImitationWBPG(walker=walker,
-                                     arena=arena,
-                                     wbpg=wbpg,
-                                     time_limit=time_limit,
-                                     joint_filter=0.,
-                                     floor_contacts=True,
-                                     floor_contacts_fatal=True)
+    task = VisionFlightImitationWBPG(
+        walker=walker,
+        arena=arena,
+        wbpg=wbpg,
+        time_limit=time_limit,
+        joint_filter=0.0,
+        floor_contacts=True,
+        floor_contacts_fatal=True,
+    )
 
-    return composer.Environment(time_limit=time_limit,
-                                task=task,
-                                random_state=random_state,
-                                strip_singleton_obs_buffer_dim=True)
+    return composer.Environment(
+        time_limit=time_limit,
+        task=task,
+        random_state=random_state,
+        strip_singleton_obs_buffer_dim=True,
+    )
 
 
-def template_task(random_state: np.random.RandomState | None = None,
-                  joint_filter: float = 0.01,
-                  adhesion_filter: float = 0.007,
-                  time_limit: float = 1.,
-                  mjcb_control: Callable | None = None,
-                  observables_options: dict | None = None,
-                  action_corruptor: Callable | None = None):
+def template_task(
+    random_state: np.random.RandomState | None = None,
+    joint_filter: float = 0.01,
+    adhesion_filter: float = 0.007,
+    time_limit: float = 1.0,
+    mjcb_control: Callable | None = None,
+    observables_options: dict | None = None,
+    action_corruptor: Callable | None = None,
+):
     """An empty no-op walking task for testing.
 
     Args:
@@ -215,17 +243,21 @@ def template_task(random_state: np.random.RandomState | None = None,
     walker = fruitfly.FruitFly
     arena = floors.Floor()
     # Build a no-op task.
-    task = TemplateTask(walker=walker,
-                        arena=arena,
-                        joint_filter=joint_filter,
-                        adhesion_filter=adhesion_filter,
-                        observables_options=observables_options,
-                        mjcb_control=mjcb_control,
-                        action_corruptor=action_corruptor,
-                        time_limit=time_limit)
+    task = TemplateTask(
+        walker=walker,
+        arena=arena,
+        joint_filter=joint_filter,
+        adhesion_filter=adhesion_filter,
+        observables_options=observables_options,
+        mjcb_control=mjcb_control,
+        action_corruptor=action_corruptor,
+        time_limit=time_limit,
+    )
     # Reset control callback, if any.
     mujoco.set_mjcb_control(None)
-    return composer.Environment(time_limit=time_limit,
-                                task=task,
-                                random_state=random_state,
-                                strip_singleton_obs_buffer_dim=True)
+    return composer.Environment(
+        time_limit=time_limit,
+        task=task,
+        random_state=random_state,
+        strip_singleton_obs_buffer_dim=True,
+    )

@@ -10,10 +10,12 @@ import numpy as np
 class HDF5TrajectoryLoader(ABC):
     """Base class for loading and serving trajectories from hdf5 datasets."""
 
-    def __init__(self,
-                 path: str,
-                 traj_indices: Optional[Sequence[int]] = None,
-                 random_state: Optional[np.random.RandomState] = None):
+    def __init__(
+        self,
+        path: str,
+        traj_indices: Optional[Sequence[int]] = None,
+        random_state: Optional[np.random.RandomState] = None,
+    ):
         """Initializes the base trajectory loader.
 
         Args:
@@ -28,9 +30,9 @@ class HDF5TrajectoryLoader(ABC):
         else:
             self._random_state = random_state
 
-        with h5py.File(path, 'r') as f:
-            self._n_traj = len(f['trajectories'])
-            self._timestep = f['timestep_seconds'][()]
+        with h5py.File(path, "r") as f:
+            self._n_traj = len(f["trajectories"])
+            self._timestep = f["timestep_seconds"][()]
 
         if traj_indices is None:
             self._traj_indices = np.arange(self._n_traj)
@@ -53,10 +55,12 @@ class HDF5TrajectoryLoader(ABC):
         return self._traj_indices
 
     @abstractmethod
-    def get_trajectory(self,
-                       traj_idx: Optional[int] = None,
-                       start_step: Optional[int] = None,
-                       end_step: Optional[int] = None):
+    def get_trajectory(
+        self,
+        traj_idx: Optional[int] = None,
+        start_step: Optional[int] = None,
+        end_step: Optional[int] = None,
+    ):
         """Returns a trajectory."""
         raise NotImplementedError("Subclasses should implement this.")
 
@@ -83,24 +87,24 @@ class HDF5FlightTrajectoryLoader(HDF5TrajectoryLoader):
         self._com_qpos = []
         self._com_qvel = []
 
-        with h5py.File(path, 'r') as f:
+        with h5py.File(path, "r") as f:
             n_zeros = len(str(self._n_traj))
             for idx in range(self._n_traj):
                 key = str(idx).zfill(n_zeros)
-                self._com_qpos.append(f['trajectories'][key]['com_qpos'][()])
-                self._com_qvel.append(f['trajectories'][key]['com_qvel'][()])
-                assert self._com_qpos[-1].shape[0] == self._com_qvel[-1].shape[
-                    0]
+                self._com_qpos.append(f["trajectories"][key]["com_qpos"][()])
+                self._com_qvel.append(f["trajectories"][key]["com_qvel"][()])
+                assert self._com_qpos[-1].shape[0] == self._com_qvel[-1].shape[0]
 
     def trajectory_len(self, traj_idx: int) -> int:
         """Returns length of trajectory with index traj_idx."""
         return len(self._com_qpos[traj_idx])
 
     def get_trajectory(
-            self,
-            traj_idx: Optional[int] = None,
-            start_step: Optional[int] = None,
-            end_step: Optional[int] = None) -> Tuple[np.ndarray, np.ndarray]:
+        self,
+        traj_idx: Optional[int] = None,
+        start_step: Optional[int] = None,
+        end_step: Optional[int] = None,
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """Returns a flight trajectory from the dataset.
 
         Args:
@@ -148,8 +152,8 @@ class HDF5WalkingTrajectoryLoader(HDF5TrajectoryLoader):
 
         super().__init__(path, traj_indices, random_state=random_state)
 
-        self._h5 = h5py.File(path, 'r')
-        self._traj_lens = self._h5['trajectory_lengths']
+        self._h5 = h5py.File(path, "r")
+        self._traj_lens = self._h5["trajectory_lengths"]
         self._n_zeros = len(str(self._n_traj))
 
     def trajectory_len(self, traj_idx: int) -> int:
@@ -157,10 +161,11 @@ class HDF5WalkingTrajectoryLoader(HDF5TrajectoryLoader):
         return self._traj_lens[traj_idx]
 
     def get_trajectory(
-            self,
-            traj_idx: Optional[int] = None,
-            start_step: Optional[int] = None,
-            end_step: Optional[int] = None) -> Dict[str, np.ndarray]:
+        self,
+        traj_idx: Optional[int] = None,
+        start_step: Optional[int] = None,
+        end_step: Optional[int] = None,
+    ) -> Dict[str, np.ndarray]:
         """Returns a walking trajectory from the dataset.
 
         Args:
@@ -182,37 +187,45 @@ class HDF5WalkingTrajectoryLoader(HDF5TrajectoryLoader):
         end_step = self._traj_lens[traj_idx] if end_step is None else end_step
 
         key = str(traj_idx).zfill(self._n_zeros)
-        snippet = self._h5['trajectories'][key]
+        snippet = self._h5["trajectories"][key]
 
-        qpos = np.concatenate((snippet['root_qpos'][start_step:end_step],
-                               snippet['qpos'][start_step:end_step]),
-                              axis=1)
-        qvel = np.concatenate((snippet['root_qvel'][start_step:end_step],
-                               snippet['qvel'][start_step:end_step]),
-                              axis=1)
+        qpos = np.concatenate(
+            (
+                snippet["root_qpos"][start_step:end_step],
+                snippet["qpos"][start_step:end_step],
+            ),
+            axis=1,
+        )
+        qvel = np.concatenate(
+            (
+                snippet["root_qvel"][start_step:end_step],
+                snippet["qvel"][start_step:end_step],
+            ),
+            axis=1,
+        )
         qpos[:, :2] -= qpos[0, :2]
 
         trajectory = {
-            'qpos': qpos,
-            'qvel': qvel,
-            'root2site': snippet['root2site'][start_step:end_step],
-            'joint_quat': snippet['joint_quat'][start_step:end_step]
+            "qpos": qpos,
+            "qvel": qvel,
+            "root2site": snippet["root2site"][start_step:end_step],
+            "joint_quat": snippet["joint_quat"][start_step:end_step],
         }
 
         return trajectory
 
     def get_site_names(self):
         """Returns snippet site names."""
-        return [s.decode('utf-8') for s in self._h5['id2name']['sites']]
+        return [s.decode("utf-8") for s in self._h5["id2name"]["sites"]]
 
     def get_joint_names(self):
         """Returns snippet joint names."""
-        return [s.decode('utf-8') for s in self._h5['id2name']['joints']]
+        return [s.decode("utf-8") for s in self._h5["id2name"]["joints"]]
 
 
-class InferenceWalkingTrajectoryLoader():
+class InferenceWalkingTrajectoryLoader:
     """Simple drop-in inference-time replacement for walking trajectory loader.
-    
+
     This trajectory loader can be used for bypassing loading actual walking
     datasets and loading custom trajectories instead, e.g. at inference time.
 
@@ -227,22 +240,23 @@ class InferenceWalkingTrajectoryLoader():
 
     def set_next_trajectory(self, qpos: np.ndarray, qvel: np.ndarray):
         """Set new trajectory to be returned by get_trajectory.
-        
+
         Args:
             qpos: Center-of-mass trajectory, (time, 7).
             qvel: Velocity of CoM trajectory, (time, 6).
         """
-        self._snippet = {'qpos': qpos, 'qvel': qvel}
-        
+        self._snippet = {"qpos": qpos, "qvel": qvel}
+
     def get_trajectory(self, traj_idx: int):
         del traj_idx  # Unused.
-        if not hasattr(self, '_snippet'):
+        if not hasattr(self, "_snippet"):
             raise AttributeError(
-                'Trajectory not set yet. Call set_next_trajectory first.')
+                "Trajectory not set yet. Call set_next_trajectory first."
+            )
         return self._snippet
-    
+
     def get_joint_names(self):
         return []
-    
+
     def get_site_names(self):
         return []

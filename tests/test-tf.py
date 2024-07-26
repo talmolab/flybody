@@ -17,13 +17,15 @@ def test_can_create_and_run_tf_policy():
 
     network_factory = make_network_factory_dmpo()
     networks = network_factory(env.action_spec())
-    assert set(networks.keys()) == set(('observation', 'policy', 'critic'))
+    assert set(networks.keys()) == set(("observation", "policy", "critic"))
 
-    policy_network = snt.Sequential([
-        networks['observation'],
-        networks['policy'],
-        network_utils.StochasticSamplingHead()
-    ])
+    policy_network = snt.Sequential(
+        [
+            networks["observation"],
+            networks["policy"],
+            network_utils.StochasticSamplingHead(),
+        ]
+    )
 
     timestep = env.reset()
     for _ in range(100):

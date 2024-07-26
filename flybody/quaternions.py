@@ -17,9 +17,9 @@ def get_dquat_local(quat1, quat2):
     return mult_quat(reciprocal_quat(quat1), quat2)
 
 
-def get_quat(theta=0, rot_axis=[0., 0, 1]):
+def get_quat(theta=0, rot_axis=[0.0, 0, 1]):
     """Unit quaternion for given angle and rotation axis.
-    
+
     Args:
         theta: Angle in radians.
         rot_axis: Rotation axis, does not have to be normalized, shape (3,).
@@ -61,8 +61,7 @@ def mult_quat(quat1: np.ndarray, quat2: np.ndarray) -> np.ndarray:
     """
     a1, b1, c1, d1 = quat1[..., 0], quat1[..., 1], quat1[..., 2], quat1[..., 3]
     a2, b2, c2, d2 = quat2[..., 0], quat2[..., 1], quat2[..., 2], quat2[..., 3]
-    prod = np.empty_like(quat1) if quat1.ndim > quat2.ndim else np.empty_like(
-        quat2)
+    prod = np.empty_like(quat1) if quat1.ndim > quat2.ndim else np.empty_like(quat2)
     prod[..., 0] = a1 * a2 - b1 * b2 - c1 * c2 - d1 * d2
     prod[..., 1] = a1 * b2 + b1 * a2 + c1 * d2 - d1 * c2
     prod[..., 2] = a1 * c2 - b1 * d2 + c1 * a2 + d1 * b2
@@ -100,7 +99,7 @@ def reciprocal_quat(quat: np.ndarray) -> np.ndarray:
     Returns:
         Reciprocal quaternion(s), array of shape (B, 4).
     """
-    return conj_quat(quat) / np.linalg.norm(quat, axis=-1, keepdims=True)**2
+    return conj_quat(quat) / np.linalg.norm(quat, axis=-1, keepdims=True) ** 2
 
 
 def rotate_vec_with_quat(vec, quat):
@@ -128,7 +127,7 @@ def rotate_vec_with_quat(vec, quat):
     """
     if vec[..., :-1].size > quat[..., :-1].size:
         # Broadcast quat to vec.
-        quat = np.tile(quat, vec.shape[:-1] + (1, ))
+        quat = np.tile(quat, vec.shape[:-1] + (1,))
     vec_aug = np.zeros_like(quat)
     vec_aug[..., 1:] = vec
     vec = mult_quat(quat, mult_quat(vec_aug, reciprocal_quat(quat)))
@@ -162,14 +161,14 @@ def get_egocentric_vec(root_xpos, site_xpos, root_quat):
 
 def vec_world_to_local(world_vec, root_quat, hover_up_dir_quat=None):
     """Local reference frame representation of vectors in world coordinates.
-    
+
     Any number of leading batch dimensions is supported.
-    
+
     Args:
         world_vec: Vector in world coordinates, (B, 3).
         root_quat: Root quaternion of the local reference frame, (B, 4).
         hover_up_dir_quat: Optional, fly's hover_up_dir quaternion, (4,).
-        
+
     Returns:
         world_vec in local reference frame, (B, 3).
     """
@@ -199,8 +198,7 @@ def log_quat(quat: np.ndarray) -> np.ndarray:
     norm_v = np.linalg.norm(quat[..., 1:], axis=-1, keepdims=True)
     log_quat = np.empty_like(quat)
     log_quat[..., 0:1] = np.log(norm_quat)
-    log_quat[..., 1:] = quat[..., 1:] / norm_v * np.arccos(
-        quat[..., 0:1] / norm_quat)
+    log_quat[..., 1:] = quat[..., 1:] / norm_v * np.arccos(quat[..., 0:1] / norm_quat)
     return log_quat
 
 
@@ -220,35 +218,33 @@ def quat_z2vec(vec: np.ndarray) -> np.ndarray:
         Array of unit quaternions of shape (B, 4).
     """
     # Find indices of edge cases, if present.
-    edge_inds = np.argwhere((vec[..., :2] == 0.).all(axis=-1, keepdims=False))
+    edge_inds = np.argwhere((vec[..., :2] == 0.0).all(axis=-1, keepdims=False))
     if edge_inds.size:
         vec = vec.copy()
         # Temporarily put placeholders into `vec` to avoid nans.
         for edge_ind in edge_inds:
-            ind = tuple(edge_ind) + (slice(0, 1), )
-            vec[ind] = 1.  # Placeholder.
+            ind = tuple(edge_ind) + (slice(0, 1),)
+            vec[ind] = 1.0  # Placeholder.
 
     # Get axis-and-angle representation first.
     vec = vec / np.linalg.norm(vec, axis=-1, keepdims=True)
     # Cross product with [0, 0, 1].
-    axis = np.stack([-vec[..., 1], vec[..., 0],
-                     np.zeros_like(vec[..., 0])],
-                    axis=-1)
+    axis = np.stack([-vec[..., 1], vec[..., 0], np.zeros_like(vec[..., 0])], axis=-1)
     axis /= np.linalg.norm(axis, axis=-1, keepdims=True)
     angle = np.arccos(vec[..., 2:3])
     # Compose quaternion.
-    quat = np.zeros(vec.shape[:-1] + (4, ))
+    quat = np.zeros(vec.shape[:-1] + (4,))
     quat[..., 0:1] = np.cos(angle / 2)
     quat[..., 1:] = np.sin(angle / 2) * axis
 
     # Clean edge case placeholders, if there are any.
     for edge_ind in edge_inds:
-        ind_vec = tuple(edge_ind) + (slice(2, 3), )
-        ind_quat = tuple(edge_ind) + (slice(None), )
+        ind_vec = tuple(edge_ind) + (slice(2, 3),)
+        ind_quat = tuple(edge_ind) + (slice(None),)
         if vec[ind_vec] < 0:
-            quat[ind_quat] = [0., 1., 0., 0.]
+            quat[ind_quat] = [0.0, 1.0, 0.0, 0.0]
         else:
-            quat[ind_quat] = [1., 0., 0., 0.]
+            quat[ind_quat] = [1.0, 0.0, 0.0, 0.0]
 
     return quat
 
@@ -268,7 +264,7 @@ def axis_angle_to_quat(axis: np.ndarray, angle: np.ndarray) -> np.ndarray:
         Rotation (unit) quaternions, shape (B, 4).
     """
     axis = axis / np.linalg.norm(axis, axis=-1, keepdims=True)
-    quat = np.zeros(axis.shape[:-1] + (4, ))
+    quat = np.zeros(axis.shape[:-1] + (4,))
     quat[..., 0] = np.cos(angle / 2)
     quat[..., 1:] = np.sin(angle / 2)[..., None] * axis
     return quat
@@ -294,8 +290,8 @@ def quat_dist_short_arc(quat1: np.ndarray, quat2: np.ndarray) -> np.ndarray:
     """
     quat1 = quat1 / np.linalg.norm(quat1, axis=-1, keepdims=True)
     quat2 = quat2 / np.linalg.norm(quat2, axis=-1, keepdims=True)
-    x = 2 * np.sum(quat1 * quat2, axis=-1)**2 - 1
-    x = np.minimum(1., x)
+    x = 2 * np.sum(quat1 * quat2, axis=-1) ** 2 - 1
+    x = np.minimum(1.0, x)
     return np.arccos(x)
 
 
@@ -325,9 +321,9 @@ def joint_orientation_quat(xaxis: np.ndarray, qpos: float) -> np.ndarray:
     return joint_quat
 
 
-def quat_seq_to_angvel(quats, dt=1., local_ref_frame=False):
+def quat_seq_to_angvel(quats, dt=1.0, local_ref_frame=False):
     """Covert sequence of orientation quaternions to angular velocities.
-    
+
     Args:
         quats: Sequence of quaternions. List of quaternions or array (time, 4).
         dt: Timestep.
@@ -336,7 +332,7 @@ def quat_seq_to_angvel(quats, dt=1., local_ref_frame=False):
             Global reference frame: the frame the quats are defined in.
             Local reference frame: the frame attached to the body with
                 orientation defined by quats.
-            
+
     Returns:
         Sequence of angular velovicies in either global or local reference frame.
     """
@@ -347,18 +343,18 @@ def quat_seq_to_angvel(quats, dt=1., local_ref_frame=False):
     return ang_vel
 
 
-def quat_to_angvel(quat, dt=1.):
+def quat_to_angvel(quat, dt=1.0):
     """Convert quaternion (corresponding to orientation difference) to angular velocity.
     Input and output are in the same (global) reference frame.
-    
+
     Any number of leading batch dimensions is supported.
-    
+
     This is a python implementation of MuJoCo's mju_quat2Vel function.
-    
+
     Args:
         quat: Orientation difference quaternion, (B, 4).
         dt: Timestep.
-    
+
     Returns:
         Angular velocity vector, (B, 3), in the same (global) reference frame
             as the input quat.
