@@ -36,11 +36,13 @@ from dm_control.locomotion.tasks.reference_pose import types
 import os
 import h5py
 
-from flybody.fruitfly import rodent
-# from dm_control.locomotion.walkers import rodent
+# from flybody.fruitfly import rodent
+from dm_control.locomotion.walkers import rodent
 
 from flybody.tasks.rodent_imitation import WalkImitation
-from dm_control.locomotion.tasks.reference_pose import tracking
+# from dm_control.locomotion.tasks.reference_pose import tracking
+
+from flybody.tasks import tracking
 
 from flybody.tasks.trajectory_loaders import (
     HDF5WalkingTrajectoryLoader,

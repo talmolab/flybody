@@ -9,7 +9,7 @@ import numpy as np
 import sonnet as snt
 
 from flybody.agents import losses_mpo
-from flybody.agents.vis_net import VisNetFly  # VisNetRodent
+from flybody.agents.vis_net import VisNetFly, VisNetRodent, VisNetRodentImitation
 
 
 def network_factory_d4pg(
@@ -119,7 +119,8 @@ def network_factory_dmpo(
     return {
         "policy": policy_network,
         "critic": critic_network,
-        "observation": tf2_utils.batch_concat,
+        "observation": tf2_utils.batch_concat #VisNetRodentImitation() #
+        # pass in as object
     }
 
 

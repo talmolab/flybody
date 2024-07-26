@@ -1,5 +1,4 @@
 __pycache__/
-
 .ipynb_checkpoints
 clips/
 cps/
@@ -9,3 +8,5 @@ demos/
 nohup.out
 wandb/
 policy/
+outputs/
+training/

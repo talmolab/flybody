@@ -28,6 +28,7 @@ class SinglePrecisionWrapper(base.EnvironmentWrapper):
   """Wrapper which converts environments from double- to single-precision."""
 
   def _convert_timestep(self, timestep: dm_env.TimeStep) -> dm_env.TimeStep:
+    # print("DEBUG: ", timestep.observation)
     return timestep._replace(
         reward=_convert_value(timestep.reward),
         discount=_convert_value(timestep.discount),
@@ -77,7 +78,9 @@ def _convert_value(nested_value: types.Nest) -> types.Nest:
       if np.issubdtype(value.dtype, np.float64):
         value = np.array(value, copy=False, dtype=np.float32)
       elif np.issubdtype(value.dtype, np.int64):
-        value = np.array(value, copy=False, dtype=np.float32) # also cast int to float
+        value = np.array(value, copy=False, dtype=np.float32) # also cast int64 to float
+      elif np.issubdtype(value.dtype, np.int32):
+        value = np.array(value, copy=False, dtype=np.float32) # also cast int32 to float
     return value
 
   return tree.map_structure(_convert_single_value, nested_value)

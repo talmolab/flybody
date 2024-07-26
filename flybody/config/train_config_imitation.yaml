@@ -3,10 +3,11 @@ algo_name: dmpo
 task_name: imitation
 run_name: rodent_imitation
 batch_size: 512
-policy_layer_sizes: [1024, 1024, 1024, 1024]
+policy_layer_sizes: [512, 512, 512]
 critic_layer_sizes: [512, 512, 512]
-num_actors: 61
+num_actors: 20
 group_name: rodent-imitation
 
 # for some reason only abs path works here
-ref_traj_path: "/root/talmolab-smb/kaiwen/flybody/demos/data/walking-dataset-small_female-only_snippets-100_min-len-0.5s_trk-files-0-9.hdf5"
+ref_traj_path: "/root/talmolab-smb/kaiwen/flybody/clips/all_snippets.h5"
+checkpoint_to_load: None
