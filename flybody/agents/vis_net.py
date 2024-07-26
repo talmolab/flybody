@@ -66,8 +66,8 @@ class VisNetFly(snt.Module):
         right_eye = (right_eye - self._mean) / self._std
         # Stack the two eyes, shape (batch, height, width, channel=2).
         x = tf.stack((left_eye, right_eye), axis=-1)
-        print("DEBUG: Fly left/right eye: ", left_eye.shape, right_eye.shape)
-        print("DEBUG: Fly Vision x: ", x.shape)
+        # print("DEBUG: Fly left/right eye: ", left_eye.shape, right_eye.shape)
+        # print("DEBUG: Fly Vision x: ", x.shape)
 
         # Forward pass.
         for layer in self._layers:
@@ -162,6 +162,7 @@ class VisNetRodent(snt.Module):
         else:
             # Concatenate the visual network output with the rest of observation.
             observation = tf2_utils.batch_concat(observation)
-            out = tf.concat((x, observation), axis=-1)  # (batch, -1)
+            batch_size = 1 if x.shape[0] is None else x.shape[0]
+            out = tf.concat((tf.zeros([batch_size, 1]), x, observation), axis=-1)  # (batch, -1), keep the consistency of observation space between task
 
         return out

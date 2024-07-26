@@ -76,11 +76,12 @@ else:
     test_log_every = None
     test_min_replay_size = None
     
-tasks = {"run-gaps": rodent_run_gaps, "maze-forage": rodent_maze_forage, "escape-bowl": rodent_escape_bowl, "two-taps": rodent_two_touch}
+tasks = {"run-gaps": rodent_run_gaps, "maze-forage": rodent_maze_forage, "escape-bowl": rodent_escape_bowl, "two-taps": rodent_two_touch, "general": rodent_run_gaps}
 
 
-@hydra.main(version_base=None, config_path="./config", config_name="train_config_gaps")
+@hydra.main(version_base=None, config_path="./config", config_name="train_config_generalist")
 def main(config : DictConfig) -> None:
+    print("CONFIG:", config)
     from flybody.agents.ray_distributed_dmpo import (
         DMPOConfig,
         ReplayServer,
@@ -190,7 +191,7 @@ def main(config : DictConfig) -> None:
     
 
     # Define resources and placement group
-    gpu_pg = placement_group([{"GPU": 1, "CPU": 10}], strategy="STRICT_PACK") 
+    gpu_pg = placement_group([{"GPU": 1, "CPU": 12}], strategy="STRICT_PACK") 
     
     # === Create Replay Server.
     runtime_env_replay = {
@@ -254,16 +255,18 @@ def main(config : DictConfig) -> None:
         return actors
     
     actors = []
-    if "actor_envs" in config:
+    if "actors_envs" in config:
         # if the config file specify diverse actor envs
-        print(config.actor_envs)
-        for name, num_actors in config.actor_envs.items():
+        print(config.actors_envs)
+        for name, num_actors in config.actors_envs.items():
             actors.append(create_actors(num_actors, environment_factories[name]))
+            print(f"ACTOR Creation: {name}, # is {num_actors}")
     else:
         # Get actors.
+        print(f"ACTOR Creation: {num_actors}")
         actors = create_actors(n_actors, environment_factory)
 
-    # Get evaluator.
+    # Get evaluator. # TODO: Create evaluator for multiple task.
     evaluator = EnvironmentLoop.remote(
         replay_server_address=replay_server.get_server_address.remote(),
         variable_source=learner,
