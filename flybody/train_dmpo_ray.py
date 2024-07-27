@@ -56,7 +56,8 @@ from flybody.basic_rodent_2020 import rodent_run_gaps, rodent_maze_forage, roden
 from flybody.wrapper import SinglePrecisionWrapperFloat, RemoveVisionWrapper
 
 from flybody.fly_envs import walk_on_ball, vision_guided_flight
-from flybody.agents.network_factory import make_network_factory_dmpo
+# from flybody.agents.network_factory import make_network_factory_dmpo
+from flybody.agents.intention_network_factory import make_network_factory_dmpo
 from flybody.default_logger import make_default_logger
 from flybody.single_precision import SinglePrecisionWrapper
 

@@ -5,7 +5,7 @@ run_name: rodent_imitation
 batch_size: 512
 policy_layer_sizes: [512, 512, 512]
 critic_layer_sizes: [512, 512, 512]
-num_actors: 20
+num_actors: 10
 group_name: rodent-imitation
 
 # for some reason only abs path works here
