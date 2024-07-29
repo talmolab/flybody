@@ -250,6 +250,7 @@ class EnvironmentLoop(acme.EnvironmentLoop):
         ray_head_node_ip: str | None = None,
         egl_device_id_head_node: list | None = None,
         egl_device_id_worker_node: list | None = None,
+        task_name: str = "",
     ):
         """The actor process."""
 
@@ -351,6 +352,7 @@ class EnvironmentLoop(acme.EnvironmentLoop):
                 wandb_project=actor_or_evaluator
                 == "evaluator",  # only create project for evaluators,
                 identity="evaluator",
+                task_name=task_name,
                 **logger_kwargs,
             )
 

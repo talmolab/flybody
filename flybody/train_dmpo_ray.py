@@ -97,9 +97,7 @@ tasks = {
 }
 
 
-@hydra.main(
-    version_base=None, config_path="./config", config_name="train_config_generalist"
-)
+@hydra.main(version_base=None, config_path="./config", config_name="train_config_bowl")
 def main(config: DictConfig) -> None:
     print("CONFIG:", config)
     from flybody.agents.ray_distributed_dmpo import (
@@ -315,29 +313,44 @@ def main(config: DictConfig) -> None:
             time.sleep(0.2)
         return actors
 
+    def create_evaluator(task_name):
+        evaluator = EnvironmentLoop.remote(
+            replay_server_address=replay_server.get_server_address.remote(),
+            variable_source=learner,
+            counter=counter,
+            network_factory=network_factory,
+            environment_factory=environment_factories[task_name],
+            dmpo_config=dmpo_config,
+            actor_or_evaluator="evaluator",
+            task_name=task_name,
+        )
+        return evaluator
+
     actors = []
+    evaluators = []
     if "actors_envs" in config:
         # if the config file specify diverse actor envs
         print(config.actors_envs)
         for name, num_actors in config.actors_envs.items():
             actors += create_actors(num_actors, environment_factories[name])
-            print(f"ACTOR Creation: {name}, # is {num_actors}")
+            print(f"ACTOR Creation: {name}, has #{num_actors} of actors.")
+            evaluators.append(RemoteAsLocal(create_evaluator(name)))
+            print(f"EVALUTATOR Creation for task: {name}")
     else:
         # Get actors.
         print(f"ACTOR Creation: {n_actors}")
-        actors = create_actors(n_actors, environment_factory)
+        actors = create_actors(n_actors, environment_factories[config["task_name"]])
 
-    # Get evaluator. # TODO: Create evaluator for multiple task.
-    evaluator = EnvironmentLoop.remote(
-        replay_server_address=replay_server.get_server_address.remote(),
-        variable_source=learner,
-        counter=counter,
-        network_factory=network_factory,
-        environment_factory=environment_factories["general"],
-        dmpo_config=dmpo_config,
-        actor_or_evaluator="evaluator",
-    )
-    evaluator = RemoteAsLocal(evaluator)
+        evaluator = EnvironmentLoop.remote(
+            replay_server_address=replay_server.get_server_address.remote(),
+            variable_source=learner,
+            counter=counter,
+            network_factory=network_factory,
+            environment_factory=environment_factories[config["task_name"]],
+            dmpo_config=dmpo_config,
+            actor_or_evaluator="evaluator",
+        )
+        evaluators.append(RemoteAsLocal(evaluator))
 
     print("Waiting until actors are ready...")
     # Block until all actors and evaluator are ready and have called `get_variables`
@@ -346,7 +359,8 @@ def main(config: DictConfig) -> None:
     # turn will cause learner to be blocked.
     for actor in actors:
         actor.isready(block=True)
-    evaluator.isready(block=True)
+    for evaluator in evaluators:
+        evaluator.isready(block=True)
 
     print("Actors ready, issuing run command to all")
 
@@ -355,7 +369,8 @@ def main(config: DictConfig) -> None:
         counter.run(block=False)
     for actor in actors:
         actor.run(block=False)
-    evaluator.run(block=False)
+    for evaluator in evaluators:
+        evaluator.run(block=False)
 
     while True:
         # Single call to `run` makes a fixed number of learning steps.

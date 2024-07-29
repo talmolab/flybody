@@ -2,9 +2,9 @@ agent_name: rodent
 algo_name: dmpo
 task_name: general
 run_name: rodent
-batch_size: 4096
-policy_layer_sizes: [1024,1024,1024,1024]
-critic_layer_sizes: [1024,512,512,256]
+batch_size: 2048
+policy_layer_sizes: [512,512,512]
+critic_layer_sizes: [512,512,512]
 num_actors: 0 # total number of actors
 actors_envs: # for DEBUG
   run-gaps: 0 #45

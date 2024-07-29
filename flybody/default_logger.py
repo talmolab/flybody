@@ -56,6 +56,7 @@ def make_default_logger(
     wandb_project: Optional[bool] = False,
     config: dict = None,
     identity: str = "",
+    task_name: str = "",
 ) -> base.Logger:
     """Makes a default Acme logger.
 
@@ -68,6 +69,9 @@ def make_default_logger(
       serialize_fn: An optional function to apply to the write inputs before
         passing them to the various loggers.
       steps_key: Ignored.
+      identity: the identity of the logger, either evaluator or learner
+      task_name: specify the task of logger, useful in training a generalist model,
+        when evaluating the performance of the model under multiple environments.
 
     Returns:
       A logger object that responds to logger.write(some_dict).
@@ -84,11 +88,14 @@ def make_default_logger(
 
     if wandb_project:
         # initialize wandb logging
+        trail_name = f"{config['run_name']}-{identity}"
+        if task_name != "":
+            trail_name += f"-{task_name}"
         wandb = setup_wandb(
             config=config,
             project="rodent-four-tasks",
             rank_zero_only=False,
-            trial_name=f"{config['run_name']}-{identity}",
+            trial_name=trail_name,
             trial_id=nanoid.generate(),
             group=config["group_name"],
         )  # with unit uuid

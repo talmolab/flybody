@@ -1,10 +1,10 @@
 agent_name: rodent
 algo_name: dmpo
-task_name: bowl-escape
-run_name: rodent-bowl-escape
-batch_size: 512
-policy_layer_sizes: [512, 512, 512, 512]
-critic_layer_sizes: [512, 512, 512, 256]
-num_actors: 61
+task_name: escape-bowl
+run_name: rodent-escape-bowl
+batch_size: 2048
+policy_layer_sizes: [512,512,512]
+critic_layer_sizes: [512,512,512]
+num_actors: 178
 group_name: rodent-maze-forage-v1
 checkpoint_to_load: 
