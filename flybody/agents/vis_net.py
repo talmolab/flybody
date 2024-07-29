@@ -185,15 +185,14 @@ class VisNetRodent(snt.Module):
         # If RGB, transform from RGB to 1-channel gray scale.
         if egocentric_camera.shape[-1] == 3:  # Is RGB?
             egocentric_camera = tf.reduce_mean(egocentric_camera, axis=-1)
-        # Normalize.
-        egocentric_camera = (egocentric_camera - self._mean) / self._std
-        # Stack the two eyes, shape (batch, height, width, channel=2).
-        x = tf.expand_dims(egocentric_camera, axis=-1)
+            # Normalize.
+            egocentric_camera = (egocentric_camera - self._mean) / self._std
+            # Stack the two eyes, shape (batch, height, width, channel=2).
+            x = tf.expand_dims(egocentric_camera, axis=-1)
 
-        # Forward pass.
-        for layer in self._layers:
-            x = layer(x)
-
+            # Forward pass.
+            for layer in self._layers:
+                x = layer(x)
             task_input = observation.pop("task_logic")
             task_input = tf.cast(task_input, tf.float32)
             # Concatenate the visual network output with the rest of

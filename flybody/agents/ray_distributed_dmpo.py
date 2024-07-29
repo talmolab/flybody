@@ -280,7 +280,7 @@ class EnvironmentLoop(acme.EnvironmentLoop):
         label = label or actor_or_evaluator
 
         # Create the environment.
-        environment = environment_factory(actor_or_evaluator == "Evaluator")
+        environment = environment_factory()
         environment_spec = specs.make_environment_spec(environment)
 
         def wrapped_network_factory(action_spec):

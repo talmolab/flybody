@@ -97,7 +97,9 @@ tasks = {
 }
 
 
-@hydra.main(version_base=None, config_path="./config", config_name="train_config_gaps")
+@hydra.main(
+    version_base=None, config_path="./config", config_name="train_config_generalist"
+)
 def main(config: DictConfig) -> None:
     print("CONFIG:", config)
     from flybody.agents.ray_distributed_dmpo import (
@@ -114,18 +116,39 @@ def main(config: DictConfig) -> None:
     print("\nAvailable Ray cluster resources:")
     print(ray_resources)
 
-    # Create environment factory for walk-on-ball fly RL task.
-    def environment_factory(
-        training: bool, task: str = config["task_name"]
-    ) -> "composer.Environment":
-        """Creates replicas of environment for the agent."""
-        del training  # Unused.
-        env = tasks[task]()
+    # Create environment factory RL task.
+    # Cannot parametrize it because it failed to serialize functions
+    def environment_factory_run_gaps() -> "composer.Environment":
+        env = tasks["run-gaps"]()
         env = wrappers.SinglePrecisionWrapper(env)
         env = wrappers.CanonicalSpecWrapper(env)
         return env
 
-    environment_factories = {task: environment_factory(task) for task in tasks.keys()}
+    def environment_factory_two_taps() -> "composer.Environment":
+        env = tasks["two-taps"]()
+        env = wrappers.SinglePrecisionWrapper(env)
+        env = wrappers.CanonicalSpecWrapper(env)
+        return env
+
+    def environment_factory_maze_forage() -> "composer.Environment":
+        env = tasks["maze-forage"]()
+        env = wrappers.SinglePrecisionWrapper(env)
+        env = wrappers.CanonicalSpecWrapper(env)
+        return env
+
+    def environment_factory_bowl_escape() -> "composer.Environment":
+        env = tasks["escape-bowl"]()
+        env = wrappers.SinglePrecisionWrapper(env)
+        env = wrappers.CanonicalSpecWrapper(env)
+        return env
+
+    environment_factories = {
+        "run-gaps": environment_factory_run_gaps,
+        "maze-forage": environment_factory_maze_forage,
+        "escape-bowl": environment_factory_bowl_escape,
+        "two-taps": environment_factory_two_taps,
+        "general": environment_factory_run_gaps,
+    }
 
     # Create network factory for RL task.
     network_factory = make_network_factory_dmpo(
@@ -134,7 +157,7 @@ def main(config: DictConfig) -> None:
     )
 
     # Dummy environment and network for quick use, deleted later.
-    dummy_env = environment_factory(training=True)
+    dummy_env = environment_factories[config["task_name"]]()
     dummy_net = network_factory(
         dummy_env.action_spec()
     )  # we should share this net for joint training
@@ -297,7 +320,7 @@ def main(config: DictConfig) -> None:
         # if the config file specify diverse actor envs
         print(config.actors_envs)
         for name, num_actors in config.actors_envs.items():
-            actors.append(create_actors(num_actors, environment_factories[name]))
+            actors += create_actors(num_actors, environment_factories[name])
             print(f"ACTOR Creation: {name}, # is {num_actors}")
     else:
         # Get actors.
@@ -310,7 +333,7 @@ def main(config: DictConfig) -> None:
         variable_source=learner,
         counter=counter,
         network_factory=network_factory,
-        environment_factory=environment_factory,
+        environment_factory=environment_factories["general"],
         dmpo_config=dmpo_config,
         actor_or_evaluator="evaluator",
     )

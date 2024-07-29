@@ -28,6 +28,7 @@ from dm_control.locomotion.tasks import corridors as corr_tasks
 from dm_control.locomotion.tasks import escape
 from dm_control.locomotion.tasks import random_goal_maze
 from dm_control.locomotion.tasks import reach
+from flybody import rodent_tasks_modified as T
 from dm_control.locomotion.walkers import rodent
 
 _CONTROL_TIMESTEP = 0.02
@@ -47,7 +48,7 @@ def rodent_escape_bowl(random_state=None):
     arena = bowl.Bowl(size=(20.0, 20.0), aesthetic="outdoor_natural")
 
     # Build a task that rewards the agent for being far from the origin.
-    task = escape.Escape(
+    task = T.EscapeSameObs(
         walker=walker,
         arena=arena,
         physics_timestep=_PHYSICS_TIMESTEP,
@@ -82,7 +83,7 @@ def rodent_run_gaps(
 
     # Build a task that rewards the agent for running down the corridor at a
     # specific velocity.
-    task = corr_tasks.RunThroughCorridor(
+    task = T.RunThroughCorridorSameObs(
         walker=walker,
         arena=arena,
         walker_spawn_position=(5, 0, 0),
@@ -125,7 +126,7 @@ def rodent_maze_forage(random_state=None):
     )
 
     # Build a task that rewards the agent for obtaining targets.
-    task = random_goal_maze.ManyGoalsMaze(
+    task = T.ManyGoalsMazeSameObs(
         walker=walker,
         maze_arena=arena,
         target_builder=functools.partial(
@@ -160,7 +161,7 @@ def rodent_two_touch(random_state=None):
 
     # Build a task that rewards the walker for touching/reaching orbs with a
     # specific time interval between touches
-    task = reach.TwoTouch(
+    task = T.TwoTouchSamObs(
         walker=walker,
         arena=arena,
         target_builders=[

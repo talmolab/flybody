@@ -6,10 +6,10 @@ batch_size: 4096
 policy_layer_sizes: [1024,1024,1024,1024]
 critic_layer_sizes: [1024,512,512,256]
 num_actors: 0 # total number of actors
-actors_envs:
-  run-gaps: 45
-  maze-forage: 45
-  escape-bowl: 44
-  two-taps: 44
+actors_envs: # for DEBUG
+  run-gaps: 0 #45
+  maze-forage: 1 #45
+  escape-bowl: 0 #44
+  two-taps: 0 #44
 checkpoint_to_load:
 group_name: generalist
