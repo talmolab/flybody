@@ -7,9 +7,9 @@ policy_layer_sizes: [512,512,512]
 critic_layer_sizes: [512,512,512]
 num_actors: 0 # total number of actors
 actors_envs: # for DEBUG
-  run-gaps: 0 #45
-  maze-forage: 1 #45
-  escape-bowl: 0 #44
-  two-taps: 0 #44
-checkpoint_to_load:
+  run-gaps: 12 #45
+  maze-forage: 12 #45
+  escape-bowl: 12 #44
+  two-taps: 12 #44
+checkpoint_to_load: /root/vast/scott-yang/flybody/training/ray-rodent-escape-bowl-ckpts/1c0f2602-4df5-11ef-a59a-2ae1cc4cdff5/checkpoints/dmpo_learner/ckpt-15
 group_name: generalist

@@ -15,6 +15,7 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 
 tfd = tfp.distributions
+NestedArray = Any
 
 _MPO_FLOAT_EPSILON = 1e-8
 
@@ -84,6 +85,8 @@ class MPO(snt.Module):
         epsilon_penalty: float = 0.001,
         penalization_cost: Optional[Callable] = None,
         name: str = "MPO",
+        kickstart_teacher_cps_path: str = "",
+        kickstart_epsilon: float = 0.005,
     ):
         """Initialize and configure the MPO loss.
         Args:
@@ -111,6 +114,8 @@ class MPO(snt.Module):
             from actions. If None: use default norm as
               cost_out_of_bound = -tf.norm(actions, axis=-1).
           name: a name for the module, passed directly to snt.Module.
+          kickstart_teacher_cps_path: the path of the kickstart teacher's policy checkpoint. View https://arxiv.org/abs/1803.03835
+          kickstart_epsilon: the epsilon strength of the teacher skill distillation on the loss.
         """
         super().__init__(name=name)
 
@@ -132,6 +137,14 @@ class MPO(snt.Module):
 
         # Whether to ensure per-dimension KL constraint satisfication.
         self._per_dim_constraining = per_dim_constraining
+
+        # kickstarting related
+        self._kickstart_teacher_cps_path = kickstart_teacher_cps_path
+        self._kickstart_epsilon = tf.constant(kickstart_epsilon)
+
+        if self._kickstart_teacher_cps_path != "":
+            # user provided teacher for kickstarting training. Load the policy checkpoint.
+            self._teacher_policy = tf.saved_model.load(self._kickstart_teacher_cps_path)
 
     @snt.once
     def create_dual_variables_once(self, shape: tf.TensorShape, dtype: tf.DType):
@@ -177,6 +190,7 @@ class MPO(snt.Module):
         target_action_distribution: Union[tfd.MultivariateNormalDiag, tfd.Independent],
         actions: tf.Tensor,  # Shape [N, B, D].
         q_values: tf.Tensor,  # Shape [N, B].
+        observations: NestedArray,
     ) -> Tuple[tf.Tensor, Dict[str, tf.Tensor]]:
         """Computes the decoupled MPO loss.
         Args:
@@ -335,8 +349,17 @@ class MPO(snt.Module):
             kl_stddev, alpha_stddev, self._epsilon_stddev
         )
 
+        loss_policy_teacher = 0
+        # Compute the expert distillation loss
+        if self._kickstart_teacher_cps_path != "":
+            teacher_distribution = self._teacher_policy(observations)
+            kl_teacher_student = teacher_distribution.distribution.kl_divergence(
+                online_action_distribution.distribution
+            )
+            loss_policy_teacher = kl_teacher_student * self._kickstart_epsilon
+
         # Combine losses.
-        loss_policy = loss_policy_mean + loss_policy_stddev
+        loss_policy = loss_policy_mean + loss_policy_stddev + loss_policy_teacher
         loss_kl_penalty = loss_kl_mean + loss_kl_stddev
         loss_dual = loss_alpha_mean + loss_alpha_stddev + loss_temperature
         loss = loss_policy + loss_kl_penalty + loss_dual
@@ -349,6 +372,8 @@ class MPO(snt.Module):
         # Losses.
         stats["loss_policy"] = tf.reduce_mean(loss)
         stats["loss_alpha"] = tf.reduce_mean(loss_alpha_mean + loss_alpha_stddev)
+        if self._kickstart_teacher_cps_path != "":
+            stats["loss_kickstart"] = tf.reduce_mean(loss_policy_teacher)
         stats["loss_temperature"] = tf.reduce_mean(loss_temperature)
         # KL measurements.
         stats["kl_q_rel"] = tf.reduce_mean(kl_nonparametric) / self._epsilon

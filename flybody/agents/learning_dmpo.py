@@ -157,7 +157,7 @@ class DistributionalMPOLearner(acme.Learner):
                 num_steps=self._num_steps,
             )
             status = _checkpoint.restore(checkpoint_to_load)  # noqa: F841
-            print(f"DEBUG: LOADED checkpoint from {checkpoint_to_load}")
+            print(f"CKPTS: LOADED checkpoint from {checkpoint_to_load}")
             # The assert below will not work because at this point not all variables have
             # been created in tf.train.Checkpoint argument objects. However, it's good
             # enough to revive a job from its checkpoint. Another option is to put
@@ -272,6 +272,7 @@ class DistributionalMPOLearner(acme.Learner):
                 target_action_distribution=target_action_distribution,
                 actions=sampled_actions,
                 q_values=sampled_q_values,
+                observations=o_tm1,
             )
 
         # For clarity, explicitly define which variables are trained by which loss.

@@ -345,7 +345,7 @@ class EnvironmentLoop(acme.EnvironmentLoop):
             else:
                 logger_kwargs = {}
             if actor_or_evaluator == "evaluator":
-                print("Evaluator Node for Logger!")
+                print(f"Evaluator Node for Logger! Task Name: {task_name}")
             logger = self._config.logger(
                 label=label,
                 time_delta=self._config.log_every,

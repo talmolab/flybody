@@ -5,6 +5,6 @@ run_name: rodent-escape-bowl
 batch_size: 2048
 policy_layer_sizes: [512,512,512]
 critic_layer_sizes: [512,512,512]
-num_actors: 178
+num_actors: 48
 group_name: rodent-maze-forage-v1
-checkpoint_to_load: 
+checkpoint_to_load: /root/vast/scott-yang/flybody/training/ray-rodent-escape-bowl-ckpts/1c0f2602-4df5-11ef-a59a-2ae1cc4cdff5/checkpoints/dmpo_learner/ckpt-15
