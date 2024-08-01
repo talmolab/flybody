@@ -29,6 +29,7 @@ from dm_control.locomotion.tasks.reference_pose import datasets
 from dm_control.locomotion.tasks.reference_pose import types
 from dm_control.locomotion.tasks.reference_pose import utils
 from dm_control.locomotion.tasks.reference_pose import rewards
+# from flybody.tasks import tracking_rewards as rewards
 
 from dm_control.mujoco.wrapper import mjbindings
 from dm_control.utils import transformations as tr

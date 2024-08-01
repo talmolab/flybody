@@ -52,12 +52,12 @@ from flybody.agents.remote_as_local_wrapper import RemoteAsLocal
 from flybody.agents.counting import PicklableCounter
 from flybody.agents.network_factory import policy_loss_module_dmpo
 from flybody.agents.losses_mpo import PenalizationCostRealActions
-from flybody.basic_rodent_2020 import rodent_run_gaps, rodent_maze_forage, rodent_escape_bowl, rodent_two_touch, walk_imitation
+from flybody.basic_rodent_2020 import rodent_run_gaps, rodent_maze_forage, rodent_escape_bowl, rodent_two_touch, walk_humanoid
 from flybody.wrapper import SinglePrecisionWrapperFloat, RemoveVisionWrapper
 
-from flybody.fly_envs import walk_on_ball, vision_guided_flight
-# from flybody.agents.network_factory import make_network_factory_dmpo
-from flybody.agents.intention_network_factory import make_network_factory_dmpo
+from flybody.fly_envs import walk_on_ball, vision_guided_flight, walk_imitation
+from flybody.agents.network_factory import make_network_factory_dmpo
+# from flybody.agents.intention_network_factory import make_network_factory_dmpo
 from flybody.default_logger import make_default_logger
 from flybody.single_precision import SinglePrecisionWrapper
 
@@ -91,8 +91,7 @@ tasks = {"run-gaps": rodent_run_gaps,
          "two-taps": rodent_two_touch,
          "imitation": walk_imitation}
 
-
-@hydra.main(version_base=None, config_path="./config", config_name="train_config_imitation")
+@hydra.main(version_base=None, config_path="./config", config_name="train_config_fly")
 def main(config : DictConfig) -> None:
     print("CONFIG:", config)
     from flybody.agents.ray_distributed_dmpo import (

@@ -1,0 +1,13 @@
+agent_name: humanoid
+algo_name: dmpo
+task_name: imitation
+run_name: humanoid_imitation
+batch_size: 512
+policy_layer_sizes: [512, 512, 512]
+critic_layer_sizes: [512, 512, 512]
+num_actors: 100
+group_name: humanoid-comic-imitation
+
+# for some reason only abs path works here
+ref_traj_path: "/root/talmolab-smb/kaiwen/flybody/clips/cmu_2020_dfe3e9e0.h5"
+checkpoint_to_load:

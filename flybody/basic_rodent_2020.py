@@ -31,6 +31,9 @@ from dm_control.locomotion.tasks import escape
 from dm_control.locomotion.tasks import random_goal_maze
 from dm_control.locomotion.tasks import reach
 
+from dm_control.locomotion import walkers
+from dm_control.utils import io as resources
+
 from dm_control.utils import io as resources
 from dm_control.locomotion.tasks.reference_pose import types
 import os
@@ -203,7 +206,8 @@ def walk_imitation(
     """
     Rodent walking imitation, following similar calling with fruitfly imitation
     """
-    walker = rodent.Rat # pass callable
+    # walker = rodent.Rat # pass callable
+    walker = functools.partial(rodent.Rat, foot_mods=True)
     arena = floors.Floor()
 
     current_directory = os.getcwd()
@@ -223,7 +227,50 @@ def walk_imitation(
         dataset=dataset,
         reward_type='comic',
         always_init_at_clip_start=True,
-        ghost_offset=GHOST_OFFSET
+        ghost_offset=GHOST_OFFSET,
+        termination_error_threshold=0.15 # higher threshold are harder to terminate
+    )
+    time_limit = 10.0
+
+    return composer.Environment(
+        time_limit=time_limit,
+        task=task,
+        random_state=random_state,
+        strip_singleton_obs_buffer_dim=True,
+    )
+
+def walk_humanoid(
+    ref_path: str | None = None,
+    random_state: np.random.RandomState | None = None,
+    terminal_com_dist: float = 0.3,
+):
+    """
+    Rodent walking imitation, following similar calling with fruitfly imitation
+    """  
+    arena = floors.Floor()
+    walker = walkers.CMUHumanoidPositionControlledV2020
+
+    TEST_FILE_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), '../../flybody/clips'))
+    TEST_FILE_PATH = os.path.join(TEST_FILE_DIR, ref_path)
+    test_data = resources.GetResourceFilename(TEST_FILE_PATH)
+
+    with h5py.File(TEST_FILE_PATH, 'r') as f:
+        dataset_keys = tuple(f.keys())
+        dataset = types.ClipCollection(ids=dataset_keys,)
+    
+    
+    # Set up the mocap tracking task
+    task = tracking.MultiClipMocapTracking(
+        walker=walker,
+        arena=arena,
+        ref_path=test_data,
+        dataset=dataset,
+        ref_steps=(1, 2, 3, 4, 5),
+        min_steps=1,
+        reward_type='comic',
+        always_init_at_clip_start=True,
+        ghost_offset=GHOST_OFFSET,
+        termination_error_threshold=1.0 # higher threshold are harder to terminate
     )
     time_limit = 10.0
 

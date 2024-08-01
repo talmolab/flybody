@@ -5,9 +5,11 @@ import sonnet as snt
 
 
 class IntentionNetwork(snt.Module):
+    '''encoder decoder now have the same size from the policy layer argument, decoder + latent'''
     def __init__(self,
                  action_size,
                  latent_size,
+                 ref_size,
                  min_scale,
                  tanh_mean,
                  init_scale,
@@ -16,6 +18,7 @@ class IntentionNetwork(snt.Module):
                  policy_layer_sizes):
         
         super().__init__()
+        self.ref_size = ref_size
         self.encoder = snt.Sequential([
             tf2_utils.batch_concat,
             networks.LayerNormMLP(layer_sizes=policy_layer_sizes[:-1], activate_final=True),
@@ -35,8 +38,8 @@ class IntentionNetwork(snt.Module):
             ])
 
     def __call__(self, observations):
-        reference_obs = observations[0]
-        remaining_obs = observations[1]
+        reference_obs = observations[...,:self.ref_size]
+        remaining_obs = observations[...,self.ref_size:]
         latent = self.encoder(tf2_utils.batch_concat(reference_obs))
         concatenated = tf.concat([latent,remaining_obs], axis=-1)
         policy_params = self.decoder(tf2_utils.batch_concat(concatenated))

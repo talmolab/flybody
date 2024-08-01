@@ -11,7 +11,7 @@ import sonnet as snt
 from flybody.agents import losses_mpo
 from flybody.agents.vis_net import VisNetFly, VisNetRodent, VisNetRodentImitation
 
-from flybody.agents.intention_split_net import SeparateObservations
+from flybody.agents.intention_split_net import separate_observation
 from flybody.agents.intention_network_base import IntentionNetwork
 
 def network_factory_dmpo(
@@ -19,6 +19,7 @@ def network_factory_dmpo(
     policy_layer_sizes=(256, 256, 256),
     critic_layer_sizes=(512, 512, 256),
     latent_size=64,
+    ref_size=1520,
     vmin=-150.0,
     vmax=150.0,
     num_atoms=51,
@@ -34,6 +35,7 @@ def network_factory_dmpo(
     policy_network = IntentionNetwork(
         action_size,
         latent_size,
+        ref_size,
         min_scale=min_scale,
         tanh_mean=tanh_mean,
         init_scale=init_scale,
@@ -59,7 +61,7 @@ def network_factory_dmpo(
     return {
         "policy": policy_network,
         "critic": critic_network,
-        "observation": SeparateObservations()
+        "observation": separate_observation
         #tf2_utils.batch_concat
         #VisNetRodentImitation()
         # pass in as object
