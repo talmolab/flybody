@@ -51,7 +51,7 @@ def rodent_escape_bowl(random_state=None):
     task = T.EscapeSameObs(
         walker=walker,
         arena=arena,
-        walker_spawn_position=(0,0,0.1), # lifted z axis to aviod penetration
+        walker_spawn_position=(0, 0, 0.05),  # lifted z axis to aviod penetration
         physics_timestep=_PHYSICS_TIMESTEP,
         control_timestep=_CONTROL_TIMESTEP,
     )

@@ -63,6 +63,8 @@ class DMPOConfig:
     userdata: dict | None = None
     actor_observation_callback: Callable | None = None
     config_dict: dict | None = None
+    kickstart_teacher_cps_path: str = "", # specify the location of the kickstarter teacher policy's cps
+    kickstart_epsilon: float = 0.005,
 
 
 class ReplayServer:
@@ -193,6 +195,8 @@ class Learner(DistributionalMPOLearner):
             directory=self._config.checkpoint_directory,
             checkpoint_to_load=self._config.checkpoint_to_load,
             time_delta_minutes=self._config.time_delta_minutes,
+            kickstart_teacher_cps_path=self._config.kickstart_teacher_cps_path,
+            kickstart_epsilon=self._config.kickstart_epsilon
         )
 
     def _step(self):

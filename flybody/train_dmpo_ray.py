@@ -1,4 +1,5 @@
-"""Script for distributed reinforcement learning training with Ray.
+"""
+Script for distributed reinforcement learning training with Ray.
 
 This script trains the fly-on-ball RL task using a distributed version of the
 DMPO agent. The training runs in an infinite loop until terminated.
@@ -34,7 +35,6 @@ except:
         include_dashboard=True, dashboard_host="0.0.0.0", logging_level=logging.INFO
     )
 
-
 import argparse
 import time
 import os
@@ -46,7 +46,9 @@ from omegaconf import DictConfig, OmegaConf
 
 from acme import specs
 from acme import wrappers
+from acme.tf import utils as tf2_utils
 import sonnet as snt
+import tensorflow as tf
 
 import flybody
 from flybody.agents.remote_as_local_wrapper import RemoteAsLocal
@@ -97,7 +99,9 @@ tasks = {
 }
 
 
-@hydra.main(version_base=None, config_path="./config", config_name="train_config_bowl")
+@hydra.main(
+    version_base=None, config_path="./config", config_name="train_config_generalist"
+)
 def main(config: DictConfig) -> None:
     print("CONFIG:", config)
     from flybody.agents.ray_distributed_dmpo import (
@@ -169,13 +173,12 @@ def main(config: DictConfig) -> None:
     )
     # Distributed DMPO agent configuration.
     dmpo_config = DMPOConfig(
-        num_actors=test_num_actors
-        or config["num_actors"],  # 62 threads, leave some for learner/evaluator
+        num_actors=test_num_actors or config["num_actors"],
         batch_size=config["batch_size"],
-        prefetch_size=4,
-        num_learner_steps=100,
+        prefetch_size=4,  # maybe unlimited?
+        num_learner_steps=200,
         min_replay_size=test_min_replay_size or 10_000,
-        max_replay_size=4_000_000,
+        max_replay_size=6_000_000,  # increase reply size
         samples_per_insert=15,
         n_step=50,
         num_samples=20,
@@ -193,7 +196,7 @@ def main(config: DictConfig) -> None:
         target_critic_update_period=107,
         target_policy_update_period=101,
         actor_update_period=1000,
-        log_every=test_log_every or 5 * 60,
+        log_every=test_log_every or 60,
         logger=make_default_logger,
         logger_save_csv_data=False,
         checkpoint_max_to_keep=None,
@@ -201,10 +204,13 @@ def main(config: DictConfig) -> None:
         checkpoint_to_load=config["checkpoint_to_load"],
         print_fn=None,  # print # this causes issue pprint does not work
         userdata=dict(),
+        kickstart_teacher_cps_path=config[
+            "kickstart_teacher_cps_path"
+        ],  # specify the location of the kickstarter teacher policy's cps
+        kickstart_epsilon=config["kickstart_epsilon"],
     )
 
     dmpo_dict_config = dataclasses.asdict(dmpo_config)
-    config
     merged_config = dmpo_dict_config | OmegaConf.to_container(
         config
     )  # merged two config
@@ -334,8 +340,9 @@ def main(config: DictConfig) -> None:
         for name, num_actors in config.actors_envs.items():
             actors += create_actors(num_actors, environment_factories[name])
             print(f"ACTOR Creation: {name}, has #{num_actors} of actors.")
-            evaluators.append(RemoteAsLocal(create_evaluator(name)))
-            print(f"EVALUTATOR Creation for task: {name}")
+            if num_actors != 0: # only create evaluator if we decided to run that task.
+                evaluators.append(RemoteAsLocal(create_evaluator(name)))
+                print(f"EVALUTATOR Creation for task: {name}")
     else:
         # Get actors.
         print(f"ACTOR Creation: {n_actors}")

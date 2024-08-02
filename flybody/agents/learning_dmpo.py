@@ -16,6 +16,8 @@ import numpy as np
 import sonnet as snt
 import tensorflow as tf
 
+from flybody.utils import vision_rollout_and_render
+
 # inject our wandb logger for learner only
 
 
@@ -46,7 +48,9 @@ class DistributionalMPOLearner(acme.Learner):
         checkpoint_max_to_keep: Optional[int] = 1,  # If None, all checkpoints are kept.
         directory: str | None = "~/acme/",
         checkpoint_to_load: Optional[str] = None,
-        time_delta_minutes: float = 30.0,
+        time_delta_minutes: float = 15.0,
+        kickstart_teacher_cps_path: str = None, # specify the location of the kickstarter teacher policy's cps
+        kickstart_epsilon: float = 0.005,
     ):
 
         # Store online and target networks.
@@ -93,6 +97,14 @@ class DistributionalMPOLearner(acme.Learner):
         self._critic_optimizer = critic_optimizer or snt.optimizers.Adam(1e-4)
         self._policy_optimizer = policy_optimizer or snt.optimizers.Adam(1e-4)
         self._dual_optimizer = dual_optimizer or snt.optimizers.Adam(1e-2)
+        
+        # Load the teacher's policy
+        self._kickstart_teacher_policy = None
+        self._kickstart_epsilon = 0
+        if kickstart_teacher_cps_path != None:
+            print("KICKSTART: Loading Teacher Policy from: {kickstart_teacher_cps_path}")
+            self._kickstart_teacher_policy = tf.saved_model.load(kickstart_teacher_cps_path)
+            self._kickstart_epsilon = tf.constant(kickstart_epsilon)
 
         # Expose the variables.
         policy_network_to_expose = snt.Sequential(
@@ -133,6 +145,16 @@ class DistributionalMPOLearner(acme.Learner):
                 objects_to_save={
                     "policy-0": snt.Sequential(
                         [self._target_observation_network, self._target_policy_network]
+                    )
+                },
+                directory=directory,
+                time_delta_minutes=time_delta_minutes,
+            )
+            
+            self._snapshotter_policy_only = tf2_savers.Snapshotter( # only save the target policy network without the observation network
+                objects_to_save={
+                    "policy-only-no-obs-network-0": snt.Sequential(
+                        [self._target_policy_network]
                     )
                 },
                 directory=directory,
@@ -272,8 +294,21 @@ class DistributionalMPOLearner(acme.Learner):
                 target_action_distribution=target_action_distribution,
                 actions=sampled_actions,
                 q_values=sampled_q_values,
-                observations=o_tm1,
             )
+            
+            # compute the kickstarting loss 
+            # Note: Have to do it here because the custom policy loss module is serialized in the head node via `DMPOConfig` and
+            # we cannot serialize the checkpoint object
+            loss_policy_teacher = 0
+            # Compute the expert distillation loss
+            if self._kickstart_teacher_policy is not None:
+                teacher_distribution = self._kickstart_teacher_policy(o_tm1)
+                kl_teacher_student = teacher_distribution.distribution.kl_divergence(
+                    online_action_distribution.distribution
+                )
+                loss_policy_teacher = kl_teacher_student * self._kickstart_epsilon
+            policy_loss += loss_policy_teacher
+            policy_stats["loss_kickstart"] = tf.reduce_mean(loss_policy_teacher)
 
         # For clarity, explicitly define which variables are trained by which loss.
         critic_trainable_variables = (
@@ -330,6 +365,23 @@ class DistributionalMPOLearner(acme.Learner):
         if self._checkpointer is not None:
             self._checkpointer.save()
 
+        if self._snapshotter_policy_only is not None:
+            if self._snapshotter_policy_only.save():
+                # Increment the snapshot counter (directly in the snapshotter's path).
+                for path in list(self._snapshotter_policy_only._snapshots.keys()):
+                    snapshot = self._snapshotter_policy_only._snapshots[path]  # noqa: F841
+                    # Assume that path ends with, e.g., "/policy-17".
+                    # Find sequence of digits at end of string.
+                    current_counter = re.findall("[\d]+$", path)[0]
+                    new_path = path.replace(
+                        "policy-only-no-obs-network-" + current_counter,
+                        "policy-only-no-obs-network-" + str(int(current_counter) + 1),
+                    )
+                    # Redirect snapshot to new key and delete old key.
+                    self._snapshotter_policy_only._snapshots[new_path] = (
+                        self._snapshotter_policy_only._snapshots.pop(path)
+                    )
+        
         if self._snapshotter is not None:
             if self._snapshotter.save():
                 # Increment the snapshot counter (directly in the snapshotter's path).
@@ -346,6 +398,7 @@ class DistributionalMPOLearner(acme.Learner):
                     self._snapshotter._snapshots[new_path] = (
                         self._snapshotter._snapshots.pop(path)
                     )
+                # frames = vision_rollout_and_render() # need to think about environment loading / rendering
         self._logger.write(fetches)
 
     def get_variables(self, names: List[str]) -> List[List[np.ndarray]]:

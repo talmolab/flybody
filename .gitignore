@@ -1,6 +1,6 @@
 __pycache__/
 
-# *.ipynb
+*.ipynb
 .ipynb_checkpoints
 data/
 cps/
@@ -9,3 +9,4 @@ nohup/
 wandb/
 training/
 outputs/
+*.mp4

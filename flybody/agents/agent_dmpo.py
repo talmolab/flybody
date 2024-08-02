@@ -230,6 +230,8 @@ class DMPOBuilder:
             counter=counter,
             checkpoint_enable=checkpoint_enable,
             checkpoint_max_to_keep=checkpoint_max_to_keep,
+            kickstart_teacher_cps_path=self._config["kickstart_teacher_cps_path"], # specify the location of the kickstarter teacher policy's cps
+            kickstart_epsilon=self._config["kickstart_epsilon"],
         )
 
 

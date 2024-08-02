@@ -6,6 +6,7 @@ from IPython.display import HTML
 import matplotlib
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 def rollout_and_render(
@@ -84,3 +85,61 @@ def parse_mujoco_camera(s: str):
     pos = [float(s) for s in pos.split()]
     xyaxes = [float(s) for s in xyaxes.split()]
     return pos, xyaxes
+
+
+# Helper Function
+def blow(x, repeats=2):
+    """Repeat columns and rows requested number of times."""
+    return np.repeat(np.repeat(x, repeats, axis=0), repeats, axis=1)
+
+
+def vision_rollout_and_render(env, policy, camera_id=1,
+                              eye_blow_factor=5, **render_kwargs):
+    """Run vision-guided flight episode and render frames, including eyes."""
+    frames = []
+    timestep = env.reset()
+    # Run full episode until it ends.
+    i=0
+    while timestep.step_type != 2 and i < 500:
+        i+=1
+        # Render eyes and scene.
+        pixels = env.physics.render(camera_id=camera_id, **render_kwargs)
+        eyes = eye_pixels_from_observation(
+            timestep, blow_factor=eye_blow_factor)
+        # Add eye pixels to scene.
+        pixels[0:eyes.shape[0], 0:eyes.shape[1], :] = eyes
+        frames.append(pixels)
+        # Step environment.
+        action = policy(timestep.observation)
+        timestep = env.step(action)
+    return frames
+
+
+def eye_pixels_from_observation(timestep, blow_factor=4):
+    """Get current eye view from timestep.observation."""
+    # In the actual task, the averaging over axis=-1 is done by the visual
+    # network as a pre-processing step, so effectively the visual observations
+    # are gray-scale.
+    egocentric_camera = timestep.observation['walker/egocentric_camera'].mean(axis=-1)
+
+    pixels = egocentric_camera
+    pixels = np.tile(pixels[:, :, None], reps=(1, 1, 3))
+    pixels = blow(pixels, blow_factor)
+    pixels = pixels.astype('uint8')
+    return pixels
+
+
+def eye_pixels_from_cameras(physics, **render_kwargs):
+    """Render two-eye view, assuming eye cameras have particular names."""
+    for i in range(physics.model.ncam):
+        name = physics.model.id2name(i, 'camera')
+        if 'eye_left' in name:
+            left_eye = physics.render(camera_id=i, **render_kwargs)
+        if 'eye_right' in name:
+            right_eye = physics.render(camera_id=i, **render_kwargs)
+    pixels = np.hstack((left_eye, right_eye))
+    return pixels
+
+
+# Frame width and height for rendering.
+render_kwargs = {'width': 640, 'height': 480}
