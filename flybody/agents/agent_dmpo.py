@@ -240,7 +240,9 @@ class DMPO(agent.Agent):
     This implements a single-process DMPO agent. This is an actor-critic algorithm
     that generates data via a behavior policy, inserts N-step transitions into
     a replay buffer, and periodically updates the policy (and as a result the
-    behavior) by sampling uniformly from this buffer.
+    behavior) by sampling uniformly from this buffer. 
+    
+    DEPRECATED, being replaced by the ray distributed training.
     """
 
     def __init__(
@@ -355,6 +357,7 @@ class DMPO(agent.Agent):
             ]
         )
 
+        # TODO(SY): Create mulitple replay servers here, and log their address.
         # Create the replay server and grab its address.
         replay_tables = builder.make_replay_tables(environment_spec)
         replay_server = reverb.Server(replay_tables, port=None)

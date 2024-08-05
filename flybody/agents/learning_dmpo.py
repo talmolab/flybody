@@ -34,7 +34,7 @@ class DistributionalMPOLearner(acme.Learner):
         num_samples: int,
         target_policy_update_period: int,
         target_critic_update_period: int,
-        dataset: tf.data.Dataset,
+        datasets: List[tf.data.Dataset],
         observation_network: types.TensorTransformation = tf.identity,
         target_observation_network: types.TensorTransformation = tf.identity,
         policy_loss_module: Optional[snt.Module] = None,
@@ -80,8 +80,9 @@ class DistributionalMPOLearner(acme.Learner):
         self._target_critic_update_period = target_critic_update_period
 
         # Batch dataset and create iterator.
+        # Created multiple iterators for different replaybuffer sources
         # TODO(b/155086959): Fix type stubs and remove.
-        self._iterator = iter(dataset)  # pytype: disable=wrong-arg-types
+        self._iterators = [iter(dataset) for dataset in datasets]  # pytype: disable=wrong-arg-types
 
         self._policy_loss_module = policy_loss_module or losses.MPO(
             epsilon=1e-1,
@@ -193,7 +194,7 @@ class DistributionalMPOLearner(acme.Learner):
         self._timestamp = None
 
     @tf.function
-    def _step(self) -> types.NestedTensor:
+    def _step(self, iterator) -> types.NestedTensor:
         # Update target network.
         online_policy_variables = self._policy_network.variables
         target_policy_variables = self._target_policy_network.variables
@@ -219,7 +220,9 @@ class DistributionalMPOLearner(acme.Learner):
 
         # Get data from replay (dropping extras if any). Note there is no
         # extra data here because we do not insert any into Reverb.
-        inputs = next(self._iterator)
+        
+        # TODO(SY) Insert multiple replay buffers implementation here.
+        inputs = next(iterator)
         transitions: types.Transition = inputs.data
 
         # Get batch size and scalar dtype.
@@ -350,56 +353,57 @@ class DistributionalMPOLearner(acme.Learner):
 
     def step(self):
         # Run the learning step.
-        fetches = self._step()
+        for iterator in self._iterators:
+            fetches = self._step(iterator)
 
-        # Compute elapsed time.
-        timestamp = time.time()
-        elapsed_time = timestamp - self._timestamp if self._timestamp else 0
-        self._timestamp = timestamp
+            # Compute elapsed time.
+            timestamp = time.time()
+            elapsed_time = timestamp - self._timestamp if self._timestamp else 0
+            self._timestamp = timestamp
 
-        # Update our counts and record it.
-        counts = self._counter.increment(steps=1, walltime=elapsed_time)
-        fetches.update(counts)
+            # Update our counts and record it.
+            counts = self._counter.increment(steps=1, walltime=elapsed_time)
+            fetches.update(counts)
 
-        # Checkpoint and attempt to write the logs.
-        if self._checkpointer is not None:
-            self._checkpointer.save()
+            # Checkpoint and attempt to write the logs.
+            if self._checkpointer is not None:
+                self._checkpointer.save()
 
-        if self._snapshotter_policy_only is not None:
-            if self._snapshotter_policy_only.save():
-                # Increment the snapshot counter (directly in the snapshotter's path).
-                for path in list(self._snapshotter_policy_only._snapshots.keys()):
-                    snapshot = self._snapshotter_policy_only._snapshots[path]  # noqa: F841
-                    # Assume that path ends with, e.g., "/policy-17".
-                    # Find sequence of digits at end of string.
-                    current_counter = re.findall("[\d]+$", path)[0]
-                    new_path = path.replace(
-                        "policy-only-no-obs-network-" + current_counter,
-                        "policy-only-no-obs-network-" + str(int(current_counter) + 1),
-                    )
-                    # Redirect snapshot to new key and delete old key.
-                    self._snapshotter_policy_only._snapshots[new_path] = (
-                        self._snapshotter_policy_only._snapshots.pop(path)
-                    )
-        
-        if self._snapshotter is not None:
-            if self._snapshotter.save():
-                # Increment the snapshot counter (directly in the snapshotter's path).
-                for path in list(self._snapshotter._snapshots.keys()):
-                    snapshot = self._snapshotter._snapshots[path]  # noqa: F841
-                    # Assume that path ends with, e.g., "/policy-17".
-                    # Find sequence of digits at end of string.
-                    current_counter = re.findall("[\d]+$", path)[0]
-                    new_path = path.replace(
-                        "policy-" + current_counter,
-                        "policy-" + str(int(current_counter) + 1),
-                    )
-                    # Redirect snapshot to new key and delete old key.
-                    self._snapshotter._snapshots[new_path] = (
-                        self._snapshotter._snapshots.pop(path)
-                    )
-                # frames = vision_rollout_and_render() # need to think about environment loading / rendering
-        self._logger.write(fetches)
+            if self._snapshotter_policy_only is not None:
+                if self._snapshotter_policy_only.save():
+                    # Increment the snapshot counter (directly in the snapshotter's path).
+                    for path in list(self._snapshotter_policy_only._snapshots.keys()):
+                        snapshot = self._snapshotter_policy_only._snapshots[path]  # noqa: F841
+                        # Assume that path ends with, e.g., "/policy-17".
+                        # Find sequence of digits at end of string.
+                        current_counter = re.findall("[\d]+$", path)[0]
+                        new_path = path.replace(
+                            "policy-only-no-obs-network-" + current_counter,
+                            "policy-only-no-obs-network-" + str(int(current_counter) + 1),
+                        )
+                        # Redirect snapshot to new key and delete old key.
+                        self._snapshotter_policy_only._snapshots[new_path] = (
+                            self._snapshotter_policy_only._snapshots.pop(path)
+                        )
+            
+            if self._snapshotter is not None:
+                if self._snapshotter.save():
+                    # Increment the snapshot counter (directly in the snapshotter's path).
+                    for path in list(self._snapshotter._snapshots.keys()):
+                        snapshot = self._snapshotter._snapshots[path]  # noqa: F841
+                        # Assume that path ends with, e.g., "/policy-17".
+                        # Find sequence of digits at end of string.
+                        current_counter = re.findall("[\d]+$", path)[0]
+                        new_path = path.replace(
+                            "policy-" + current_counter,
+                            "policy-" + str(int(current_counter) + 1),
+                        )
+                        # Redirect snapshot to new key and delete old key.
+                        self._snapshotter._snapshots[new_path] = (
+                            self._snapshotter._snapshots.pop(path)
+                        )
+                    # frames = vision_rollout_and_render() # need to think about environment loading / rendering
+            self._logger.write(fetches)
 
     def get_variables(self, names: List[str]) -> List[List[np.ndarray]]:
         self._counter.increment(get_variables_calls=1)

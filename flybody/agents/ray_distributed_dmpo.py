@@ -107,6 +107,10 @@ class ReplayServer:
 
     def get_server_address(self):
         return self._replay_server_address
+    
+    def isready(self):
+        """Dummy method to check if ReplayServer is ready."""
+        pass
 
 
 class Learner(DistributionalMPOLearner):
@@ -114,16 +118,16 @@ class Learner(DistributionalMPOLearner):
 
     def __init__(
         self,
-        replay_server_address: str,
+        replay_server_addresses: dict, # TODO(SY): Allow multiple replay server address here. Modify corresponding logics.
         counter: counting.Counter,
         environment_spec: specs.EnvironmentSpec,
         dmpo_config,
         network_factory,
         label="learner",
     ):
-
         self._config = dmpo_config
-        self._reverb_client = reverb.Client(replay_server_address)
+        # self._reverb_client = reverb.Client(replay_server_address)
+        self._reverb_clients = [reverb.Client(addr) for addr in replay_server_addresses.values()]
         self._label = label
 
         def wrapped_network_factory(action_spec):
@@ -131,7 +135,10 @@ class Learner(DistributionalMPOLearner):
             networks = agent_dmpo.DMPONetworks(
                 policy_network=networks_dict.get("policy"),
                 critic_network=networks_dict.get("critic"),
-                observation_network=networks_dict.get("observation", tf.identity),
+                observation_network=networks_dict.get(
+                    "observation", tf.identity
+                ),  # optionally use the user defined observation network
+                # if none is define, use the identity function.
             )
             return networks
 
@@ -142,7 +149,7 @@ class Learner(DistributionalMPOLearner):
         online_networks.init(environment_spec)
         target_networks.init(environment_spec)
 
-        dataset = self._make_dataset_iterator(self._reverb_client)
+        datasets = [self._make_dataset_iterator(c) for c in self._reverb_clients] # TODO(SY) add multiple reverbe client here
         counter = counting.Counter(parent=counter, prefix=label)
         if self._config.logger is None:
             logger = loggers.make_default_logger(
@@ -187,7 +194,7 @@ class Learner(DistributionalMPOLearner):
             num_samples=self._config.num_samples,
             target_policy_update_period=self._config.target_policy_update_period,
             target_critic_update_period=self._config.target_critic_update_period,
-            dataset=dataset,
+            datasets=datasets,
             logger=logger,
             counter=counter,
             checkpoint_enable=checkpoint_enable,
@@ -199,12 +206,13 @@ class Learner(DistributionalMPOLearner):
             kickstart_epsilon=self._config.kickstart_epsilon
         )
 
-    def _step(self):
+    def _step(self, iterator):
         # Workaround to access _step in DistributionalMPOLearner:
         # @tf.function
         # def _step(self)
         #    ...
-        return DistributionalMPOLearner._step(self)
+        # TODO: ISSUE?
+        return DistributionalMPOLearner._step(self, iterator)
 
     def run(self, num_steps=None):
         del num_steps  # Not used.
@@ -228,7 +236,6 @@ class Learner(DistributionalMPOLearner):
         reverb_client: reverb.Client,
     ) -> Iterator[reverb.ReplaySample]:
         """Create a dataset iterator to use for learning/updating the agent."""
-        # The dataset provides an interface to sample from replay.
         dataset = datasets.make_reverb_dataset(
             table=self._config.replay_table_name,
             server_address=reverb_client.server_address,
