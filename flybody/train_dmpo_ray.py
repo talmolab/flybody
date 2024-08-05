@@ -391,20 +391,29 @@ def main(config: DictConfig) -> None:
                 # multiple replay servers, equally direct replay servers
                 num_actor_per_replay = n_actors // config["num_replay_servers"]
                 actors += create_actors(num_actor_per_replay, environment_factories[config["task_name"]], replay_servers[name])
+            evaluator = EnvironmentLoop.remote(
+                replay_server_address=replay_servers[name],
+                variable_source=learner,
+                counter=counter,
+                network_factory=network_factory,
+                environment_factory=environment_factories[config["task_name"]],
+                dmpo_config=dmpo_config,
+                actor_or_evaluator="evaluator",
+            )
+            evaluators.append(RemoteAsLocal(evaluator))
         else:
             # single replay server
             actors = create_actors(n_actors, environment_factories[config["task_name"]], replay_servers[config["task_name"]])
-
-        evaluator = EnvironmentLoop.remote(
-            replay_server_address=replay_servers[config["task_name"]],
-            variable_source=learner,
-            counter=counter,
-            network_factory=network_factory,
-            environment_factory=environment_factories[config["task_name"]],
-            dmpo_config=dmpo_config,
-            actor_or_evaluator="evaluator",
-        )
-        evaluators.append(RemoteAsLocal(evaluator))
+            evaluator = EnvironmentLoop.remote(
+                replay_server_address=replay_servers[config["task_name"]],
+                variable_source=learner,
+                counter=counter,
+                network_factory=network_factory,
+                environment_factory=environment_factories[config["task_name"]],
+                dmpo_config=dmpo_config,
+                actor_or_evaluator="evaluator",
+            )
+            evaluators.append(RemoteAsLocal(evaluator))
 
     print("Waiting until actors are ready...")
     # Block until all actors and evaluator are ready and have called `get_variables`
