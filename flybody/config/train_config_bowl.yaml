@@ -8,6 +8,6 @@ critic_layer_sizes: [512,512,512]
 num_actors: 280
 num_replay_servers: 3 # for load balancing, preferrably to be divisible w.r.t. num actors
 group_name: rodent-maze-forage-v1
-checkpoint_to_load: /root/vast/scott-yang/flybody/training/ray-rodent-escape-bowl-ckpts/3a455682-5372-11ef-a703-2ae1cc4cdff5/checkpoints/dmpo_learner/ckpt-2
+checkpoint_to_load:
 kickstart_teacher_cps_path:
 kickstart_epsilon:

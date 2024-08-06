@@ -6,6 +6,10 @@ import dataclasses
 import copy
 import logging
 import os
+import wandb
+from pathlib import Path
+import re
+import imageio
 
 import ray
 import numpy as np
@@ -19,6 +23,7 @@ from acme import core
 from acme import specs
 from acme import datasets
 from acme import adders
+from acme import wrappers
 from acme.utils import counting
 from acme.utils import loggers
 from acme.tf import variable_utils
@@ -28,6 +33,8 @@ from acme.adders import reverb as reverb_adders
 from flybody.agents.learning_dmpo import DistributionalMPOLearner
 from flybody.agents import agent_dmpo
 from flybody.agents.actors import DelayedFeedForwardActor
+from flybody.utils import vision_rollout_and_render
+from flybody.agents.utils_tf import TestPolicyWrapper
 
 
 @dataclasses.dataclass
@@ -149,7 +156,9 @@ class Learner(DistributionalMPOLearner):
         online_networks.init(environment_spec)
         target_networks.init(environment_spec)
 
-        datasets = [self._make_dataset_iterator(c) for c in self._reverb_clients] # TODO(SY) add multiple reverbe client here
+        datasets = [
+            self._make_dataset_iterator(c) for c in self._reverb_clients
+        ]  # (SY) add multiple reverbe client here
         counter = counting.Counter(parent=counter, prefix=label)
         if self._config.logger is None:
             logger = loggers.make_default_logger(
@@ -262,6 +271,7 @@ class EnvironmentLoop(acme.EnvironmentLoop):
         egl_device_id_head_node: list | None = None,
         egl_device_id_worker_node: list | None = None,
         task_name: str = "",
+        snapshotter_dir: str | None = None,
     ):
         """The actor process."""
 
@@ -283,6 +293,7 @@ class EnvironmentLoop(acme.EnvironmentLoop):
             os.environ["MUJOCO_EGL_DEVICE_ID"] = str(egl_device_id)
 
         assert actor_or_evaluator in ["actor", "evaluator"]
+        self._actor_or_evaluator = actor_or_evaluator
         if actor_or_evaluator == "evaluator":
             del replay_server_address
         else:
@@ -360,14 +371,61 @@ class EnvironmentLoop(acme.EnvironmentLoop):
             logger = self._config.logger(
                 label=label,
                 time_delta=self._config.log_every,
-                wandb_project=actor_or_evaluator
-                == "evaluator",  # only create project for evaluators,
+                # only create project for evaluators,
+                wandb_project=actor_or_evaluator == "evaluator",
                 identity="evaluator",
                 task_name=task_name,
                 **logger_kwargs,
             )
+        
+        if snapshotter_dir is not None:
+            self._snapshotter_dir = Path(snapshotter_dir)
+        self._latest_snapshot = None
+        self._highest_snap_num = -1
+        self._task_name = task_name
+        self._environment_factory = environment_factory
 
         super().__init__(environment, actor, counter, logger)
+
+    def run_episode(self) -> loggers.LoggingData:
+        """Add rendering support for evaluator"""
+        logging_data = super().run_episode()
+        if self._actor_or_evaluator == "evaluator":
+            self.load_snapshot_and_render(logging_data)
+        return logging_data
+
+    def load_snapshot_and_render(self, logging_data):
+        """
+        Check the snapshot directory, renders whenever there is a
+        new policy snapshot, optionally send it to wandb
+        """
+        render = False
+        os.makedirs(os.path.join(self._snapshotter_dir, "videos"), exist_ok=True)
+        for path in self._snapshotter_dir.iterdir():
+            match = re.match(r"policy-(\d+)", path.name)  # Look for the pattern "policy-number"
+            if match:
+                number = int(match.group(1))
+                if number > self._highest_snap_num:
+                    self._highest_snap_num = number
+                    self._latest_snapshot = path
+                    render = True
+        if render:
+            videos_path = self._snapshotter_dir.parent / "videos"
+            videos_path.mkdir(parents=True, exist_ok=True)
+            rendering_path = os.path.join(str(videos_path), f"{self._task_name}-{self._highest_snap_num}.mp4")
+            env = self._environment_factory()
+            env = wrappers.SinglePrecisionWrapper(env)
+            env = wrappers.CanonicalSpecWrapper(env, clip=False)
+            # Frame width and height for rendering.
+            render_kwargs = {"width": 640, "height": 480}
+            policy = tf.saved_model.load(str(self._latest_snapshot))
+            policy = TestPolicyWrapper(policy)
+            frames = vision_rollout_and_render(env, policy, camera_id=2, eye_blow_factor=3, **render_kwargs)
+            with imageio.get_writer(rendering_path, fps=30) as video:
+                for f in frames:
+                    video.append_data(f)
+            logging_data["rollout"] = wandb.Video(rendering_path, format="mp4")
+            return logging_data
 
     def isready(self):
         """Dummy method to check if actor is ready."""

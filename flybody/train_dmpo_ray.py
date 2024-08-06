@@ -99,9 +99,7 @@ tasks = {
 }
 
 
-@hydra.main(
-    version_base=None, config_path="./config", config_name="train_config_bowl"
-)
+@hydra.main(version_base=None, config_path="./config", config_name="train_config_gaps")
 def main(config: DictConfig) -> None:
     print("CONFIG:", config)
     from flybody.agents.ray_distributed_dmpo import (
@@ -178,7 +176,7 @@ def main(config: DictConfig) -> None:
         prefetch_size=4,  # maybe unlimited?
         num_learner_steps=200,
         min_replay_size=test_min_replay_size or 10_000,
-        max_replay_size=4_000_000,  # increase reply size
+        max_replay_size=4_000_000,
         samples_per_insert=15,
         n_step=50,
         num_samples=20,
@@ -208,6 +206,7 @@ def main(config: DictConfig) -> None:
             "kickstart_teacher_cps_path"
         ],  # specify the location of the kickstarter teacher policy's cps
         kickstart_epsilon=config["kickstart_epsilon"],
+        time_delta_minutes=1, # for testing logging DEBUG TODO
     )
 
     dmpo_dict_config = dataclasses.asdict(dmpo_config)
@@ -282,6 +281,9 @@ def main(config: DictConfig) -> None:
                 time.sleep(0.5)
     else:
         if "num_replay_servers" in config and config["num_replay_servers"] != 0:
+            dmpo_config.max_replay_size = (
+                dmpo_config.max_replay_size // config["num_replay_servers"]
+            )  # shink down the replay size correspondingly
             for i in range(config["num_replay_servers"]):
                 name = f"{config['task_name']}-{i+1}"
                 # multiple replay server for load balancing
@@ -367,6 +369,7 @@ def main(config: DictConfig) -> None:
             dmpo_config=dmpo_config,
             actor_or_evaluator="evaluator",
             task_name=task_name,
+            snapshotter_dir=snapshotter_dir,
         )
         return evaluator
 
@@ -399,6 +402,7 @@ def main(config: DictConfig) -> None:
                 environment_factory=environment_factories[config["task_name"]],
                 dmpo_config=dmpo_config,
                 actor_or_evaluator="evaluator",
+                snapshotter_dir=snapshotter_dir
             )
             evaluators.append(RemoteAsLocal(evaluator))
         else:
@@ -412,6 +416,7 @@ def main(config: DictConfig) -> None:
                 environment_factory=environment_factories[config["task_name"]],
                 dmpo_config=dmpo_config,
                 actor_or_evaluator="evaluator",
+                snapshotter_dir=snapshotter_dir
             )
             evaluators.append(RemoteAsLocal(evaluator))
 

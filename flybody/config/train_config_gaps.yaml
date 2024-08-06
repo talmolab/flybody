@@ -3,9 +3,11 @@ algo_name: dmpo
 task_name: run-gaps
 run_name: rodent-run-gaps
 # need to be consistent with the rest of the task if we want to task swichting
-batch_size: 4096
-policy_layer_sizes: [1024,1024,1024,1024]
-critic_layer_sizes: [1024,512,512,256]
-num_actors: 178
-group_name: rodent-maze-forage-v1
+batch_size: 1024
+policy_layer_sizes: [256,256,256]
+critic_layer_sizes: [256,256,256]
+num_actors: 25
+group_name: rodent-maze-gaps-v1
 checkpoint_to_load: 
+kickstart_teacher_cps_path:
+kickstart_epsilon:
