@@ -8,7 +8,7 @@ class IntentionNetwork(snt.Module):
     '''encoder decoder now have the same size from the policy layer argument, decoder + latent'''
     def __init__(self,
                  action_size,
-                 latent_size,
+                 latent_layer_sizes,
                  ref_size,
                  min_scale,
                  tanh_mean,
@@ -22,11 +22,11 @@ class IntentionNetwork(snt.Module):
         self.encoder = snt.Sequential([
             tf2_utils.batch_concat,
             networks.LayerNormMLP(layer_sizes=policy_layer_sizes[:-1], activate_final=True),
-            snt.nets.MLP([latent_size], activate_final=False)
+            snt.nets.MLP([latent_layer_sizes], activate_final=False)
             ])
         
         self.decoder = snt.Sequential([
-            networks.LayerNormMLP(layer_sizes=[latent_size] + policy_layer_sizes[-1:], activate_final=True),
+            networks.LayerNormMLP(layer_sizes=[latent_layer_sizes] + policy_layer_sizes[-1:], activate_final=True),
             networks.MultivariateNormalDiagHead(
                 action_size,
                 min_scale=min_scale,

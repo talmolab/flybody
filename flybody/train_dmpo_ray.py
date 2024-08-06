@@ -52,14 +52,26 @@ from flybody.agents.remote_as_local_wrapper import RemoteAsLocal
 from flybody.agents.counting import PicklableCounter
 from flybody.agents.network_factory import policy_loss_module_dmpo
 from flybody.agents.losses_mpo import PenalizationCostRealActions
-from flybody.basic_rodent_2020 import rodent_run_gaps, rodent_maze_forage, rodent_escape_bowl, rodent_two_touch, walk_humanoid
+from flybody.basic_rodent_2020 import (
+    rodent_run_gaps,
+    rodent_maze_forage,
+    rodent_escape_bowl,
+    rodent_two_touch,
+    walk_humanoid,
+    walk_imitation as rodent_walk_imitation
+)
 from flybody.wrapper import SinglePrecisionWrapperFloat, RemoveVisionWrapper
 
-from flybody.fly_envs import walk_on_ball, vision_guided_flight, walk_imitation
-from flybody.agents.network_factory import make_network_factory_dmpo
-# from flybody.agents.intention_network_factory import make_network_factory_dmpo
+from flybody.fly_envs import walk_on_ball, vision_guided_flight, walk_imitation as fly_walk_imitation
 from flybody.default_logger import make_default_logger
 from flybody.single_precision import SinglePrecisionWrapper
+
+
+
+# fly body uses mlp + fly tracking
+from flybody.agents.network_factory import make_network_factory_dmpo as make_network_factory_dmpo_fly
+# humanoid body use intention + comic tracking
+from flybody.agents.intention_network_factory import make_network_factory_dmpo as make_network_factory_dmpo_comic
 
 PYHTONPATH = os.path.dirname(os.path.dirname(flybody.__file__))
 LD_LIBRARY_PATH = (
@@ -89,11 +101,14 @@ tasks = {"run-gaps": rodent_run_gaps,
          "maze-forage": rodent_maze_forage,
          "escape-bowl": rodent_escape_bowl,
          "two-taps": rodent_two_touch,
-         "imitation": walk_imitation}
+         "rodent_imitation": rodent_walk_imitation,
+         "fly_imitation": fly_walk_imitation,
+         "humanoid_imitation": walk_humanoid}
 
-@hydra.main(version_base=None, config_path="./config", config_name="train_config_fly")
+@hydra.main(version_base=None, config_path="./config", config_name="train_config_imitation")
 def main(config : DictConfig) -> None:
     print("CONFIG:", config)
+
     from flybody.agents.ray_distributed_dmpo import (
         DMPOConfig,
         ReplayServer,
@@ -113,7 +128,7 @@ def main(config : DictConfig) -> None:
         del training  # Unused.
 
         if config["task_name"] == "imitation":
-            env = tasks[config["task_name"]](config["ref_traj_path"])
+            env = tasks[config["run_name"]](config["ref_traj_path"])
         else:
             env = tasks[config["task_name"]]()
         
@@ -126,7 +141,13 @@ def main(config : DictConfig) -> None:
     environment_factories = {task: environment_factory(task) for task in tasks.keys()}
     
     # Create network factory for RL task.
-    network_factory = make_network_factory_dmpo(policy_layer_sizes=config["policy_layer_sizes"], critic_layer_sizes=config["critic_layer_sizes"])
+    if (config["agent_name"] == "humanoid") | (config["agent_name"] == "rodent"):
+        network_factory = make_network_factory_dmpo_comic(policy_layer_sizes=config["policy_layer_sizes"],
+                                                critic_layer_sizes=config["critic_layer_sizes"],
+                                                latent_layer_sizes=config["latent_layer_sizes"])
+    else:
+        network_factory = make_network_factory_dmpo_fly(policy_layer_sizes=config["policy_layer_sizes"],
+                                                critic_layer_sizes=config["critic_layer_sizes"])
 
     # Dummy environment and network for quick use, deleted later.
     dummy_env = environment_factory(training=True)
@@ -138,39 +159,77 @@ def main(config : DictConfig) -> None:
     # actions to real (not wrapped) environment actions inside DMPO agent.
     penalization_cost = None # PenalizationCostRealActions(dummy_env.environment.action_spec())
     # Distributed DMPO agent configuration.
-    dmpo_config = DMPOConfig(
-        num_actors=test_num_actors or config["num_actors"], # 62 threads, leave some for learner/evaluator
-        batch_size=config["batch_size"],
-        prefetch_size=4,
-        num_learner_steps=100,
-        min_replay_size=test_min_replay_size or 10_000,
-        max_replay_size=4_000_000,
-        samples_per_insert=15,
-        n_step=50,
-        num_samples=20,
-        policy_loss_module=policy_loss_module_dmpo(
-                                epsilon=0.1,
-                                epsilon_mean=0.0025,
-                                epsilon_stddev=1e-7,
-                                action_penalization=True,
-                                epsilon_penalty=0.1,
-                                penalization_cost=penalization_cost,
-                            ),
-        policy_optimizer=snt.optimizers.Adam(1e-4),
-        critic_optimizer=snt.optimizers.Adam(1e-4),
-        dual_optimizer=snt.optimizers.Adam(1e-3),
-        target_critic_update_period=107,
-        target_policy_update_period=101,
-        actor_update_period=1000,
-        log_every=test_log_every or 5*60,
-        logger=make_default_logger,
-        logger_save_csv_data=False,
-        checkpoint_max_to_keep=None,
-        checkpoint_directory= f"./training/ray-{config['agent_name']}-{config['task_name']}-ckpts/",
-        checkpoint_to_load=None,#config["checkpoint_to_load"],
-        print_fn=None, #print # this causes issue pprint does not work
-        userdata=dict(),
-    )
+    
+    if (config["agent_name"] == "humanoid") | (config["agent_name"] == "rodent"):
+        # modified based on COMIC 
+        dmpo_config = DMPOConfig(
+            num_actors=test_num_actors or config["num_actors"], # 62 threads, leave some for learner/evaluator
+            batch_size=config["batch_size"],
+            prefetch_size=4,
+            num_learner_steps=100,
+            min_replay_size=test_min_replay_size or 10_000,
+            max_replay_size=4_000_000,
+            samples_per_insert=15,
+            n_step=32,
+            num_samples=20,
+            policy_loss_module=policy_loss_module_dmpo(
+                                    epsilon=0.1,
+                                    epsilon_mean=0.1,
+                                    epsilon_stddev=1e-5,
+                                    action_penalization=False,
+                                    epsilon_penalty=0.1,
+                                    penalization_cost=penalization_cost,
+                                ),
+            policy_optimizer=snt.optimizers.Adam(1e-4),
+            critic_optimizer=snt.optimizers.Adam(1e-4),
+            dual_optimizer=snt.optimizers.Adam(1e-4),
+            target_critic_update_period=200,
+            target_policy_update_period=200,
+            actor_update_period=1000,
+            log_every=test_log_every or 5*60,
+            logger=make_default_logger,
+            logger_save_csv_data=False,
+            checkpoint_max_to_keep=None,
+            checkpoint_directory=f"./training/ray-{config['agent_name']}-{config['task_name']}-ckpts/",
+            checkpoint_to_load=config["checkpoint_to_load"],
+            print_fn=None, #print # this causes issue pprint does not work
+            userdata=dict(),
+        )
+    else:
+        # original setting for flybody
+        dmpo_config = DMPOConfig(
+            num_actors=test_num_actors or config["num_actors"], # 62 threads, leave some for learner/evaluator
+            batch_size=config["batch_size"],
+            prefetch_size=4,
+            num_learner_steps=100,
+            min_replay_size=test_min_replay_size or 10_000,
+            max_replay_size=4_000_000,
+            samples_per_insert=15,
+            n_step=10,
+            num_samples=20,
+            policy_loss_module=policy_loss_module_dmpo(
+                                    epsilon=0.05,
+                                    epsilon_mean=5e-5,
+                                    epsilon_stddev=1e-7,
+                                    action_penalization=False,
+                                    epsilon_penalty=0.1,
+                                    penalization_cost=penalization_cost,
+                                ),
+            policy_optimizer=snt.optimizers.Adam(1e-4),
+            critic_optimizer=snt.optimizers.Adam(1e-4),
+            dual_optimizer=snt.optimizers.Adam(1e-3),
+            target_critic_update_period=200,
+            target_policy_update_period=200,
+            actor_update_period=1000,
+            log_every=test_log_every or 5*60,
+            logger=make_default_logger,
+            logger_save_csv_data=False,
+            checkpoint_max_to_keep=None,
+            checkpoint_directory=f"./training/ray-{config['agent_name']}-{config['task_name']}-new--ckpts/",
+            checkpoint_to_load=None,#config["checkpoint_to_load"],
+            print_fn=None, #print # this causes issue pprint does not work
+            userdata=dict(),
+        )
     
     dmpo_dict_config = dataclasses.asdict(dmpo_config)
     config

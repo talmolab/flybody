@@ -18,7 +18,7 @@ def network_factory_dmpo(
     action_spec,
     policy_layer_sizes=(256, 256, 256),
     critic_layer_sizes=(512, 512, 256),
-    latent_size=64,
+    latent_layer_sizes=60,
     ref_size=1520,
     vmin=-150.0,
     vmax=150.0,
@@ -34,7 +34,7 @@ def network_factory_dmpo(
 
     policy_network = IntentionNetwork(
         action_size,
-        latent_size,
+        latent_layer_sizes,
         ref_size,
         min_scale=min_scale,
         tanh_mean=tanh_mean,
@@ -71,6 +71,7 @@ def network_factory_dmpo(
 def make_network_factory_dmpo(
     policy_layer_sizes=(512, 512, 512),
     critic_layer_sizes=(512, 512, 256),
+    latent_layer_sizes=60,
     vmin=-150.0,
     vmax=150.0,
     num_atoms=51,
@@ -87,6 +88,7 @@ def make_network_factory_dmpo(
             action_spec,
             policy_layer_sizes=policy_layer_sizes,
             critic_layer_sizes=critic_layer_sizes,
+            latent_layer_sizes=latent_layer_sizes,
             vmin=vmin,
             vmax=vmax,
             num_atoms=num_atoms,
