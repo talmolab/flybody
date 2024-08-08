@@ -228,7 +228,7 @@ def walk_imitation(
         reward_type='comic',
         always_init_at_clip_start=True,
         ghost_offset=GHOST_OFFSET,
-        termination_error_threshold=0.05 # higher threshold are harder to terminate
+        termination_error_threshold=0.06 # higher threshold are harder to terminate
     )
     time_limit = 10.0
 

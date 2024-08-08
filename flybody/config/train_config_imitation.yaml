@@ -6,7 +6,7 @@ batch_size: 128
 policy_layer_sizes: [1024, 1024]
 critic_layer_sizes: [1024, 1024, 1024]
 latent_layer_sizes: 60
-num_actors: 100
+num_actors: 60 # roden job memory requirement is great
 group_name: rodent-imitation
 
 # for some reason only abs path works here
