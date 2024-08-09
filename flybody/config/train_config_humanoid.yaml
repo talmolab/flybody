@@ -11,4 +11,4 @@ group_name: basic-imitation
 
 # for some reason only abs path works here
 ref_traj_path: "/root/talmolab-smb/kaiwen/flybody/clips/cmu_2020_dfe3e9e0.h5"
-checkpoint_to_load:
+checkpoint_to_load: "/root/talmolab-smb/kaiwen/flybody/policy/humanoid_policy-43"
