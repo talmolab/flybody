@@ -22,6 +22,8 @@ from flybody.tasks.constants import (
     _WING_PARAMS,
 )
 
+import flybody.tasks.utils as utils
+
 
 class FruitFlyTask(composer.Task, ABC):
     """Base class for all tasks with fruitfly walkers."""
@@ -375,3 +377,226 @@ class Walking(FruitFlyTask):
         self._walker.observables.self_contact.enabled = False
         self._walker.observables.force.enabled = True
         self._walker.observables.touch.enabled = True
+
+
+class RodentTask(composer.Task, ABC):
+    """Base class for all tasks with fruitfly walkers."""
+
+    def __init__(
+        self,
+        walker: Union["base.Walker", Callable],
+        arena: composer.Arena,
+        time_limit: float,
+        physics_timestep: float,
+        control_timestep: float,
+        joint_filter: float,
+        adhesion_filter: float = 0.007,
+        body_pitch_angle: float = _BODY_PITCH_ANGLE,
+        stroke_plane_angle: float = 0,
+        add_ghost: bool = False,
+        ghost_offset: Sequence = np.array([0, 0, 0]),
+        num_user_actions: int = 0,
+        future_steps: int = 0,
+        initialize_qvel: bool = False,
+        observables_options: dict | None = None,
+    ):
+        self._time_limit = time_limit
+        self._initialize_qvel = initialize_qvel
+
+        # Initialise time offset for phase observation.
+        self._time_offset = 0.0
+        # Initial value of `_should_terminate`.
+        self._should_terminate = False
+        # Initialize timestep counter.
+        self._step_counter = 0
+
+        # Create the arena.
+        self._arena = arena
+
+        self._body_pitch_angle = body_pitch_angle
+        self._stroke_plane_angle = stroke_plane_angle
+        self._ghost_offset = ghost_offset
+        self._num_user_actions = num_user_actions
+        self._future_steps = future_steps
+
+        # Instantiate a rodent walker.
+        self._walker = walker(observable_options={"egocentric_camera": dict(enabled=True)})
+
+        # Set options to fly observables, if provided.
+        self._walker.observables.set_options(observables_options)
+
+        # Add it to the arena.
+        spawn_pos = self._walker.upright_pose.xpos
+        spawn_site = self._arena.mjcf_model.worldbody.add("site", pos=spawn_pos)
+        self._walker.create_root_joints(arena.attach(self._walker, spawn_site))
+        spawn_site.remove()
+
+        # Get joints.
+        self._root_joint = mjcf.get_frame_freejoint(self._walker.mjcf_model)
+        self._non_root_joints = self._walker.mjcf_model.find_all("joint")
+        self._joints = [self._root_joint] + self._non_root_joints
+
+        # Maybe add a (possibly invisible) ghost walker.
+        if add_ghost:
+            self._ghost = walker(name="ghost")
+            spawn_pos = self._walker.upright_pose.xpos
+            spawn_site = arena.mjcf_model.worldbody.add("site", pos=spawn_pos)
+            self._ghost_frame = arena.attach(self._ghost, spawn_site)
+            spawn_site.remove()
+
+            self._ghost_joint = self._ghost_frame.add("joint", type="free", armature=1)
+        else:
+            self._ghost = None
+
+        # Set timesteps.
+        self.set_timesteps(
+            physics_timestep=physics_timestep, control_timestep=control_timestep
+        )
+
+        # Dummy initialization for base class observables.
+        self._ref_qpos = np.zeros((self._future_steps + 1, 7))
+
+        # Change mass and inertia bounds to get correct fly mass.
+        self._walker.mjcf_model.compiler.boundmass = 0.0
+        self._walker.mjcf_model.compiler.boundinertia = 0.0
+
+        # === Explicitly enable observables.
+        # Basic sensors.
+        # vestibular: gyro, accelerometer, velocimeter, world_zaxis.
+        # proprioception: joints_pos, joints_vel, actuator_activation.
+        for sensor in (
+            self._walker.observables.proprioception
+        ):
+            sensor.enabled = True
+
+    def initialize_episode_mjcf(self, random_state: np.random.RandomState):
+        if hasattr(self._arena, "regenerate"):
+            self._arena.regenerate(random_state)
+        # Better visual defaults for CGS units.
+        # Important: these particular values of znear, zfar, extent are
+        # critical for the visually-guided flight task.
+        self.root_entity.mjcf_model.visual.map.znear = 0.001
+        self.root_entity.mjcf_model.visual.map.zfar = 50.0
+        self.root_entity.mjcf_model.visual.map.force = 0.00001
+        self.root_entity.mjcf_model.visual.scale.framewidth = 0.06
+        self.root_entity.mjcf_model.visual.scale.forcewidth = 0.06
+        self.root_entity.mjcf_model.visual.scale.contactwidth = 0.3
+        self.root_entity.mjcf_model.visual.scale.contactheight = 0.1
+        self.root_entity.mjcf_model.visual.scale.jointwidth = 0.06
+        self.root_entity.mjcf_model.statistic.extent = 4.01
+
+    def initialize_episode(self, physics, random_state):
+        # Reset control timestep counter.
+        self._step_counter = 0
+
+    def before_step(
+        self, physics: "mjcf.Physics", action, random_state: np.random.RandomState
+    ):
+        """Apply actions."""
+        self._step_counter += 1
+        self._walker.apply_action(physics, action, random_state)
+
+    def should_terminate_episode(self, physics: "mjcf.Physics"):
+        return self._should_terminate
+
+    def get_discount(self, physics: "mjcf.Physics"):
+        del physics  # Unused by get_discount.
+        if self._should_terminate:
+            return 0.0
+        return 1.0
+
+    def get_reward(self, physics: "mjcf.Physics") -> float:
+        # Check termination.
+        self._should_terminate = self.check_termination(physics)
+        return np.prod(self.get_reward_factors(physics))
+
+    @abstractmethod
+    def get_reward_factors(self, physics: "mjcf.Physics") -> Sequence[float]:
+        """Reward factors for the walker, overriden in subclasses."""
+        raise NotImplementedError("Subclasses should implement this.")
+
+    def check_termination(self, physics: "mjcf.Physics") -> bool:
+        """Check termination conditions."""
+        qacc = np.linalg.norm(physics.data.qacc)
+        return qacc > _TERMINAL_QACC
+
+    def action_spec(self, physics: "mjcf.Physics"):
+        """Action spec of the walker, see therein."""
+        return self._walker.get_action_spec(physics)
+
+    def name(self):
+        """ "Get task name."""
+        return "RodentTask"
+
+    @property
+    def root_entity(self):
+        return self._arena
+
+    @property
+    def walker(self):
+        return self._walker
+
+    # Define observables potentially used in child classes.
+
+    @composer.observable
+    def ref_displacement(self):
+        """Reference displacement vectors in fly's egocentric reference frame,
+        possibly with preview of future timesteps.
+        """
+
+        def get_ref_displacement(physics: "mjcf.Physics"):
+            fly_pos, _ = self._walker.get_pose(physics)
+            ref_pos = self._ref_qpos[
+                self._step_counter : self._step_counter + self._future_steps + 1, :3
+            ]
+            return self._walker.transform_vec_to_egocentric_frame(
+                physics, ref_pos - fly_pos
+            )
+
+        return observable.Generic(get_ref_displacement)
+
+    @composer.observable
+    def ref_root_quat(self):
+        """Reference root quaternions in fly's egocentric reference frame,
+        possibly with preview of future timesteps.
+        """
+
+        def get_root_quat(physics: "mjcf.Physics"):
+            ref_quat = self._ref_qpos[
+                self._step_counter : self._step_counter + self._future_steps + 1, 3:7
+            ]
+            _, fly_quat = self._walker.get_pose(physics)
+            return get_dquat_local(fly_quat, ref_quat)
+
+        return observable.Generic(get_root_quat)
+
+class RodentWalking(RodentTask):
+    """Base class for all walking tasks."""
+
+    def __init__(
+        self,
+        **kwargs,
+    ):
+        """Base class for setting fly model configuration for walking tasks.
+
+        Args:
+            **kwargs: Arguments passed to the superclass constructor.
+        """
+
+        super().__init__(
+            physics_timestep=_WALK_PHYSICS_TIMESTEP,
+            control_timestep=_WALK_CONTROL_TIMESTEP,
+            **kwargs,
+        )
+
+        # Set floor contact params.
+        for geom in self._arena.ground_geoms:
+            geom.friction = (0.5,)
+            geom.solref = (0.001, 1)
+            geom.solimp = (0.95, 0.99, 0.01)
+
+        # # Explicitly add/enable/disable walking task observables.
+        # self._walker.observables.appendages_pos.enabled = True
+        # self._walker.observables.self_contact.enabled = False
+        # self._walker.observables.force.enabled = True
+        # self._walker.observables.touch.enabled = True

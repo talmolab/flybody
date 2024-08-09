@@ -29,6 +29,7 @@ from flybody.agents.actors import DelayedFeedForwardActor
 class DMPOConfig:
     """Configuration options for the DMPO agent."""
 
+
     discount: float = 0.99
     batch_size: int = 256
     prefetch_size: int = 4
@@ -80,6 +81,7 @@ class DMPONetworks:
         # print("DEBUG: ", obs_spec)
         emb_spec = utils.create_variables(self.observation_network, [obs_spec])
         # print("DEBUG: ", emb_spec)
+        # print("DEBUG: ", self.observation_network)
         # Create variables for the policy and critic nets.
         _ = utils.create_variables(self.policy_network, [emb_spec])
         _ = utils.create_variables(self.critic_network, [emb_spec, act_spec])

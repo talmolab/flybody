@@ -16,6 +16,8 @@
 
 import functools
 
+import numpy as np
+
 from dm_control import composer
 from dm_control.composer.variation import distributions
 from dm_control.locomotion.arenas import bowl
@@ -28,11 +30,32 @@ from dm_control.locomotion.tasks import corridors as corr_tasks
 from dm_control.locomotion.tasks import escape
 from dm_control.locomotion.tasks import random_goal_maze
 from dm_control.locomotion.tasks import reach
+
+from dm_control.locomotion import walkers
+from dm_control.utils import io as resources
+
+from dm_control.utils import io as resources
+from dm_control.locomotion.tasks.reference_pose import types
+import os
+import h5py
+
+# from flybody.fruitfly import rodent
 from flybody import rodent_tasks_modified as T
 from dm_control.locomotion.walkers import rodent
 
-_CONTROL_TIMESTEP = 0.02
+from flybody.tasks.rodent_imitation import WalkImitation
+# from dm_control.locomotion.tasks.reference_pose import tracking
+
+from flybody.tasks import tracking
+
+from flybody.tasks.trajectory_loaders import (
+    HDF5WalkingTrajectoryLoader,
+    InferenceWalkingTrajectoryLoader,
+)
+
+_CONTROL_TIMESTEP = 00.02
 _PHYSICS_TIMESTEP = 0.001
+GHOST_OFFSET = np.array((0, 0, 0))
 
 # Normalize the Observation space -- Namely adding additional
 # dummy origin and dummy task logic to the agent
@@ -104,10 +127,28 @@ def rodent_run_gaps(random_state=None, contact_termination=False):  # enable con
 
 def rodent_maze_forage(random_state=None):
     """Requires a rodent to find all items in a maze."""
+    """Requires a rodent to find all items in a maze."""
 
     # Build a position-controlled rodent walker.
     walker = rodent.Rat(observable_options={"egocentric_camera": dict(enabled=True)})
+    # Build a position-controlled rodent walker.
+    walker = rodent.Rat(observable_options={"egocentric_camera": dict(enabled=True)})
 
+    # Build a maze with rooms and targets.
+    wall_textures = labmaze_textures.WallTextures(style="style_01")
+    arena = mazes.RandomMazeWithTargets(
+        x_cells=11,
+        y_cells=11,
+        xy_scale=0.5,
+        z_height=0.3,
+        max_rooms=4,
+        room_min_size=4,
+        room_max_size=5,
+        spawns_per_room=1,
+        targets_per_room=3,
+        wall_textures=wall_textures,
+        aesthetic="outdoor_natural",
+    )
     # Build a maze with rooms and targets.
     wall_textures = labmaze_textures.WallTextures(style="style_01")
     arena = mazes.RandomMazeWithTargets(
@@ -147,14 +188,25 @@ def rodent_maze_forage(random_state=None):
         random_state=random_state,
         strip_singleton_obs_buffer_dim=True,
     )
+    return composer.Environment(
+        time_limit=30,
+        task=task,
+        random_state=random_state,
+        strip_singleton_obs_buffer_dim=True,
+    )
 
 
 def rodent_two_touch(random_state=None):
     """Requires a rodent to tap an orb, wait an interval, and tap it again."""
+    """Requires a rodent to tap an orb, wait an interval, and tap it again."""
 
     # Build a position-controlled rodent walker.
     walker = rodent.Rat(observable_options={"egocentric_camera": dict(enabled=True)})
+    # Build a position-controlled rodent walker.
+    walker = rodent.Rat(observable_options={"egocentric_camera": dict(enabled=True)})
 
+    # Build an open floor arena
+    arena = floors.Floor(size=(10.0, 10.0), aesthetic="outdoor_natural")
     # Build an open floor arena
     arena = floors.Floor(size=(10.0, 10.0), aesthetic="outdoor_natural")
 
@@ -176,6 +228,131 @@ def rodent_two_touch(random_state=None):
 
     return composer.Environment(
         time_limit=30,
+        task=task,
+        random_state=random_state,
+        strip_singleton_obs_buffer_dim=True,
+    )
+
+
+def walk_imitation(
+    ref_path: str | None = None,
+    random_state: np.random.RandomState | None = None,
+    terminal_com_dist: float = 0.3,
+):
+    """
+    Rodent walking imitation, following similar calling with fruitfly imitation
+    """
+    # walker = rodent.Rat # pass callable
+    walker = functools.partial(rodent.Rat, foot_mods=True)
+    arena = floors.Floor()
+
+    current_directory = os.getcwd()
+    TEST_FILE_PATH = os.path.join(current_directory, ref_path)
+
+    with h5py.File(TEST_FILE_PATH, 'r') as f:
+        dataset_keys = tuple(f.keys())
+        dataset = types.ClipCollection(ids=dataset_keys,)
+
+    # Set up the mocap tracking task
+    task = tracking.MultiClipMocapTracking(
+        walker=walker,
+        arena=arena,
+        ref_path=resources.GetResourceFilename(TEST_FILE_PATH),
+        ref_steps=(1, 2, 3, 4, 5),
+        min_steps=1,
+        dataset=dataset,
+        reward_type='comic',
+        always_init_at_clip_start=True,
+        ghost_offset=GHOST_OFFSET,
+        termination_error_threshold=0.06 # higher threshold are harder to terminate
+    )
+    time_limit = 10.0
+
+    return composer.Environment(
+        time_limit=time_limit,
+        task=task,
+        random_state=random_state,
+        strip_singleton_obs_buffer_dim=True,
+    )
+
+def walk_humanoid(
+    ref_path: str | None = None,
+    random_state: np.random.RandomState | None = None,
+    terminal_com_dist: float = 0.3,
+):
+    """
+    Rodent walking imitation, following similar calling with fruitfly imitation
+    """  
+    arena = floors.Floor()
+    walker = walkers.CMUHumanoidPositionControlledV2020
+
+    TEST_FILE_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), '../../flybody/clips'))
+    TEST_FILE_PATH = os.path.join(TEST_FILE_DIR, ref_path)
+    test_data = resources.GetResourceFilename(TEST_FILE_PATH)
+
+    with h5py.File(TEST_FILE_PATH, 'r') as f:
+        dataset_keys = tuple(f.keys())
+        dataset = types.ClipCollection(ids=dataset_keys,)
+    
+    
+    # Set up the mocap tracking task
+    task = tracking.MultiClipMocapTracking(
+        walker=walker,
+        arena=arena,
+        ref_path=test_data,
+        dataset=dataset,
+        ref_steps=(1, 2, 3, 4, 5),
+        min_steps=1,
+        reward_type='comic',
+        always_init_at_clip_start=True,
+        ghost_offset=GHOST_OFFSET,
+        termination_error_threshold=0.1 # higher threshold are harder to terminate
+    )
+    time_limit = 10.0
+
+    return composer.Environment(
+        time_limit=time_limit,
+        task=task,
+        random_state=random_state,
+        strip_singleton_obs_buffer_dim=True,
+    )
+
+def walk_rendering(
+    ref_path: str | None = None,
+    random_state: np.random.RandomState | None = None,
+    terminal_com_dist: float = 0.3,
+):
+    """
+    Rodent walking imitation, following similar calling with fruitfly imitation
+    """  
+    arena = floors.Floor()
+    walker = walkers.CMUHumanoidPositionControlledV2020
+
+    TEST_FILE_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), '../../flybody/clips'))
+    TEST_FILE_PATH = os.path.join(TEST_FILE_DIR, ref_path)
+    test_data = resources.GetResourceFilename(TEST_FILE_PATH)
+
+    with h5py.File(TEST_FILE_PATH, 'r') as f:
+        dataset_keys = tuple(f.keys())
+        dataset = types.ClipCollection(ids=dataset_keys,)
+    
+    
+    # Set up the mocap tracking task
+    task = tracking.MultiClipMocapTracking(
+        walker=walker,
+        arena=arena,
+        ref_path=test_data,
+        dataset=dataset,
+        ref_steps=(1, 2, 3, 4, 5),
+        min_steps=1,
+        reward_type='comic',
+        always_init_at_clip_start=True,
+        termination_error_threshold=0.1 # higher threshold are harder to terminate
+    )
+    time_limit = 10.0
+
+    return composer.Environment(
+        time_limit=time_limit,
         task=task,
         random_state=random_state,
         strip_singleton_obs_buffer_dim=True,

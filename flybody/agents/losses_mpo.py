@@ -21,6 +21,7 @@ _MPO_FLOAT_EPSILON = 1e-8
 
 
 class PenalizationCostRealActions:
+class PenalizationCostRealActions:
     """Class to covert canonical actions to real (not wrapped) environment
     actions, and then to calculate penalization cost based on real actions.
     """
