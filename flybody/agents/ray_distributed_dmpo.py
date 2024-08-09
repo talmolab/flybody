@@ -212,7 +212,8 @@ class Learner(DistributionalMPOLearner):
             checkpoint_to_load=self._config.checkpoint_to_load,
             time_delta_minutes=self._config.time_delta_minutes,
             kickstart_teacher_cps_path=self._config.kickstart_teacher_cps_path,
-            kickstart_epsilon=self._config.kickstart_epsilon
+            kickstart_epsilon=self._config.kickstart_epsilon,
+            replay_server_addresses=replay_server_addresses
         )
 
     def _step(self, iterator):
@@ -400,7 +401,6 @@ class EnvironmentLoop(acme.EnvironmentLoop):
         new policy snapshot, optionally send it to wandb
         """
         render = False
-        os.makedirs(os.path.join(self._snapshotter_dir, "videos"), exist_ok=True)
         for path in self._snapshotter_dir.iterdir():
             match = re.match(r"policy-(\d+)", path.name)  # Look for the pattern "policy-number"
             if match:

@@ -51,7 +51,7 @@ def rodent_escape_bowl(random_state=None):
     task = T.EscapeSameObs(
         walker=walker,
         arena=arena,
-        walker_spawn_position=(0, 0, 0.05),  # lifted z axis to aviod penetration
+        walker_spawn_position=(0, 0, 0.02),  # lifted z axis to aviod penetration
         physics_timestep=_PHYSICS_TIMESTEP,
         control_timestep=_CONTROL_TIMESTEP,
     )
@@ -64,9 +64,7 @@ def rodent_escape_bowl(random_state=None):
     )
 
 
-def rodent_run_gaps(
-    random_state=None, contact_termination=False
-):  # enable contact termination
+def rodent_run_gaps(random_state=None, contact_termination=False):  # enable contact termination
     """Requires a rodent to run down a corridor with gaps."""
 
     # Build a position-controlled rodent walker.

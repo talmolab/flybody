@@ -17,7 +17,7 @@ training hyperparameters specified in the DMPOConfig data structure.
 
 # Start Ray cluster first, before imports.
 import ray
-from ray.util.scheduling_strategies import PlacementGroupSchedulingStrategy
+from ray.util.scheduling_strategies import PlacementGroupSchedulingStrategy, NodeAffinitySchedulingStrategy
 from ray.util.placement_group import placement_group
 import logging
 
@@ -99,7 +99,7 @@ tasks = {
 }
 
 
-@hydra.main(version_base=None, config_path="./config", config_name="train_config_gaps")
+@hydra.main(version_base=None, config_path="./config", config_name="train_config_generalist")
 def main(config: DictConfig) -> None:
     print("CONFIG:", config)
     from flybody.agents.ray_distributed_dmpo import (
@@ -206,7 +206,7 @@ def main(config: DictConfig) -> None:
             "kickstart_teacher_cps_path"
         ],  # specify the location of the kickstarter teacher policy's cps
         kickstart_epsilon=config["kickstart_epsilon"],
-        time_delta_minutes=1, # for testing logging DEBUG TODO
+        time_delta_minutes=10,
     )
 
     dmpo_dict_config = dataclasses.asdict(dmpo_config)
@@ -246,7 +246,7 @@ def main(config: DictConfig) -> None:
     }
 
     # Define resources and placement group
-    gpu_pg = placement_group([{"GPU": 1, "CPU": 12}], strategy="STRICT_PACK")
+    gpu_pg = placement_group([{"GPU": 1, "CPU": 30}], strategy="STRICT_PACK")
 
     # === Create Replay Server.
     runtime_env_replay = {
@@ -261,24 +261,43 @@ def main(config: DictConfig) -> None:
         scheduling_strategy=PlacementGroupSchedulingStrategy(placement_group=gpu_pg),
     )(ReplayServer)
 
-    replay_servers = dict()  # {task_name: addr}
+    replay_servers = dict()  # {task_name: addr} # TODO: Probably could simplify this logic quite a bit
     servers = []
     if "actors_envs" in config:
-        dmpo_config.max_replay_size = dmpo_config.max_replay_size // 2  # reduce each replay buffer size by 4.
+        dmpo_config.max_replay_size = dmpo_config.max_replay_size // 4  # reduce each replay buffer size by 4.
         for name, num_actors in config.actors_envs.items():
             if num_actors != 0:
-                # multiple replay server setup
-                replay_server = ReplayServer.remote(
-                    dmpo_config, environment_spec
-                )  # each envs will share the same environment spec and dmpo_config
-                addr = ray.get(replay_server.get_server_address.remote())
-                print(f"MULTIPLE: Started Replay Server for task {name} on {addr}")
-                replay_servers[name] = addr
-                replay_server = RemoteAsLocal(replay_server)
-                # this line is essential to keep a refernce to the replay server
-                # otherwise the object will be garbage collected and clean out
-                servers.append(replay_server) 
-                time.sleep(0.5)
+                if "num_replay_servers" in config and config["num_replay_servers"] != 0:
+                    dmpo_config.max_replay_size = (
+                        dmpo_config.max_replay_size // config["num_replay_servers"]
+                    )  # shink down the replay size correspondingly
+                    for i in range(config["num_replay_servers"]):
+                        _name = f"{name}-{i+1}"
+                        # multiple replay server for load balancing
+                        replay_server = ReplayServer.remote(
+                            dmpo_config, environment_spec
+                        )  # each envs will share the same environment spec and dmpo_config
+                        addr = ray.get(replay_server.get_server_address.remote())
+                        print(f"MULTIPLE: Started Replay Server for task {_name} on {addr}")
+                        replay_servers[_name] = addr
+                        replay_server = RemoteAsLocal(replay_server)
+                        # this line is essential to keep a refernce to the replay server
+                        # otherwise the object will be garbage collected and clean out
+                        servers.append(replay_server)
+                        time.sleep(0.5)
+                        # multiple replay server setup
+                else:
+                    replay_server = ReplayServer.remote(
+                        dmpo_config, environment_spec
+                    )  # each envs will share the same environment spec and dmpo_config
+                    addr = ray.get(replay_server.get_server_address.remote())
+                    print(f"MULTIPLE: Started Replay Server for task {name} on {addr}")
+                    replay_servers[name] = addr
+                    replay_server = RemoteAsLocal(replay_server)
+                    # this line is essential to keep a refernce to the replay server
+                    # otherwise the object will be garbage collected and clean out
+                    servers.append(replay_server)
+                    time.sleep(0.5)
     else:
         if "num_replay_servers" in config and config["num_replay_servers"] != 0:
             dmpo_config.max_replay_size = (
@@ -380,11 +399,19 @@ def main(config: DictConfig) -> None:
         print(config.actors_envs)
         for name, num_actors in config.actors_envs.items():
             if num_actors != 0:
-                actors += create_actors(num_actors, environment_factories[name], replay_servers[name])
+                if "num_replay_servers" in config and config["num_replay_servers"] != 0:
+                    for i in range(config["num_replay_servers"]):
+                        _name = f"{name}-{i+1}"
+                        # multiple replay servers, equally direct replay servers
+                        num_actor_per_replay = num_actors // config["num_replay_servers"]
+                        actors += create_actors(
+                            num_actor_per_replay, environment_factories[name], replay_servers[_name]
+                        )
+                else:
+                    actors += create_actors(num_actors, environment_factories[name], replay_servers[name])
                 print(f"ACTOR Creation: {name}, has #{num_actors} of actors.")
-                if num_actors != 0: # only create evaluator if we decided to run that task.
-                    evaluators.append(RemoteAsLocal(create_evaluator(name, replay_servers[name])))
-                    print(f"EVALUTATOR Creation for task: {name}")
+            evaluators.append(RemoteAsLocal(create_evaluator(name, "")))
+            print(f"EVALUTATOR Creation for task: {name}")
     else:
         # Get actors.
         print(f"ACTOR Creation: {n_actors}")
@@ -395,28 +422,28 @@ def main(config: DictConfig) -> None:
                 num_actor_per_replay = n_actors // config["num_replay_servers"]
                 actors += create_actors(num_actor_per_replay, environment_factories[config["task_name"]], replay_servers[name])
             evaluator = EnvironmentLoop.remote(
-                replay_server_address=replay_servers[name],
+                replay_server_address="",  # evaluator does not need replay server addr
                 variable_source=learner,
                 counter=counter,
                 network_factory=network_factory,
                 environment_factory=environment_factories[config["task_name"]],
                 dmpo_config=dmpo_config,
                 actor_or_evaluator="evaluator",
-                snapshotter_dir=snapshotter_dir
+                snapshotter_dir=snapshotter_dir,
             )
             evaluators.append(RemoteAsLocal(evaluator))
         else:
             # single replay server
             actors = create_actors(n_actors, environment_factories[config["task_name"]], replay_servers[config["task_name"]])
             evaluator = EnvironmentLoop.remote(
-                replay_server_address=replay_servers[config["task_name"]],
+                replay_server_address="",
                 variable_source=learner,
                 counter=counter,
                 network_factory=network_factory,
                 environment_factory=environment_factories[config["task_name"]],
                 dmpo_config=dmpo_config,
                 actor_or_evaluator="evaluator",
-                snapshotter_dir=snapshotter_dir
+                snapshotter_dir=snapshotter_dir,
             )
             evaluators.append(RemoteAsLocal(evaluator))
 

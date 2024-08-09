@@ -51,6 +51,7 @@ class DistributionalMPOLearner(acme.Learner):
         time_delta_minutes: float = 15.0,
         kickstart_teacher_cps_path: str = None, # specify the location of the kickstarter teacher policy's cps
         kickstart_epsilon: float = 0.005,
+        replay_server_addresses: dict = None,
     ):
 
         # Store online and target networks.
@@ -106,6 +107,8 @@ class DistributionalMPOLearner(acme.Learner):
             print("KICKSTART: Loading Teacher Policy from: {kickstart_teacher_cps_path}")
             self._kickstart_teacher_policy = tf.saved_model.load(kickstart_teacher_cps_path)
             self._kickstart_epsilon = tf.constant(kickstart_epsilon)
+        
+        self._replay_server_addresses = replay_server_addresses
 
         # Expose the variables.
         policy_network_to_expose = snt.Sequential(
