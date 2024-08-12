@@ -306,7 +306,7 @@ def walk_humanoid(
         reward_type='comic',
         always_init_at_clip_start=True,
         ghost_offset=GHOST_OFFSET,
-        termination_error_threshold=0.1 # higher threshold are harder to terminate
+        termination_error_threshold=0.15 # lower threshold are harder to terminate
     )
     time_limit = 10.0
 

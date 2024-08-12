@@ -1,14 +1,18 @@
 agent_name: humanoid
+training_type: imitation
 algo_name: dmpo
-task_name: imitation
+task_name: imitation_humanoid
 run_name: humanoid_imitation
-batch_size: 128
+batch_size: 1024
 policy_layer_sizes: [1024, 1024]
 critic_layer_sizes: [1024, 1024, 1024]
+num_replay_servers: 1
 latent_layer_sizes: 60
-num_actors: 100
+num_actors: 390
 group_name: basic-imitation
 
-# for some reason only abs path works here
-ref_traj_path: "/root/talmolab-smb/kaiwen/flybody/clips/cmu_2020_dfe3e9e0.h5"
-checkpoint_to_load:
+# use absolute path
+ref_traj_path: /root/vast/scott-yang/flybody/clips/cmu_2020_dfe3e9e0.h5
+checkpoint_to_load: #/root/vast/scott-yang/imitation/flybody/training/ray-humanoid-imitation-ckpts/ecd920b0-5379-11ef-b8ed-7e493fe14630/checkpoints/dmpo_learner/ckpt-104
+kickstart_teacher_cps_path:
+kickstart_epsilon:

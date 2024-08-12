@@ -33,7 +33,7 @@ from acme.adders import reverb as reverb_adders
 from flybody.agents.learning_dmpo import DistributionalMPOLearner
 from flybody.agents import agent_dmpo
 from flybody.agents.actors import DelayedFeedForwardActor
-from flybody.utils import vision_rollout_and_render
+from flybody.utils import vision_rollout_and_render, rollout_and_render
 from flybody.agents.utils_tf import TestPolicyWrapper
 
 
@@ -420,7 +420,10 @@ class EnvironmentLoop(acme.EnvironmentLoop):
             render_kwargs = {"width": 640, "height": 480}
             policy = tf.saved_model.load(str(self._latest_snapshot))
             policy = TestPolicyWrapper(policy)
-            frames = vision_rollout_and_render(env, policy, camera_id=2, eye_blow_factor=3, **render_kwargs)
+            if "imitation" in self._task_name:
+                frames = rollout_and_render(env, policy, run_until_termination=False, n_steps=500, camera_ids=1, **render_kwargs)
+            else:
+                frames = vision_rollout_and_render(env, policy, camera_id=2, eye_blow_factor=3, **render_kwargs)
             with imageio.get_writer(rendering_path, fps=30) as video:
                 for f in frames:
                     video.append_data(f)

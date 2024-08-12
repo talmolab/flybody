@@ -16,7 +16,7 @@ class IntentionNetwork(snt.Module):
                  fixed_scale, 
                  use_tfd_independent,
                  policy_layer_sizes):
-        
+
         super().__init__()
         self.ref_size = ref_size
         self.encoder = snt.Sequential([
@@ -24,18 +24,20 @@ class IntentionNetwork(snt.Module):
             networks.LayerNormMLP(layer_sizes=policy_layer_sizes[:-1], activate_final=True),
             snt.nets.MLP([latent_layer_sizes], activate_final=False)
             ])
-        
-        self.decoder = snt.Sequential([
-            networks.LayerNormMLP(layer_sizes=[latent_layer_sizes] + policy_layer_sizes[-1:], activate_final=True),
-            networks.MultivariateNormalDiagHead(
-                action_size,
-                min_scale=min_scale,
-                tanh_mean=tanh_mean,
-                init_scale=init_scale,
-                fixed_scale=fixed_scale,
-                use_tfd_independent=use_tfd_independent
-            )
-            ])
+
+        self.decoder = snt.Sequential(
+            [
+                networks.LayerNormMLP(layer_sizes=[latent_layer_sizes] + policy_layer_sizes[-1:], activate_final=True),
+                networks.MultivariateNormalDiagHead(
+                    action_size,
+                    min_scale=min_scale,
+                    tanh_mean=tanh_mean,
+                    init_scale=init_scale,
+                    fixed_scale=fixed_scale,
+                    use_tfd_independent=use_tfd_independent,
+                ),
+            ]
+        )
 
     def __call__(self, observations):
         reference_obs = observations[...,:self.ref_size]

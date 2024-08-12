@@ -1,5 +1,6 @@
 agent_name: rodent
 algo_name: dmpo
+training_type: imitation
 task_name: imitation
 run_name: rodent_imitation
 batch_size: 128

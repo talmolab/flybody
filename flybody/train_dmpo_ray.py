@@ -71,7 +71,6 @@ from flybody.default_logger import make_default_logger
 from flybody.single_precision import SinglePrecisionWrapper
 
 
-
 # fly body uses mlp + fly tracking
 from flybody.agents.network_factory import make_network_factory_dmpo as make_network_factory_dmpo_fly
 # humanoid body use intention + comic tracking
@@ -81,8 +80,7 @@ PYHTONPATH = os.path.dirname(os.path.dirname(flybody.__file__))
 LD_LIBRARY_PATH = (
     os.environ["LD_LIBRARY_PATH"] if "LD_LIBRARY_PATH" in os.environ else ""
 )
-    os.environ["LD_LIBRARY_PATH"] if "LD_LIBRARY_PATH" in os.environ else ""
-)
+
 # Defer specifying CUDA_VISIBLE_DEVICES to sub-processes.
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 parser = argparse.ArgumentParser()
@@ -91,11 +89,7 @@ parser.add_argument(
     help="Run job in test mode with one actor and output to current terminal.",
     action="store_true",
 )
-parser.add_argument(
-    "--test",
-    help="Run job in test mode with one actor and output to current terminal.",
-    action="store_true",
-)
+
 args = parser.parse_args()
 is_test = args.test
 if parser.parse_args().test:
@@ -107,7 +101,7 @@ else:
     test_num_actors = None
     test_log_every = None
     test_min_replay_size = None
-    
+
 tasks = {"run-gaps": rodent_run_gaps,
          "maze-forage": rodent_maze_forage,
          "escape-bowl": rodent_escape_bowl,
@@ -116,7 +110,8 @@ tasks = {"run-gaps": rodent_run_gaps,
          "fly_imitation": fly_walk_imitation,
          "humanoid_imitation": walk_humanoid}
 
-@hydra.main(version_base=None, config_path="./config", config_name="train_config_generalist")
+
+@hydra.main(version_base=None, config_path="./config", config_name="train_config_humanoid")
 def main(config: DictConfig) -> None:
     print("CONFIG:", config)
 
@@ -158,19 +153,21 @@ def main(config: DictConfig) -> None:
         env = tasks["escape-bowl"]()
         env = wrappers.SinglePrecisionWrapper(env)
         env = wrappers.CanonicalSpecWrapper(env)
-        print("SUCCESS PASS")
-        # env = RemoveVisionWrapper(env)
+        return env
+
+    def environment_factory_imitation_humanoid() -> "composer.Environment":
+        """Creates replicas of environment for the agent."""
+        env = tasks["humanoid_imitation"](config["ref_traj_path"])
+        env = wrappers.SinglePrecisionWrapper(env)
+        env = wrappers.CanonicalSpecWrapper(env)
         return env
     
-    def environment_factory(training: bool, task:str=config["task_name"]) -> 'composer.Environment':
+    def environment_factory_imitation_rodent() -> "composer.Environment":
         """Creates replicas of environment for the agent."""
-        del training  # Unused.
-
-        if config["task_name"] == "imitation":
-            env = tasks[config["run_name"]](config["ref_traj_path"])
-        else:
-            env = tasks[config["task_name"]]()
-        
+        env = tasks["rodent_imitation"](config["ref_traj_path"])
+        env = wrappers.SinglePrecisionWrapper(env)
+        env = wrappers.CanonicalSpecWrapper(env)
+        return env
 
     environment_factories = {
         "run-gaps": environment_factory_run_gaps,
@@ -178,21 +175,21 @@ def main(config: DictConfig) -> None:
         "escape-bowl": environment_factory_bowl_escape,
         "two-taps": environment_factory_two_taps,
         "general": environment_factory_run_gaps,
+        "imitation_humanoid": environment_factory_imitation_humanoid,
+        "imitation_rodent": environment_factory_imitation_rodent
     }
 
     # Create network factory for RL task.
-    if (config["agent_name"] == "humanoid") | (config["agent_name"] == "rodent"):
+    if config["training_type"] == "imitation" and (config["agent_name"] == "humanoid") | (
+        config["agent_name"] == "rodent"
+    ):
         network_factory = make_network_factory_dmpo_comic(policy_layer_sizes=config["policy_layer_sizes"],
                                                 critic_layer_sizes=config["critic_layer_sizes"],
                                                 latent_layer_sizes=config["latent_layer_sizes"])
     else:
+        # online settings
         network_factory = make_network_factory_dmpo_fly(policy_layer_sizes=config["policy_layer_sizes"],
                                                 critic_layer_sizes=config["critic_layer_sizes"])
-    
-    network_factory = make_network_factory_dmpo(
-        policy_layer_sizes=config["policy_layer_sizes"],
-        critic_layer_sizes=config["critic_layer_sizes"],
-    )
 
     # Dummy environment and network for quick use, deleted later.
     dummy_env = environment_factories[config["task_name"]]()
@@ -215,7 +212,7 @@ def main(config: DictConfig) -> None:
         num_learner_steps=200,
         min_replay_size=test_min_replay_size or 10_000,
         max_replay_size=4_000_000,
-        samples_per_insert=15,
+        samples_per_insert=5, # allow less sample per insert to allow more data in
         n_step=50,
         num_samples=20,
         policy_loss_module=policy_loss_module_dmpo(
@@ -468,6 +465,7 @@ def main(config: DictConfig) -> None:
                 dmpo_config=dmpo_config,
                 actor_or_evaluator="evaluator",
                 snapshotter_dir=snapshotter_dir,
+                task_name=config["task_name"],
             )
             evaluators.append(RemoteAsLocal(evaluator))
         else:
