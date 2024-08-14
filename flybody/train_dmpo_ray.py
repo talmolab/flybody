@@ -111,7 +111,7 @@ tasks = {"run-gaps": rodent_run_gaps,
          "humanoid_imitation": walk_humanoid}
 
 
-@hydra.main(version_base=None, config_path="./config", config_name="train_config_humanoid")
+@hydra.main(version_base=None, config_path="./config", config_name="train_config_rodent_imitation")
 def main(config: DictConfig) -> None:
     print("CONFIG:", config)
 
@@ -161,7 +161,7 @@ def main(config: DictConfig) -> None:
         env = wrappers.SinglePrecisionWrapper(env)
         env = wrappers.CanonicalSpecWrapper(env)
         return env
-    
+
     def environment_factory_imitation_rodent() -> "composer.Environment":
         """Creates replicas of environment for the agent."""
         env = tasks["rodent_imitation"](config["ref_traj_path"])
@@ -183,9 +183,12 @@ def main(config: DictConfig) -> None:
     if config["training_type"] == "imitation" and (config["agent_name"] == "humanoid") | (
         config["agent_name"] == "rodent"
     ):
-        network_factory = make_network_factory_dmpo_comic(policy_layer_sizes=config["policy_layer_sizes"],
-                                                critic_layer_sizes=config["critic_layer_sizes"],
-                                                latent_layer_sizes=config["latent_layer_sizes"])
+        network_factory = make_network_factory_dmpo_comic(
+            encoder_layer_sizes=config["encoder_layer_sizes"],
+            decoder_layer_sizes=config["decoder_layer_sizes"],
+            critic_layer_sizes=config["critic_layer_sizes"],
+            latent_layer_sizes=config["latent_layer_sizes"],
+        )
     else:
         # online settings
         network_factory = make_network_factory_dmpo_fly(policy_layer_sizes=config["policy_layer_sizes"],
@@ -208,11 +211,11 @@ def main(config: DictConfig) -> None:
     dmpo_config = DMPOConfig(
         num_actors=test_num_actors or config["num_actors"],
         batch_size=config["batch_size"],
-        prefetch_size=4,  # maybe unlimited?
+        prefetch_size=64,  # aggresive prefetch param, because we have large amount of data
         num_learner_steps=200,
-        min_replay_size=test_min_replay_size or 10_000,
+        min_replay_size=test_min_replay_size or 50_000,
         max_replay_size=4_000_000,
-        samples_per_insert=5, # allow less sample per insert to allow more data in
+        samples_per_insert=None,  # allow less sample per insert to allow more data in # None is only min limiter
         n_step=50,
         num_samples=20,
         policy_loss_module=policy_loss_module_dmpo(
@@ -226,9 +229,9 @@ def main(config: DictConfig) -> None:
         policy_optimizer=snt.optimizers.Adam(1e-4),
         critic_optimizer=snt.optimizers.Adam(1e-4),
         dual_optimizer=snt.optimizers.Adam(1e-3),
-        target_critic_update_period=107,
+        target_critic_update_period=107,    
         target_policy_update_period=101,
-        actor_update_period=1000,
+        actor_update_period=8_000,
         log_every=test_log_every or 60,
         logger=make_default_logger,
         logger_save_csv_data=False,
@@ -410,7 +413,7 @@ def main(config: DictConfig) -> None:
             )
             actor = RemoteAsLocal(actor)
             actors.append(actor)
-            time.sleep(0.2)
+            time.sleep(0.1)
         return actors
 
     def create_evaluator(task_name, replay_server_addr):

@@ -378,7 +378,7 @@ class EnvironmentLoop(acme.EnvironmentLoop):
                 task_name=task_name,
                 **logger_kwargs,
             )
-        
+
         if snapshotter_dir is not None:
             self._snapshotter_dir = Path(snapshotter_dir)
         self._latest_snapshot = None
@@ -421,7 +421,9 @@ class EnvironmentLoop(acme.EnvironmentLoop):
             policy = tf.saved_model.load(str(self._latest_snapshot))
             policy = TestPolicyWrapper(policy)
             if "imitation" in self._task_name:
-                frames = rollout_and_render(env, policy, run_until_termination=False, n_steps=500, camera_ids=1, **render_kwargs)
+                frames = rollout_and_render(
+                    env, policy, run_until_termination=False, n_steps=1500, camera_ids=1, **render_kwargs
+                )
             else:
                 frames = vision_rollout_and_render(env, policy, camera_id=2, eye_blow_factor=3, **render_kwargs)
             with imageio.get_writer(rendering_path, fps=30) as video:

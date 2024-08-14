@@ -15,19 +15,20 @@ class IntentionNetwork(snt.Module):
                  init_scale,
                  fixed_scale, 
                  use_tfd_independent,
-                 policy_layer_sizes):
+                 encoder_layer_sizes,
+                 decoder_layer_sizes,):
 
         super().__init__()
         self.ref_size = ref_size
         self.encoder = snt.Sequential([
             tf2_utils.batch_concat,
-            networks.LayerNormMLP(layer_sizes=policy_layer_sizes[:-1], activate_final=True),
+            networks.LayerNormMLP(layer_sizes=encoder_layer_sizes, activate_final=True),
             snt.nets.MLP([latent_layer_sizes], activate_final=False)
             ])
 
         self.decoder = snt.Sequential(
             [
-                networks.LayerNormMLP(layer_sizes=[latent_layer_sizes] + policy_layer_sizes[-1:], activate_final=True),
+                networks.LayerNormMLP(layer_sizes=[latent_layer_sizes] + decoder_layer_sizes, activate_final=True),
                 networks.MultivariateNormalDiagHead(
                     action_size,
                     min_scale=min_scale,

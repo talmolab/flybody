@@ -44,6 +44,7 @@ from flybody import rodent_tasks_modified as T
 from dm_control.locomotion.walkers import rodent
 
 from flybody.tasks.rodent_imitation import WalkImitation
+
 # from dm_control.locomotion.tasks.reference_pose import tracking
 
 from flybody.tasks import tracking
@@ -188,12 +189,6 @@ def rodent_maze_forage(random_state=None):
         random_state=random_state,
         strip_singleton_obs_buffer_dim=True,
     )
-    return composer.Environment(
-        time_limit=30,
-        task=task,
-        random_state=random_state,
-        strip_singleton_obs_buffer_dim=True,
-    )
 
 
 def rodent_two_touch(random_state=None):
@@ -237,21 +232,21 @@ def rodent_two_touch(random_state=None):
 def walk_imitation(
     ref_path: str | None = None,
     random_state: np.random.RandomState | None = None,
-    terminal_com_dist: float = 0.3,
+    termination_error_threshold: float = 0.15,
 ):
     """
     Rodent walking imitation, following similar calling with fruitfly imitation
     """
-    # walker = rodent.Rat # pass callable
     walker = functools.partial(rodent.Rat, foot_mods=True)
     arena = floors.Floor()
 
-    current_directory = os.getcwd()
-    TEST_FILE_PATH = os.path.join(current_directory, ref_path)
+    TEST_FILE_PATH = ref_path
 
-    with h5py.File(TEST_FILE_PATH, 'r') as f:
+    with h5py.File(TEST_FILE_PATH, "r") as f:
         dataset_keys = tuple(f.keys())
-        dataset = types.ClipCollection(ids=dataset_keys,)
+        dataset = types.ClipCollection(
+            ids=dataset_keys,
+        )
 
     # Set up the mocap tracking task
     task = tracking.MultiClipMocapTracking(
@@ -261,10 +256,10 @@ def walk_imitation(
         ref_steps=(1, 2, 3, 4, 5),
         min_steps=1,
         dataset=dataset,
-        reward_type='comic',
+        reward_type="comic",
         always_init_at_clip_start=True,
         ghost_offset=GHOST_OFFSET,
-        termination_error_threshold=0.06 # higher threshold are harder to terminate
+        termination_error_threshold=termination_error_threshold,  # higher threshold are harder to terminate
     )
     time_limit = 10.0
 
@@ -274,6 +269,7 @@ def walk_imitation(
         random_state=random_state,
         strip_singleton_obs_buffer_dim=True,
     )
+
 
 def walk_humanoid(
     ref_path: str | None = None,
@@ -282,19 +278,20 @@ def walk_humanoid(
 ):
     """
     Rodent walking imitation, following similar calling with fruitfly imitation
-    """  
+    """
     arena = floors.Floor()
     walker = walkers.CMUHumanoidPositionControlledV2020
 
-    TEST_FILE_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), '../../flybody/clips'))
+    TEST_FILE_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "../../flybody/clips"))
     TEST_FILE_PATH = os.path.join(TEST_FILE_DIR, ref_path)
     test_data = resources.GetResourceFilename(TEST_FILE_PATH)
 
-    with h5py.File(TEST_FILE_PATH, 'r') as f:
+    with h5py.File(TEST_FILE_PATH, "r") as f:
         dataset_keys = tuple(f.keys())
-        dataset = types.ClipCollection(ids=dataset_keys,)
-    
-    
+        dataset = types.ClipCollection(
+            ids=dataset_keys,
+        )
+
     # Set up the mocap tracking task
     task = tracking.MultiClipMocapTracking(
         walker=walker,
@@ -303,10 +300,10 @@ def walk_humanoid(
         dataset=dataset,
         ref_steps=(1, 2, 3, 4, 5),
         min_steps=1,
-        reward_type='comic',
+        reward_type="comic",
         always_init_at_clip_start=True,
         ghost_offset=GHOST_OFFSET,
-        termination_error_threshold=0.15 # lower threshold are harder to terminate
+        termination_error_threshold=0.15,  # lower threshold are harder to terminate
     )
     time_limit = 10.0
 
@@ -317,6 +314,7 @@ def walk_humanoid(
         strip_singleton_obs_buffer_dim=True,
     )
 
+
 def walk_rendering(
     ref_path: str | None = None,
     random_state: np.random.RandomState | None = None,
@@ -324,19 +322,20 @@ def walk_rendering(
 ):
     """
     Rodent walking imitation, following similar calling with fruitfly imitation
-    """  
+    """
     arena = floors.Floor()
     walker = walkers.CMUHumanoidPositionControlledV2020
 
-    TEST_FILE_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), '../../flybody/clips'))
+    TEST_FILE_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "../../flybody/clips"))
     TEST_FILE_PATH = os.path.join(TEST_FILE_DIR, ref_path)
     test_data = resources.GetResourceFilename(TEST_FILE_PATH)
 
-    with h5py.File(TEST_FILE_PATH, 'r') as f:
+    with h5py.File(TEST_FILE_PATH, "r") as f:
         dataset_keys = tuple(f.keys())
-        dataset = types.ClipCollection(ids=dataset_keys,)
-    
-    
+        dataset = types.ClipCollection(
+            ids=dataset_keys,
+        )
+
     # Set up the mocap tracking task
     task = tracking.MultiClipMocapTracking(
         walker=walker,
@@ -345,9 +344,9 @@ def walk_rendering(
         dataset=dataset,
         ref_steps=(1, 2, 3, 4, 5),
         min_steps=1,
-        reward_type='comic',
+        reward_type="comic",
         always_init_at_clip_start=True,
-        termination_error_threshold=0.1 # higher threshold are harder to terminate
+        termination_error_threshold=0.1,  # higher threshold are harder to terminate
     )
     time_limit = 10.0
 

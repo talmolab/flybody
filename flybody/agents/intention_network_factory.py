@@ -16,7 +16,8 @@ from flybody.agents.intention_network_base import IntentionNetwork
 
 def network_factory_dmpo(
     action_spec,
-    policy_layer_sizes=(256, 256, 256),
+    encoder_layer_sizes=(512, 512, 512),
+    decoder_layer_sizes=(512, 512, 512),
     critic_layer_sizes=(512, 512, 256),
     latent_layer_sizes=60,
     ref_size=1520,
@@ -41,7 +42,8 @@ def network_factory_dmpo(
         init_scale=init_scale,
         fixed_scale=fixed_scale,
         use_tfd_independent=use_tfd_independent,
-        policy_layer_sizes=policy_layer_sizes
+        encoder_layer_sizes=encoder_layer_sizes,
+        decoder_layer_sizes=decoder_layer_sizes,
     )
 
     # The multiplexer concatenates the (maybe transformed) observations/actions.
@@ -61,15 +63,14 @@ def network_factory_dmpo(
     return {
         "policy": policy_network,
         "critic": critic_network,
-        "observation": separate_observation
-        #tf2_utils.batch_concat
-        #VisNetRodentImitation()
-        # pass in as object
+        "observation": separate_observation,
+        # can possibly return more stats for calculating the KL loss for the intention network? Can I?
     }
 
 
 def make_network_factory_dmpo(
-    policy_layer_sizes=(512, 512, 512),
+    encoder_layer_sizes=(512, 512, 512),
+    decoder_layer_sizes=(512, 512, 512),
     critic_layer_sizes=(512, 512, 256),
     latent_layer_sizes=60,
     vmin=-150.0,
@@ -86,7 +87,8 @@ def make_network_factory_dmpo(
     def network_factory(action_spec):
         return network_factory_dmpo(
             action_spec,
-            policy_layer_sizes=policy_layer_sizes,
+            encoder_layer_sizes=encoder_layer_sizes,
+            decoder_layer_sizes=decoder_layer_sizes,
             critic_layer_sizes=critic_layer_sizes,
             latent_layer_sizes=latent_layer_sizes,
             vmin=vmin,

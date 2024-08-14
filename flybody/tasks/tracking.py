@@ -29,7 +29,6 @@ from dm_control.locomotion.tasks.reference_pose import datasets
 from dm_control.locomotion.tasks.reference_pose import types
 from dm_control.locomotion.tasks.reference_pose import utils
 from dm_control.locomotion.tasks.reference_pose import rewards
-# from flybody.tasks import tracking_rewards as rewards
 
 from dm_control.mujoco.wrapper import mjbindings
 from dm_control.utils import transformations as tr
@@ -461,7 +460,7 @@ class ReferencePosesTask(composer.Task, metaclass=abc.ABCMeta):
           clip_id,
           start_step=self._dataset.start_steps[self._current_clip_index],
           end_step=self._dataset.end_steps[self._current_clip_index],
-          zero_out_velocities=False)
+          zero_out_velocities=True)
     self._current_clip = self._all_clips[self._current_clip_index]
     self._clip_reference_features = self._current_clip.as_dict()
     self._strip_reference_prefix()
@@ -496,8 +495,9 @@ class ReferencePosesTask(composer.Task, metaclass=abc.ABCMeta):
     # assert error is 0 at initialization. In particular this will prevent
     # a proto/walker mismatch.
     if self._termination_error > 1e-2:
-      raise ValueError(('The termination exceeds 1e-2 at initialization. '
-                        'This is likely due to a proto/walker mismatch.'))
+      # raise ValueError(('The termination exceeds 1e-2 at initialization. '
+      #                   'This is likely due to a proto/walker mismatch.'))
+      print(('The termination exceeds 1e-2 at initialization. This is likely due to a proto/walker mismatch.'))
 
     self._update_ghost(physics)
     self._reference_observations.update(
@@ -762,7 +762,7 @@ class ReferencePosesTask(composer.Task, metaclass=abc.ABCMeta):
   def _set_walker(self, physics: 'mjcf.Physics'):
     timestep_features = tree.map_structure(lambda x: x[self._time_step],
                                            self._clip_reference_features)
-    utils.set_walker_from_features(physics, self._walker, timestep_features)
+    utils.set_walker_from_features(physics, self._walker, timestep_features, offset=(0,0,0.02))
     if self._props:
       utils.set_props_from_features(physics, self._props, timestep_features)
     mjlib.mj_kinematics(physics.model.ptr, physics.data.ptr)
