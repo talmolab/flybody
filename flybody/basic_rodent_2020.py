@@ -26,10 +26,6 @@ from dm_control.locomotion.arenas import floors
 from dm_control.locomotion.arenas import labmaze_textures
 from dm_control.locomotion.arenas import mazes
 from dm_control.locomotion.props import target_sphere
-from dm_control.locomotion.tasks import corridors as corr_tasks
-from dm_control.locomotion.tasks import escape
-from dm_control.locomotion.tasks import random_goal_maze
-from dm_control.locomotion.tasks import reach
 
 from dm_control.locomotion import walkers
 from dm_control.utils import io as resources
@@ -39,22 +35,17 @@ from dm_control.locomotion.tasks.reference_pose import types
 import os
 import h5py
 
-# from flybody.fruitfly import rodent
 from flybody import rodent_tasks_modified as T
 from dm_control.locomotion.walkers import rodent
 
-from flybody.tasks.rodent_imitation import WalkImitation
-
-# from dm_control.locomotion.tasks.reference_pose import tracking
-
-from flybody.tasks import tracking
+from flybody.tasks import tracking_old as tracking # TODO hacky tape, new tracking did not work yet
 
 from flybody.tasks.trajectory_loaders import (
     HDF5WalkingTrajectoryLoader,
     InferenceWalkingTrajectoryLoader,
 )
 
-_CONTROL_TIMESTEP = 00.02
+_CONTROL_TIMESTEP = 0.02
 _PHYSICS_TIMESTEP = 0.001
 GHOST_OFFSET = np.array((0, 0, 0))
 
@@ -229,10 +220,10 @@ def rodent_two_touch(random_state=None):
     )
 
 
-def walk_imitation(
+def rodent_walk_imitation(
     ref_path: str | None = None,
     random_state: np.random.RandomState | None = None,
-    termination_error_threshold: float = 0.15,
+    termination_error_threshold: float = 0.12,
 ):
     """
     Rodent walking imitation, following similar calling with fruitfly imitation

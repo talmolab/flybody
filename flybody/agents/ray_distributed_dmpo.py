@@ -72,6 +72,8 @@ class DMPOConfig:
     config_dict: dict | None = None
     kickstart_teacher_cps_path: str = "", # specify the location of the kickstarter teacher policy's cps
     kickstart_epsilon: float = 0.005,
+    eval_average_over: int = 200, # how many steps of statistic to average over in evaluator.
+    
 
 
 class ReplayServer:
@@ -386,14 +388,30 @@ class EnvironmentLoop(acme.EnvironmentLoop):
         self._task_name = task_name
         self._environment_factory = environment_factory
 
+        # for evaluator logging support for mean
+        self._stats = []
+
         super().__init__(environment, actor, counter, logger)
 
     def run_episode(self) -> loggers.LoggingData:
-        """Add rendering support for evaluator"""
+        """Add rendering support for evaluator, and added aggregate stats"""
         logging_data = super().run_episode()
         if self._actor_or_evaluator == "evaluator":
+            self._stats.append(logging_data)
+            if len(self._stats) >= self._config.eval_average_over:
+                self._stats.pop(0)  # pop out the stats
             self.load_snapshot_and_render(logging_data)
+            logging_data.update(self._eval_agg_stat()) # update in place
         return logging_data
+
+    def _eval_agg_stat(self) -> loggers.LoggingData:
+        """
+        For evaluators, calculates the aggregate statistics such as
+        avg episode return, avg episode length, and avg sps
+
+        _I am sorry, but this is some very hard to read list comprehension._
+        """
+        return {f"avg_{key}": np.mean([d[key] for d in self._stats]) for key in ["episode_length", "episode_return", "steps_per_second"]}
 
     def load_snapshot_and_render(self, logging_data):
         """

@@ -8,12 +8,22 @@ encoder_layer_sizes: [1024, 1024]
 decoder_layer_sizes: [1024, 1024]
 critic_layer_sizes: [1024, 1024, 1024]
 latent_layer_sizes: 60
-num_replay_servers: 1
-num_actors: 595
+num_replay_servers: 3
+num_actors: 582
 group_name: rodent-imitation
 
-# for some reason only abs path works here
+# env params
+termination_error_threshold: 0.08
+
+# learner parameters
+policy_optimizer_lr: 2e-5
+critic_optimizer_lr: 2e-5
+dual_optimizer_lr: 2e-4
+
+# evaluator params
+eval_average_over: 600
+
 ref_traj_path: /root/vast/scott-yang/flybody/clips/all_snippets.h5
-checkpoint_to_load:
+checkpoint_to_load: /root/vast/scott-yang/flybody/training/ray-rodent-imitation_rodent-ckpts/schedule-5/checkpoints/dmpo_learner/ckpt-21
 kickstart_teacher_cps_path:
 kickstart_epsilon:

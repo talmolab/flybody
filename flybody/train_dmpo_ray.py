@@ -61,7 +61,7 @@ from flybody.basic_rodent_2020 import (
     rodent_escape_bowl,
     rodent_two_touch,
     walk_humanoid,
-    walk_imitation as rodent_walk_imitation
+    rodent_walk_imitation,
 )
 
 from flybody.wrapper import SinglePrecisionWrapperFloat, RemoveVisionWrapper
@@ -162,9 +162,11 @@ def main(config: DictConfig) -> None:
         env = wrappers.CanonicalSpecWrapper(env)
         return env
 
-    def environment_factory_imitation_rodent() -> "composer.Environment":
+    def environment_factory_imitation_rodent(termination_error_threshold=0.12) -> "composer.Environment":
         """Creates replicas of environment for the agent."""
-        env = tasks["rodent_imitation"](config["ref_traj_path"])
+        env = tasks["rodent_imitation"](
+            config["ref_traj_path"], termination_error_threshold=termination_error_threshold
+        )
         env = wrappers.SinglePrecisionWrapper(env)
         env = wrappers.CanonicalSpecWrapper(env)
         return env
@@ -176,7 +178,9 @@ def main(config: DictConfig) -> None:
         "two-taps": environment_factory_two_taps,
         "general": environment_factory_run_gaps,
         "imitation_humanoid": environment_factory_imitation_humanoid,
-        "imitation_rodent": environment_factory_imitation_rodent
+        "imitation_rodent": functools.partial(
+            environment_factory_imitation_rodent, termination_error_threshold=config["termination_error_threshold"]
+        ),
     }
 
     # Create network factory for RL task.
@@ -211,10 +215,10 @@ def main(config: DictConfig) -> None:
     dmpo_config = DMPOConfig(
         num_actors=test_num_actors or config["num_actors"],
         batch_size=config["batch_size"],
-        prefetch_size=64,  # aggresive prefetch param, because we have large amount of data
+        prefetch_size=2048,  # aggresive prefetch param, because we have large amount of data
         num_learner_steps=200,
         min_replay_size=test_min_replay_size or 50_000,
-        max_replay_size=4_000_000,
+        max_replay_size=6_000_000,
         samples_per_insert=None,  # allow less sample per insert to allow more data in # None is only min limiter
         n_step=50,
         num_samples=20,
@@ -226,12 +230,12 @@ def main(config: DictConfig) -> None:
             epsilon_penalty=0.1,
             penalization_cost=penalization_cost,
         ),
-        policy_optimizer=snt.optimizers.Adam(1e-4),
-        critic_optimizer=snt.optimizers.Adam(1e-4),
-        dual_optimizer=snt.optimizers.Adam(1e-3),
-        target_critic_update_period=107,    
+        policy_optimizer=snt.optimizers.Adam(config["policy_optimizer_lr"]),  # reduce the lr
+        critic_optimizer=snt.optimizers.Adam(config["critic_optimizer_lr"]),
+        dual_optimizer=snt.optimizers.Adam(config["dual_optimizer_lr"]),
+        target_critic_update_period=107,
         target_policy_update_period=101,
-        actor_update_period=8_000,
+        actor_update_period=5_000,
         log_every=test_log_every or 60,
         logger=make_default_logger,
         logger_save_csv_data=False,
@@ -244,7 +248,8 @@ def main(config: DictConfig) -> None:
             "kickstart_teacher_cps_path"
         ],  # specify the location of the kickstarter teacher policy's cps
         kickstart_epsilon=config["kickstart_epsilon"],
-        time_delta_minutes=10,
+        time_delta_minutes=15,
+        eval_average_over=config["eval_average_over"]
     )
 
     dmpo_dict_config = dataclasses.asdict(dmpo_config)
@@ -413,7 +418,7 @@ def main(config: DictConfig) -> None:
             )
             actor = RemoteAsLocal(actor)
             actors.append(actor)
-            time.sleep(0.1)
+            time.sleep(0.05)
         return actors
 
     def create_evaluator(task_name, replay_server_addr):
