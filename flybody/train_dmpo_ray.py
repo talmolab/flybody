@@ -43,7 +43,7 @@ import uuid
 import hydra
 import functools
 from omegaconf import DictConfig, OmegaConf
-
+import numpy as np
 from acme import specs
 from acme import wrappers
 from acme.tf import utils as tf2_utils
@@ -162,8 +162,13 @@ def main(config: DictConfig) -> None:
         env = wrappers.CanonicalSpecWrapper(env)
         return env
 
-    def environment_factory_imitation_rodent(termination_error_threshold=0.12) -> "composer.Environment":
-        """Creates replicas of environment for the agent."""
+    def environment_factory_imitation_rodent(termination_error_threshold=0.12, random_range=0) -> "composer.Environment":
+        """
+        Creates replicas of environment for the agent. random range controls the 
+        range of the uniformed distributed termination logics
+        """
+        if random_range != 0:
+            termination_error_threshold = np.random.normal(termination_error_threshold, scale=random_range)
         env = tasks["rodent_imitation"](
             config["ref_traj_path"], termination_error_threshold=termination_error_threshold
         )
@@ -179,7 +184,9 @@ def main(config: DictConfig) -> None:
         "general": environment_factory_run_gaps,
         "imitation_humanoid": environment_factory_imitation_humanoid,
         "imitation_rodent": functools.partial(
-            environment_factory_imitation_rodent, termination_error_threshold=config["termination_error_threshold"]
+            environment_factory_imitation_rodent, 
+            termination_error_threshold=config["termination_error_threshold"],
+            random_range=config["random_range"]
         ),
     }
 
@@ -422,12 +429,16 @@ def main(config: DictConfig) -> None:
         return actors
 
     def create_evaluator(task_name, replay_server_addr):
+        if task_name=="rodent_imitation":
+            env_fact = functools.partial(environment_factories[task_name], random_range=0)
+        else: 
+            env_fact = environment_factories[task_name]
         evaluator = EnvironmentLoop.remote(
             replay_server_address=replay_server_addr,
             variable_source=learner,
             counter=counter,
             network_factory=network_factory,
-            environment_factory=environment_factories[task_name],
+            environment_factory=env_fact,
             dmpo_config=dmpo_config,
             actor_or_evaluator="evaluator",
             task_name=task_name,

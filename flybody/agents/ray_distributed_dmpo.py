@@ -411,7 +411,14 @@ class EnvironmentLoop(acme.EnvironmentLoop):
 
         _I am sorry, but this is some very hard to read list comprehension._
         """
-        return {f"avg_{key}": np.mean([d[key] for d in self._stats]) for key in ["episode_length", "episode_return", "steps_per_second"]}
+        agg = {f"avg_{key}": np.mean([d[key] for d in self._stats]) for key in ["episode_length", "episode_return", "steps_per_second"]}
+        var = {f"var_{key}": np.var([d[key] for d in self._stats]) for key in ["episode_length", "episode_return"]}
+        maxi = {f"max_{key}": np.max([d[key] for d in self._stats]) for key in ["episode_length", "episode_return"]}
+        mini = {f"min_{key}": np.min([d[key] for d in self._stats]) for key in ["episode_length", "episode_return"]}
+        agg.update(var)
+        agg.update(maxi)
+        agg.update(mini)
+        return agg
 
     def load_snapshot_and_render(self, logging_data):
         """

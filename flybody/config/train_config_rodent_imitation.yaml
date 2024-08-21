@@ -14,16 +14,17 @@ group_name: rodent-imitation
 
 # env params
 termination_error_threshold: 0.08
+random_range: 0.00 # currently controls the scale gaussian of the termination threshold
 
 # learner parameters
-policy_optimizer_lr: 2e-5
-critic_optimizer_lr: 2e-5
-dual_optimizer_lr: 2e-4
+policy_optimizer_lr: 1e-5
+critic_optimizer_lr: 1e-5
+dual_optimizer_lr: 1e-4
 
 # evaluator params
-eval_average_over: 600
+eval_average_over: 842 # as we have 842 clips, in avg this should gives us a good est
 
 ref_traj_path: /root/vast/scott-yang/flybody/clips/all_snippets.h5
-checkpoint_to_load: /root/vast/scott-yang/flybody/training/ray-rodent-imitation_rodent-ckpts/schedule-5/checkpoints/dmpo_learner/ckpt-21
+checkpoint_to_load: #/root/vast/scott-yang/flybody/training/ray-rodent-imitation_rodent-ckpts/schedule-5/checkpoints/dmpo_learner/ckpt-21
 kickstart_teacher_cps_path:
 kickstart_epsilon:
