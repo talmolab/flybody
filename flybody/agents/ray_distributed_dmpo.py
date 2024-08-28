@@ -401,23 +401,26 @@ class EnvironmentLoop(acme.EnvironmentLoop):
             if len(self._stats) >= self._config.eval_average_over:
                 self._stats.pop(0)  # pop out the stats
             self.load_snapshot_and_render(logging_data)
-            logging_data.update(self._eval_agg_stat()) # update in place
+            logging_data.update(self._eval_agg_stat(True)) # update in place
         return logging_data
 
-    def _eval_agg_stat(self) -> loggers.LoggingData:
+    def _eval_agg_stat(self, include_raw=False) -> loggers.LoggingData:
         """
         For evaluators, calculates the aggregate statistics such as
         avg episode return, avg episode length, and avg sps
 
         _I am sorry, but this is some very hard to read list comprehension._
         """
+        stats_key = ["episode_length", "episode_return"]
         agg = {f"avg_{key}": np.mean([d[key] for d in self._stats]) for key in ["episode_length", "episode_return", "steps_per_second"]}
-        var = {f"var_{key}": np.var([d[key] for d in self._stats]) for key in ["episode_length", "episode_return"]}
-        maxi = {f"max_{key}": np.max([d[key] for d in self._stats]) for key in ["episode_length", "episode_return"]}
-        mini = {f"min_{key}": np.min([d[key] for d in self._stats]) for key in ["episode_length", "episode_return"]}
+        var = {f"var_{key}": np.var([d[key] for d in self._stats]) for key in stats_key}
+        maxi = {f"max_{key}": np.max([d[key] for d in self._stats]) for key in stats_key}
+        mini = {f"min_{key}": np.min([d[key] for d in self._stats]) for key in stats_key}
         agg.update(var)
         agg.update(maxi)
         agg.update(mini)
+        if include_raw:
+            agg.update({f"curr_{key}": [d[key] for d in self._stats] for key in stats_key})
         return agg
 
     def load_snapshot_and_render(self, logging_data):

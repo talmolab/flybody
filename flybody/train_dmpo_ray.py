@@ -20,6 +20,9 @@ import ray
 from ray.util.scheduling_strategies import PlacementGroupSchedulingStrategy, NodeAffinitySchedulingStrategy
 from ray.util.placement_group import placement_group
 import logging
+import os
+
+os.environ["RAY_memory_usage_threshold"] = "1"
 
 try:
     # Try connecting to existing Ray cluster.
@@ -255,8 +258,8 @@ def main(config: DictConfig) -> None:
             "kickstart_teacher_cps_path"
         ],  # specify the location of the kickstarter teacher policy's cps
         kickstart_epsilon=config["kickstart_epsilon"],
-        time_delta_minutes=15,
-        eval_average_over=config["eval_average_over"]
+        time_delta_minutes=30,
+        eval_average_over=config["eval_average_over"],
     )
 
     dmpo_dict_config = dataclasses.asdict(dmpo_config)
@@ -334,7 +337,7 @@ def main(config: DictConfig) -> None:
                         # this line is essential to keep a refernce to the replay server
                         # otherwise the object will be garbage collected and clean out
                         servers.append(replay_server)
-                        time.sleep(0.5)
+                        time.sleep(0.1)
                         # multiple replay server setup
                 else:
                     replay_server = ReplayServer.remote(
@@ -347,7 +350,7 @@ def main(config: DictConfig) -> None:
                     # this line is essential to keep a refernce to the replay server
                     # otherwise the object will be garbage collected and clean out
                     servers.append(replay_server)
-                    time.sleep(0.5)
+                    time.sleep(0.1)
     else:
         if "num_replay_servers" in config and config["num_replay_servers"] != 0:
             dmpo_config.max_replay_size = (
@@ -425,7 +428,7 @@ def main(config: DictConfig) -> None:
             )
             actor = RemoteAsLocal(actor)
             actors.append(actor)
-            time.sleep(0.05)
+            time.sleep(0.01)
         return actors
 
     def create_evaluator(task_name, replay_server_addr):
