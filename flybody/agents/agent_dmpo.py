@@ -23,6 +23,7 @@ import tensorflow as tf
 
 from flybody.agents import learning_dmpo
 from flybody.agents.actors import DelayedFeedForwardActor
+from flybody.agents.intention_network_base import IntentionNetwork
 
 
 @dataclasses.dataclass
@@ -78,13 +79,26 @@ class DMPONetworks:
 
         # Create variables for the observation net and, as a side-effect, get a
         # spec describing the embedding space.
-        # print("DEBUG: ", obs_spec)
+        print("DEBUG: ", obs_spec)
         emb_spec = utils.create_variables(self.observation_network, [obs_spec])
-        # print("DEBUG: ", emb_spec)
+        print("DEBUG: ", emb_spec)
         # print("DEBUG: ", self.observation_network)
         # Create variables for the policy and critic nets.
         _ = utils.create_variables(self.policy_network, [emb_spec])
         _ = utils.create_variables(self.critic_network, [emb_spec, act_spec])
+        if isinstance(self.policy_network, IntentionNetwork):
+            _ = utils.create_variables(
+                self.policy_network.decoder,
+                [
+                    tf.TensorSpec(
+                        (
+                            self.policy_network.latent_layer_size
+                            + emb_spec.shape[0]
+                            - self.policy_network.ref_size,
+                        ), tf.float32
+                    )
+                ],
+            )
 
     def make_policy(self, stochastic: bool = False) -> snt.Module:
         """Create a single network which evaluates the policy."""

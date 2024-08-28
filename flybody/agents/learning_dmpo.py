@@ -17,6 +17,7 @@ import sonnet as snt
 import tensorflow as tf
 
 from flybody.utils import vision_rollout_and_render
+from flybody.agents.intention_network_base import IntentionNetwork
 
 # inject our wandb logger for learner only
 
@@ -99,7 +100,7 @@ class DistributionalMPOLearner(acme.Learner):
         self._critic_optimizer = critic_optimizer or snt.optimizers.Adam(1e-4)
         self._policy_optimizer = policy_optimizer or snt.optimizers.Adam(1e-4)
         self._dual_optimizer = dual_optimizer or snt.optimizers.Adam(1e-2)
-        
+
         # Load the teacher's policy
         self._kickstart_teacher_policy = None
         self._kickstart_epsilon = 0
@@ -107,7 +108,7 @@ class DistributionalMPOLearner(acme.Learner):
             print("KICKSTART: Loading Teacher Policy from: {kickstart_teacher_cps_path}")
             self._kickstart_teacher_policy = tf.saved_model.load(kickstart_teacher_cps_path)
             self._kickstart_epsilon = tf.constant(kickstart_epsilon)
-        
+
         self._replay_server_addresses = replay_server_addresses
 
         # Expose the variables.
@@ -145,22 +146,16 @@ class DistributionalMPOLearner(acme.Learner):
                 max_to_keep=checkpoint_max_to_keep,
             )
 
+            objects_to_save = {
+                "policy-0": snt.Sequential([self._target_observation_network, self._target_policy_network]),
+                "policy-only-no-obs-network-0": snt.Sequential([self._target_policy_network]),
+            }
+            # optionally save the decoder if we have one.
+            if isinstance(self._target_policy_network, IntentionNetwork):
+                objects_to_save["policy-decoder-0"] = self._target_policy_network.decoder
+
             self._snapshotter = tf2_savers.Snapshotter(
-                objects_to_save={
-                    "policy-0": snt.Sequential(
-                        [self._target_observation_network, self._target_policy_network]
-                    )
-                },
-                directory=directory,
-                time_delta_minutes=time_delta_minutes,
-            )
-            
-            self._snapshotter_policy_only = tf2_savers.Snapshotter( # only save the target policy network without the observation network
-                objects_to_save={
-                    "policy-only-no-obs-network-0": snt.Sequential(
-                        [self._target_policy_network]
-                    )
-                },
+                objects_to_save=objects_to_save,
                 directory=directory,
                 time_delta_minutes=time_delta_minutes,
             )
@@ -223,7 +218,7 @@ class DistributionalMPOLearner(acme.Learner):
 
         # Get data from replay (dropping extras if any). Note there is no
         # extra data here because we do not insert any into Reverb.
-        
+
         # TODO(SY) Insert multiple replay buffers implementation here.
         inputs = next(iterator)
         transitions: types.Transition = inputs.data
@@ -301,8 +296,8 @@ class DistributionalMPOLearner(acme.Learner):
                 actions=sampled_actions,
                 q_values=sampled_q_values,
             )
-            
-            # compute the kickstarting loss 
+
+            # compute the kickstarting loss
             # Note: Have to do it here because the custom policy loss module is serialized in the head node via `DMPOConfig` and
             # we cannot serialize the checkpoint object
             loss_policy_teacher = 0
@@ -372,23 +367,6 @@ class DistributionalMPOLearner(acme.Learner):
             if self._checkpointer is not None:
                 self._checkpointer.save()
 
-            if self._snapshotter_policy_only is not None:
-                if self._snapshotter_policy_only.save():
-                    # Increment the snapshot counter (directly in the snapshotter's path).
-                    for path in list(self._snapshotter_policy_only._snapshots.keys()):
-                        snapshot = self._snapshotter_policy_only._snapshots[path]  # noqa: F841
-                        # Assume that path ends with, e.g., "/policy-17".
-                        # Find sequence of digits at end of string.
-                        current_counter = re.findall("[\d]+$", path)[0]
-                        new_path = path.replace(
-                            "policy-only-no-obs-network-" + current_counter,
-                            "policy-only-no-obs-network-" + str(int(current_counter) + 1),
-                        )
-                        # Redirect snapshot to new key and delete old key.
-                        self._snapshotter_policy_only._snapshots[new_path] = (
-                            self._snapshotter_policy_only._snapshots.pop(path)
-                        )
-            
             if self._snapshotter is not None:
                 if self._snapshotter.save():
                     # Increment the snapshot counter (directly in the snapshotter's path).
@@ -398,14 +376,29 @@ class DistributionalMPOLearner(acme.Learner):
                         # Find sequence of digits at end of string.
                         current_counter = re.findall("[\d]+$", path)[0]
                         new_path = path.replace(
+                            "policy-only-no-obs-network-" + current_counter,
+                            "policy-only-no-obs-network-" + str(int(current_counter) + 1),
+                        )
+                        new_path = new_path.replace(
                             "policy-" + current_counter,
                             "policy-" + str(int(current_counter) + 1),
                         )
+                        if isinstance(self._target_policy_network, IntentionNetwork):
+                            new_path = new_path.replace(
+                                "policy-decoder-" + current_counter,
+                                "policy-decoder-" + str(int(current_counter) + 1),
+                            )
                         # Redirect snapshot to new key and delete old key.
                         self._snapshotter._snapshots[new_path] = (
                             self._snapshotter._snapshots.pop(path)
                         )
                     # frames = vision_rollout_and_render() # need to think about environment loading / rendering
+            fetches["actor_sps"] = (
+                fetches["actor_steps"] / (fetches["learner_walltime"]+1)
+            )  # calculate and report the sps of the actor
+            fetches["learner_sps"] = (
+                fetches["learner_steps"] / (fetches["learner_walltime"]+1)
+            )  # calculate and report the sps fo the learner
             self._logger.write(fetches)
 
     def get_variables(self, names: List[str]) -> List[List[np.ndarray]]:
