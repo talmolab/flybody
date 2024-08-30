@@ -178,9 +178,7 @@ class VisNetRodent(snt.Module):
             self._task_input = "task_logic" in observation.keys()
 
         # Pop eyes from `observation`.
-        egocentric_camera = tf.cast(
-            observation.pop("walker/egocentric_camera"), dtype=tf.float32
-        )
+        egocentric_camera = tf.cast(observation.pop("walker/egocentric_camera"), dtype=tf.float32)
 
         # If RGB, transform from RGB to 1-channel gray scale.
         if egocentric_camera.shape[-1] == 3:  # Is RGB?
@@ -208,4 +206,3 @@ class VisNetRodent(snt.Module):
             )  # (batch, -1), keep the consistency of observation space between task
 
         return out
-    

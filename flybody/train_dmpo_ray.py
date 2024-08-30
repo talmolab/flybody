@@ -17,7 +17,10 @@ training hyperparameters specified in the DMPOConfig data structure.
 
 # Start Ray cluster first, before imports.
 import ray
-from ray.util.scheduling_strategies import PlacementGroupSchedulingStrategy, NodeAffinitySchedulingStrategy
+from ray.util.scheduling_strategies import (
+    PlacementGroupSchedulingStrategy,
+    NodeAffinitySchedulingStrategy,
+)
 from ray.util.placement_group import placement_group
 import logging
 import os
@@ -34,9 +37,7 @@ try:
     )
 except:
     # Spin up new Ray cluster.
-    ray_context = ray.init(
-        include_dashboard=True, dashboard_host="0.0.0.0", logging_level=logging.INFO
-    )
+    ray_context = ray.init(include_dashboard=True, dashboard_host="0.0.0.0", logging_level=logging.INFO)
 
 import argparse
 import time
@@ -69,20 +70,27 @@ from flybody.basic_rodent_2020 import (
 
 from flybody.wrapper import SinglePrecisionWrapperFloat, RemoveVisionWrapper
 
-from flybody.fly_envs import walk_on_ball, vision_guided_flight, walk_imitation as fly_walk_imitation
+from flybody.fly_envs import (
+    walk_on_ball,
+    vision_guided_flight,
+    walk_imitation as fly_walk_imitation,
+)
 from flybody.default_logger import make_default_logger
 from flybody.single_precision import SinglePrecisionWrapper
 
 
 # fly body uses mlp + fly tracking
-from flybody.agents.network_factory import make_network_factory_dmpo as make_network_factory_dmpo_fly
+from flybody.agents.network_factory import (
+    make_network_factory_dmpo as make_network_factory_dmpo_fly,
+)
+
 # humanoid body use intention + comic tracking
-from flybody.agents.intention_network_factory import make_network_factory_dmpo as make_network_factory_dmpo_comic
+from flybody.agents.intention_network_factory import (
+    make_network_factory_dmpo as make_network_factory_dmpo_comic,
+)
 
 PYHTONPATH = os.path.dirname(os.path.dirname(flybody.__file__))
-LD_LIBRARY_PATH = (
-    os.environ["LD_LIBRARY_PATH"] if "LD_LIBRARY_PATH" in os.environ else ""
-)
+LD_LIBRARY_PATH = os.environ["LD_LIBRARY_PATH"] if "LD_LIBRARY_PATH" in os.environ else ""
 
 # Defer specifying CUDA_VISIBLE_DEVICES to sub-processes.
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
@@ -105,16 +113,22 @@ else:
     test_log_every = None
     test_min_replay_size = None
 
-tasks = {"run-gaps": rodent_run_gaps,
-         "maze-forage": rodent_maze_forage,
-         "escape-bowl": rodent_escape_bowl,
-         "two-taps": rodent_two_touch,
-         "rodent_imitation": rodent_walk_imitation,
-         "fly_imitation": fly_walk_imitation,
-         "humanoid_imitation": walk_humanoid}
+tasks = {
+    "run-gaps": rodent_run_gaps,
+    "maze-forage": rodent_maze_forage,
+    "escape-bowl": rodent_escape_bowl,
+    "two-taps": rodent_two_touch,
+    "rodent_imitation": rodent_walk_imitation,
+    "fly_imitation": fly_walk_imitation,
+    "humanoid_imitation": walk_humanoid,
+}
 
 
-@hydra.main(version_base=None, config_path="./config", config_name="train_config_rodent_imitation")
+@hydra.main(
+    version_base=None,
+    config_path="./config",
+    config_name="train_config_rodent_imitation",
+)
 def main(config: DictConfig) -> None:
     print("CONFIG:", config)
 
@@ -165,15 +179,18 @@ def main(config: DictConfig) -> None:
         env = wrappers.CanonicalSpecWrapper(env)
         return env
 
-    def environment_factory_imitation_rodent(termination_error_threshold=0.12, random_range=0) -> "composer.Environment":
+    def environment_factory_imitation_rodent(
+        termination_error_threshold=0.12, random_range=0
+    ) -> "composer.Environment":
         """
-        Creates replicas of environment for the agent. random range controls the 
+        Creates replicas of environment for the agent. random range controls the
         range of the uniformed distributed termination logics
         """
         if random_range != 0:
             termination_error_threshold = np.random.normal(termination_error_threshold, scale=random_range)
         env = tasks["rodent_imitation"](
-            config["ref_traj_path"], termination_error_threshold=termination_error_threshold
+            config["ref_traj_path"],
+            termination_error_threshold=termination_error_threshold,
         )
         env = wrappers.SinglePrecisionWrapper(env)
         env = wrappers.CanonicalSpecWrapper(env)
@@ -187,9 +204,9 @@ def main(config: DictConfig) -> None:
         "general": environment_factory_run_gaps,
         "imitation_humanoid": environment_factory_imitation_humanoid,
         "imitation_rodent": functools.partial(
-            environment_factory_imitation_rodent, 
+            environment_factory_imitation_rodent,
             termination_error_threshold=config["termination_error_threshold"],
-            random_range=config["random_range"]
+            random_range=config["random_range"],
         ),
     }
 
@@ -205,30 +222,28 @@ def main(config: DictConfig) -> None:
         )
     else:
         # online settings
-        network_factory = make_network_factory_dmpo_fly(policy_layer_sizes=config["policy_layer_sizes"],
-                                                critic_layer_sizes=config["critic_layer_sizes"])
+        network_factory = make_network_factory_dmpo_fly(
+            policy_layer_sizes=config["policy_layer_sizes"],
+            critic_layer_sizes=config["critic_layer_sizes"],
+        )
 
     # Dummy environment and network for quick use, deleted later.
     dummy_env = environment_factories[config["task_name"]]()
-    dummy_net = network_factory(
-        dummy_env.action_spec()
-    )  # we should share this net for joint training
+    dummy_net = network_factory(dummy_env.action_spec())  # we should share this net for joint training
     # Get full environment specs.
     environment_spec = specs.make_environment_spec(dummy_env)
 
     # This callable will be calculating penalization cost by converting canonical
     # actions to real (not wrapped) environment actions inside DMPO agent.
-    penalization_cost = (
-        None  # PenalizationCostRealActions(dummy_env.environment.action_spec())
-    )
+    penalization_cost = None  # PenalizationCostRealActions(dummy_env.environment.action_spec())
     # Distributed DMPO agent configuration.
     dmpo_config = DMPOConfig(
         num_actors=test_num_actors or config["num_actors"],
         batch_size=config["batch_size"],
-        prefetch_size=2048,  # aggresive prefetch param, because we have large amount of data
+        prefetch_size=1024,  # aggresive prefetch param, because we have large amount of data
         num_learner_steps=200,
         min_replay_size=test_min_replay_size or 50_000,
-        max_replay_size=6_000_000,
+        max_replay_size=4_000_000,
         samples_per_insert=None,  # allow less sample per insert to allow more data in # None is only min limiter
         n_step=50,
         num_samples=20,
@@ -263,9 +278,7 @@ def main(config: DictConfig) -> None:
     )
 
     dmpo_dict_config = dataclasses.asdict(dmpo_config)
-    merged_config = dmpo_dict_config | OmegaConf.to_container(
-        config
-    )  # merged two config
+    merged_config = dmpo_dict_config | OmegaConf.to_container(config)  # merged two config
 
     logger_kwargs = {"config": merged_config}
     dmpo_config.userdata["logger_kwargs"] = logger_kwargs
@@ -299,7 +312,7 @@ def main(config: DictConfig) -> None:
     }
 
     # Define resources and placement group
-    gpu_pg = placement_group([{"GPU": 1, "CPU": 30}], strategy="STRICT_PACK")
+    gpu_pg = placement_group([{"GPU": 1, "CPU": 10}], strategy="STRICT_PACK")
 
     # === Create Replay Server.
     runtime_env_replay = {
@@ -311,7 +324,7 @@ def main(config: DictConfig) -> None:
     ReplayServer = ray.remote(
         num_gpus=0,
         runtime_env=runtime_env_replay,
-        scheduling_strategy=PlacementGroupSchedulingStrategy(placement_group=gpu_pg),
+        # scheduling_strategy=PlacementGroupSchedulingStrategy(placement_group=gpu_pg), # test out performance w/o
     )(ReplayServer)
 
     replay_servers = dict()  # {task_name: addr} # TODO: Probably could simplify this logic quite a bit
@@ -368,7 +381,7 @@ def main(config: DictConfig) -> None:
                 replay_server = RemoteAsLocal(replay_server)
                 # this line is essential to keep a refernce to the replay server
                 # otherwise the object will be garbage collected and clean out
-                servers.append(replay_server) 
+                servers.append(replay_server)
                 time.sleep(0.5)
         else:
             # single replay server
@@ -407,9 +420,7 @@ def main(config: DictConfig) -> None:
 
     # === Create Actors and Evaluator.
 
-    EnvironmentLoop = ray.remote(num_gpus=0, runtime_env=runtime_env_actor)(
-        EnvironmentLoop
-    )
+    EnvironmentLoop = ray.remote(num_gpus=0, runtime_env=runtime_env_actor)(EnvironmentLoop)
 
     n_actors = dmpo_config.num_actors
 
@@ -432,9 +443,9 @@ def main(config: DictConfig) -> None:
         return actors
 
     def create_evaluator(task_name, replay_server_addr):
-        if task_name=="rodent_imitation":
+        if task_name == "rodent_imitation":
             env_fact = functools.partial(environment_factories[task_name], random_range=0)
-        else: 
+        else:
             env_fact = environment_factories[task_name]
         evaluator = EnvironmentLoop.remote(
             replay_server_address=replay_server_addr,
@@ -462,7 +473,9 @@ def main(config: DictConfig) -> None:
                         # multiple replay servers, equally direct replay servers
                         num_actor_per_replay = num_actors // config["num_replay_servers"]
                         actors += create_actors(
-                            num_actor_per_replay, environment_factories[name], replay_servers[_name]
+                            num_actor_per_replay,
+                            environment_factories[name],
+                            replay_servers[_name],
                         )
                 else:
                     actors += create_actors(num_actors, environment_factories[name], replay_servers[name])
@@ -477,7 +490,11 @@ def main(config: DictConfig) -> None:
                 name = f"{config['task_name']}-{i+1}"
                 # multiple replay servers, equally direct replay servers
                 num_actor_per_replay = n_actors // config["num_replay_servers"]
-                actors += create_actors(num_actor_per_replay, environment_factories[config["task_name"]], replay_servers[name])
+                actors += create_actors(
+                    num_actor_per_replay,
+                    environment_factories[config["task_name"]],
+                    replay_servers[name],
+                )
             evaluator = EnvironmentLoop.remote(
                 replay_server_address="",  # evaluator does not need replay server addr
                 variable_source=learner,
@@ -492,7 +509,11 @@ def main(config: DictConfig) -> None:
             evaluators.append(RemoteAsLocal(evaluator))
         else:
             # single replay server
-            actors = create_actors(n_actors, environment_factories[config["task_name"]], replay_servers[config["task_name"]])
+            actors = create_actors(
+                n_actors,
+                environment_factories[config["task_name"]],
+                replay_servers[config["task_name"]],
+            )
             evaluator = EnvironmentLoop.remote(
                 replay_server_address="",
                 variable_source=learner,

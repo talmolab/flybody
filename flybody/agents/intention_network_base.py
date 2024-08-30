@@ -10,7 +10,14 @@ class Decoder(snt.Module):
     """
 
     def __init__(
-        self, decoder_layer_sizes, action_size, min_scale, tanh_mean, init_scale, fixed_scale, use_tfd_independent
+        self,
+        decoder_layer_sizes,
+        action_size,
+        min_scale,
+        tanh_mean,
+        init_scale,
+        fixed_scale,
+        use_tfd_independent,
     ):
         """
         decoder_layer_sizes: the size of the decoder layer
@@ -37,7 +44,8 @@ class Decoder(snt.Module):
 
 
 class IntentionNetwork(snt.Module):
-    '''encoder decoder now have the same size from the policy layer argument, decoder + latent'''
+    """encoder decoder now have the same size from the policy layer argument, decoder + latent"""
+
     def __init__(
         self,
         action_size,
@@ -81,7 +89,7 @@ class IntentionNetwork(snt.Module):
         )
 
     def __call__(self, observations):
-        reference_obs = observations[...,:self.ref_size]
+        reference_obs = observations[..., : self.ref_size]
         env_obs = observations[..., self.ref_size :]
         intentions_dist = self.encoder(tf2_utils.batch_concat(reference_obs))
         intentions = intentions_dist.sample()

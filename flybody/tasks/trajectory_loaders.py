@@ -250,9 +250,7 @@ class InferenceWalkingTrajectoryLoader:
     def get_trajectory(self, traj_idx: int):
         del traj_idx  # Unused.
         if not hasattr(self, "_snippet"):
-            raise AttributeError(
-                "Trajectory not set yet. Call set_next_trajectory first."
-            )
+            raise AttributeError("Trajectory not set yet. Call set_next_trajectory first.")
         return self._snippet
 
     def get_joint_names(self):

@@ -99,9 +99,7 @@ class RemoveVisionWrapper(base.EnvironmentWrapper):
         self._action_spec = action_spec
 
     def _convert_timestep(self, timestep: dm_env.TimeStep) -> dm_env.TimeStep:
-        return timestep._replace(
-            observation=timestep.observation.pop("walker/egocentric_camera")
-        )
+        return timestep._replace(observation=timestep.observation.pop("walker/egocentric_camera"))
 
     def step(self, action) -> dm_env.TimeStep:
         return self._convert_timestep(self._environment.step(action))

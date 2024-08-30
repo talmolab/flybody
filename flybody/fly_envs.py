@@ -49,9 +49,7 @@ def flight_imitation(
     arena = floors.Floor()
     # Initialize wing pattern generator and flight trajectory loader.
     wbpg = WingBeatPatternGenerator(base_pattern_path=wpg_pattern_path)
-    traj_generator = HDF5FlightTrajectoryLoader(
-        path=ref_path, random_state=random_state
-    )
+    traj_generator = HDF5FlightTrajectoryLoader(path=ref_path, random_state=random_state)
     # Build the task.
     time_limit = 0.6
     task = FlightImitationWBPG(
@@ -97,9 +95,7 @@ def walk_imitation(
     # Initialize a walking trajectory loader.
     if ref_path is not None:
         inference_mode = False
-        traj_generator = HDF5WalkingTrajectoryLoader(
-            path=ref_path, random_state=random_state
-        )
+        traj_generator = HDF5WalkingTrajectoryLoader(path=ref_path, random_state=random_state)
     else:
         inference_mode = True
         traj_generator = InferenceWalkingTrajectoryLoader()

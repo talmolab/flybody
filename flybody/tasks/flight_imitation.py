@@ -77,15 +77,11 @@ class FlightImitationWBPG(Flying):
 
         # Maybe add trajectory sites, one every 10 steps.
         if self._trajectory_sites:
-            self._n_traj_sites = (
-                round(self._time_limit / self.control_timestep) + 1
-            ) // 10
+            self._n_traj_sites = (round(self._time_limit / self.control_timestep) + 1) // 10
             add_trajectory_sites(self.root_entity, self._n_traj_sites, group=1)
 
         # Explicitly add tracking task observables.
-        self._walker.observables.add_observable(
-            "ref_displacement", self.ref_displacement
-        )
+        self._walker.observables.add_observable("ref_displacement", self.ref_displacement)
         self._walker.observables.add_observable("ref_root_quat", self.ref_root_quat)
 
     def set_next_trajectory_index(self, idx):
@@ -98,9 +94,7 @@ class FlightImitationWBPG(Flying):
         super().initialize_episode_mjcf(random_state)
 
         # Get next trajectory.
-        self._ref_qpos, self._ref_qvel = self._traj_generator.get_trajectory(
-            traj_idx=self._next_traj_idx
-        )
+        self._ref_qpos, self._ref_qvel = self._traj_generator.get_trajectory(traj_idx=self._next_traj_idx)
         self._next_traj_idx = None  # Reset if wasn't None.
 
         # Transform _ghost_qpos trajectory (which is really CoM trajectory from
@@ -110,9 +104,7 @@ class FlightImitationWBPG(Flying):
         self._ref_qpos = np.concatenate((ghost_root_pos, ghost_root_quat), axis=1)
 
         # Set trajectory time limits for early 'good' termination.
-        self._traj_timesteps = min(
-            self._ref_qpos.shape[0], round(self._time_limit / self.control_timestep)
-        )
+        self._traj_timesteps = min(self._ref_qpos.shape[0], round(self._time_limit / self.control_timestep))
         self._traj_timesteps -= self._future_steps + 1
         self._reached_traj_end = False
 
@@ -130,9 +122,7 @@ class FlightImitationWBPG(Flying):
         self._crosshair_sites[1].fromto[[2, 5]] = z
         self._crosshair_sites[2].fromto[[2, 5]] = z
 
-    def initialize_episode(
-        self, physics: "mjcf.Physics", random_state: np.random.RandomState
-    ):
+    def initialize_episode(self, physics: "mjcf.Physics", random_state: np.random.RandomState):
         """Randomly select a starting point and set the walker.
 
         Environment call sequence:
@@ -144,9 +134,7 @@ class FlightImitationWBPG(Flying):
         self._ghost.set_pose(physics, ghost_qpos[:3], ghost_qpos[3:])
 
         # Reset wing pattern generator and get initial wing qpos.
-        init_wing_qpos, init_wing_qvel = self._wbpg.reset(
-            initial_phase=random_state.uniform(), return_qvel=True
-        )
+        init_wing_qpos, init_wing_qvel = self._wbpg.reset(initial_phase=random_state.uniform(), return_qvel=True)
         # Initialize root position and orientation.
         self._walker.set_pose(physics, self._ref_qpos[0, :3], self._ref_qpos[0, 3:])
         # Initialize wing qpos.
@@ -158,9 +146,7 @@ class FlightImitationWBPG(Flying):
             # Only initialize linear CoM velocity, not rotational velocity.
             self._walker.set_velocity(physics, self._ref_qvel[0, :3])
 
-    def before_step(
-        self, physics: "mjcf.Physics", action, random_state: np.random.RandomState
-    ):
+    def before_step(self, physics: "mjcf.Physics", action, random_state: np.random.RandomState):
         """Combine action with WPG base pattern. Update ghost pos and vel."""
         # Get target wing joint angles at beat frequency requested by the agent.
         base_freq, rel_range = self._wbpg.base_beat_freq, self._wbpg.rel_freq_range
@@ -176,9 +162,7 @@ class FlightImitationWBPG(Flying):
         step = int(np.round(physics.data.time / self.control_timestep))
         ghost_qpos = self._ref_qpos[step, :] + np.hstack((self._ghost_offset, 4 * [0]))
         self._ghost.set_pose(physics, ghost_qpos[:3], ghost_qpos[3:])
-        self._ghost.set_velocity(
-            physics, self._ref_qvel[step, :3], self._ref_qvel[step, 3:]
-        )
+        self._ghost.set_velocity(physics, self._ref_qvel[step, :3], self._ref_qvel[step, 3:])
 
         super().before_step(physics, action, random_state)
 
@@ -214,9 +198,7 @@ class FlightImitationWBPG(Flying):
     def check_termination(self, physics: "mjcf.Physics") -> bool:
         """Check various termination conditions."""
         height = self._walker.observables.thorax_height(physics)
-        com_dist = np.linalg.norm(
-            self.observables["walker/ref_displacement"](physics)[0]
-        )
+        com_dist = np.linalg.norm(self.observables["walker/ref_displacement"](physics)[0])
         current_step = np.round(physics.time() / self.control_timestep)
         self._reached_traj_end = current_step == self._traj_timesteps
         return (

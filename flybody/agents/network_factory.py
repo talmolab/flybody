@@ -35,9 +35,7 @@ def network_factory_d4pg(
         [
             networks.CriticMultiplexer(
                 action_network=networks.ClipToSpec(action_spec),
-                critic_network=networks.LayerNormMLP(
-                    layer_sizes=critic_layer_sizes, activate_final=True
-                ),
+                critic_network=networks.LayerNormMLP(layer_sizes=critic_layer_sizes, activate_final=True),
             ),
             networks.DiscreteValuedHead(vmin=vmin, vmax=vmax, num_atoms=num_atoms),
         ]
@@ -105,9 +103,7 @@ def network_factory_dmpo(
     # The multiplexer concatenates the (maybe transformed) observations/actions.
     critic_network = networks.CriticMultiplexer(
         action_network=networks.ClipToSpec(action_spec),
-        critic_network=networks.LayerNormMLP(
-            layer_sizes=critic_layer_sizes, activate_final=True
-        ),
+        critic_network=networks.LayerNormMLP(layer_sizes=critic_layer_sizes, activate_final=True),
     )
     critic_network = snt.Sequential(
         [

@@ -116,9 +116,7 @@ def main(argv: Sequence[str]):
         worldbody.append(thorax)
 
     print("Load as mjcf model.")
-    model = mjcf.from_xml_string(
-        etree.tostring(modeltree, pretty_print=True), model_dir=ASSET_DIR
-    )
+    model = mjcf.from_xml_string(etree.tostring(modeltree, pretty_print=True), model_dir=ASSET_DIR)
 
     print("Fix shininess.")
     for material in model.find_all("material"):
@@ -194,24 +192,18 @@ def main(argv: Sequence[str]):
         indices = [j for j, s in enumerate(child_names) if type_name in s]
         resort.extend(indices)
     assert len(child_names) == len(resort)
-    thorax._children = [
-        thorax._children[i] for i in resort
-    ]  # pylint: disable=protected-access
+    thorax._children = [thorax._children[i] for i in resort]  # pylint: disable=protected-access
 
     print("Sort labrums.")
     haustellum = thorax.find("body", "haustellum")
     sort_order = ["haustellum", "labrum_left", "labrum_right"]
-    child_names = [
-        e.name for e in haustellum._children
-    ]  # pylint: disable=protected-access
+    child_names = [e.name for e in haustellum._children]  # pylint: disable=protected-access
     resort = []
     for type_name in sort_order:
         indices = [j for j, s in enumerate(child_names) if type_name in s]
         resort.extend(indices)
     assert len(child_names) == len(resort)
-    haustellum._children = [
-        haustellum._children[i] for i in resort
-    ]  # pylint: disable=protected-access
+    haustellum._children = [haustellum._children[i] for i in resort]  # pylint: disable=protected-access
 
     print("Retract rostrum.")
     rostrum = thorax.find("body", "rostrum")
@@ -268,13 +260,9 @@ def main(argv: Sequence[str]):
     print("Add claw bodies and joints.")
     tarsi4 = [body for body in thorax.find_all("body") if "tarsus4" in body.name]
     for tarsus4 in tarsi4:
-        gclaw = [geom for geom in tarsus4.get_children("geom") if "claw" in geom.name][
-            0
-        ]
+        gclaw = [geom for geom in tarsus4.get_children("geom") if "claw" in geom.name][0]
         ipos = tarsus4.pos
-        claw = tarsus4.add(
-            "body", name=tarsus4.name.replace("tarsus4", "claw"), pos=ipos
-        )
+        claw = tarsus4.add("body", name=tarsus4.name.replace("tarsus4", "claw"), pos=ipos)
         name = gclaw.name.replace("_brown", "")
         material = gclaw.material
         mesh = gclaw.mesh
@@ -503,9 +491,7 @@ def main(argv: Sequence[str]):
                 quat = None
                 size = (1.225 * size[0],)
             name = geom.name + "_collision"
-            index = geom.parent._children.index(
-                geom
-            )  # pylint: disable=protected-access
+            index = geom.parent._children.index(geom)  # pylint: disable=protected-access
             geom.parent.insert(
                 "geom",
                 index + 1,
@@ -797,8 +783,7 @@ def main(argv: Sequence[str]):
     pitch_range = np.round(pitch_range * 100) / 100
     model.find("default", "pitch").joint.range = pitch_range
     wing_quats = [
-        np.array([np.cos(angle / 2), 0, np.sin(angle / 2), 0])
-        for angle in [_YAW_AXIS_PITCH, _YAW_AXIS_PITCH + np.pi]
+        np.array([np.cos(angle / 2), 0, np.sin(angle / 2), 0]) for angle in [_YAW_AXIS_PITCH, _YAW_AXIS_PITCH + np.pi]
     ]
 
     # Set wing joints.
@@ -845,21 +830,15 @@ def main(argv: Sequence[str]):
         for joint in body.get_children("joint"):
             for i, axis in enumerate(ax_names):
                 if axis in joint.name:
-                    joint_index[i] = body._children.index(
-                        joint
-                    )  # pylint: disable=protected-access
+                    joint_index[i] = body._children.index(joint)  # pylint: disable=protected-access
         if sum(joint_index >= 0) > 1:
             joint_reorder = [joint_index[i] for i in [2, 1, 0] if joint_index[i] >= 0]
             joint_reorder = list(filter(lambda a: a != -1, joint_reorder))
             joint_index = list(filter(lambda a: a != -1, joint_index))
-            child_order = list(
-                range(len(body._children))
-            )  # pylint: disable=protected-access
+            child_order = list(range(len(body._children)))  # pylint: disable=protected-access
             for i, index in enumerate(joint_index):
                 child_order[index] = joint_reorder[i]
-            body._children = [
-                body._children[i] for i in child_order
-            ]  # pylint: disable=protected-access
+            body._children = [body._children[i] for i in child_order]  # pylint: disable=protected-access
 
     print("Rename all joints.")
     for joint in model.find_all("joint"):
@@ -1035,16 +1014,8 @@ def main(argv: Sequence[str]):
                 jrange = dclass.parent.joint.range
             # if 'twist_coxa_T2' in joint.name:
             #   import ipdb; ipdb.set_trace()
-            if (
-                "coxa" in joint.name
-                or "femur" in joint.name
-                or "tibia" in joint.name
-                or "tarsus" in joint.name
-            ):
-                assert (
-                    dclass.joint.range is not None
-                    or dclass.parent.joint.range is not None
-                )
+            if "coxa" in joint.name or "femur" in joint.name or "tibia" in joint.name or "tarsus" in joint.name:
+                assert dclass.joint.range is not None or dclass.parent.joint.range is not None
                 actrange = None
             else:
                 actrange = jrange
@@ -1284,13 +1255,7 @@ def main(argv: Sequence[str]):
 
     print_masses()
     total_mass_model = 1e3 * physics.named.model.body_subtreemass["thorax"]
-    total_mass_emp = (
-        _MASS["head"]
-        + _MASS["thorax"]
-        + _MASS["abdomen"]
-        + 6 * _MASS["leg"]
-        + 2 * _MASS["wing"]
-    )
+    total_mass_emp = _MASS["head"] + _MASS["thorax"] + _MASS["abdomen"] + 6 * _MASS["leg"] + 2 * _MASS["wing"]
     print(f"  Total Mass\t{total_mass_model:.4g}\t\t{total_mass_emp:.4g}")
 
     print("Change order: axis_body -> body_axis.")

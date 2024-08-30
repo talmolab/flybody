@@ -153,9 +153,7 @@ class FruitFlyTask(composer.Task, ABC):
             self._ghost = None
 
         # Set timesteps.
-        self.set_timesteps(
-            physics_timestep=physics_timestep, control_timestep=control_timestep
-        )
+        self.set_timesteps(physics_timestep=physics_timestep, control_timestep=control_timestep)
 
         # Dummy initialization for base class observables.
         self._ref_qpos = np.zeros((self._future_steps + 1, 7))
@@ -168,10 +166,7 @@ class FruitFlyTask(composer.Task, ABC):
         # Basic sensors.
         # vestibular: gyro, accelerometer, velocimeter, world_zaxis.
         # proprioception: joints_pos, joints_vel, actuator_activation.
-        for sensor in (
-            self._walker.observables.vestibular
-            + self._walker.observables.proprioception
-        ):
+        for sensor in self._walker.observables.vestibular + self._walker.observables.proprioception:
             sensor.enabled = True
 
     def initialize_episode_mjcf(self, random_state: np.random.RandomState):
@@ -194,9 +189,7 @@ class FruitFlyTask(composer.Task, ABC):
         # Reset control timestep counter.
         self._step_counter = 0
 
-    def before_step(
-        self, physics: "mjcf.Physics", action, random_state: np.random.RandomState
-    ):
+    def before_step(self, physics: "mjcf.Physics", action, random_state: np.random.RandomState):
         """Apply actions."""
         self._step_counter += 1
         self._walker.apply_action(physics, action, random_state)
@@ -251,12 +244,8 @@ class FruitFlyTask(composer.Task, ABC):
 
         def get_ref_displacement(physics: "mjcf.Physics"):
             fly_pos, _ = self._walker.get_pose(physics)
-            ref_pos = self._ref_qpos[
-                self._step_counter : self._step_counter + self._future_steps + 1, :3
-            ]
-            return self._walker.transform_vec_to_egocentric_frame(
-                physics, ref_pos - fly_pos
-            )
+            ref_pos = self._ref_qpos[self._step_counter : self._step_counter + self._future_steps + 1, :3]
+            return self._walker.transform_vec_to_egocentric_frame(physics, ref_pos - fly_pos)
 
         return observable.Generic(get_ref_displacement)
 
@@ -267,9 +256,7 @@ class FruitFlyTask(composer.Task, ABC):
         """
 
         def get_root_quat(physics: "mjcf.Physics"):
-            ref_quat = self._ref_qpos[
-                self._step_counter : self._step_counter + self._future_steps + 1, 3:7
-            ]
+            ref_quat = self._ref_qpos[self._step_counter : self._step_counter + self._future_steps + 1, 3:7]
             _, fly_quat = self._walker.get_pose(physics)
             return get_dquat_local(fly_quat, ref_quat)
 
@@ -449,9 +436,7 @@ class RodentTask(composer.Task, ABC):
             self._ghost = None
 
         # Set timesteps.
-        self.set_timesteps(
-            physics_timestep=physics_timestep, control_timestep=control_timestep
-        )
+        self.set_timesteps(physics_timestep=physics_timestep, control_timestep=control_timestep)
 
         # Dummy initialization for base class observables.
         self._ref_qpos = np.zeros((self._future_steps + 1, 7))
@@ -464,9 +449,7 @@ class RodentTask(composer.Task, ABC):
         # Basic sensors.
         # vestibular: gyro, accelerometer, velocimeter, world_zaxis.
         # proprioception: joints_pos, joints_vel, actuator_activation.
-        for sensor in (
-            self._walker.observables.proprioception
-        ):
+        for sensor in self._walker.observables.proprioception:
             sensor.enabled = True
 
     def initialize_episode_mjcf(self, random_state: np.random.RandomState):
@@ -489,9 +472,7 @@ class RodentTask(composer.Task, ABC):
         # Reset control timestep counter.
         self._step_counter = 0
 
-    def before_step(
-        self, physics: "mjcf.Physics", action, random_state: np.random.RandomState
-    ):
+    def before_step(self, physics: "mjcf.Physics", action, random_state: np.random.RandomState):
         """Apply actions."""
         self._step_counter += 1
         self._walker.apply_action(physics, action, random_state)
@@ -546,12 +527,8 @@ class RodentTask(composer.Task, ABC):
 
         def get_ref_displacement(physics: "mjcf.Physics"):
             fly_pos, _ = self._walker.get_pose(physics)
-            ref_pos = self._ref_qpos[
-                self._step_counter : self._step_counter + self._future_steps + 1, :3
-            ]
-            return self._walker.transform_vec_to_egocentric_frame(
-                physics, ref_pos - fly_pos
-            )
+            ref_pos = self._ref_qpos[self._step_counter : self._step_counter + self._future_steps + 1, :3]
+            return self._walker.transform_vec_to_egocentric_frame(physics, ref_pos - fly_pos)
 
         return observable.Generic(get_ref_displacement)
 
@@ -562,13 +539,12 @@ class RodentTask(composer.Task, ABC):
         """
 
         def get_root_quat(physics: "mjcf.Physics"):
-            ref_quat = self._ref_qpos[
-                self._step_counter : self._step_counter + self._future_steps + 1, 3:7
-            ]
+            ref_quat = self._ref_qpos[self._step_counter : self._step_counter + self._future_steps + 1, 3:7]
             _, fly_quat = self._walker.get_pose(physics)
             return get_dquat_local(fly_quat, ref_quat)
 
         return observable.Generic(get_root_quat)
+
 
 class RodentWalking(RodentTask):
     """Base class for all walking tasks."""

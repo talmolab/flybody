@@ -91,9 +91,7 @@ def qpos_from_site_xpos(
     site_indices = name2id(physics, names=site_names, object_type="site")
     row_indexer = physics.named.model.dof_jntid.axes.row
     dof_indices = row_indexer.convert_key_item(joint_names)
-    hinge_joint_names = [
-        name for name in joint_names if physics.named.model.jnt_type[name] == 3
-    ]
+    hinge_joint_names = [name for name in joint_names if physics.named.model.jnt_type[name] == 3]
     hinge_dof_indices = row_indexer.convert_key_item(hinge_joint_names)
 
     if not inplace:
@@ -140,9 +138,7 @@ def qpos_from_site_xpos(
             progress_criterion = lr * np.linalg.norm(update) / err
             if progress_criterion < progress_threshold:
                 success = True
-                logging.debug(
-                    f"Progress threshold reached after {step} steps: err = {err}"
-                )
+                logging.debug(f"Progress threshold reached after {step} steps: err = {err}")
                 break
 
     if step == max_steps - 1:
@@ -170,9 +166,7 @@ def qpos_from_site_xpos(
         include_inds=include_inds,
     )
 
-    IKResult = namedtuple(
-        "IKResult", ["qpos", "err_norm", "err_norm_first_term", "steps", "success"]
-    )
+    IKResult = namedtuple("IKResult", ["qpos", "err_norm", "err_norm_first_term", "steps", "success"])
 
     return IKResult(
         qpos=qpos,
@@ -183,9 +177,7 @@ def qpos_from_site_xpos(
     )
 
 
-def mj_jac_pos(
-    physics: "mjcf.Physics", jac: np.ndarray, site_indices: Sequence[int]
-) -> None:
+def mj_jac_pos(physics: "mjcf.Physics", jac: np.ndarray, site_indices: Sequence[int]) -> None:
     """Wrapper to generalize mj_jacSite to compute the full translational
     Jacobian analytically for any number of sites.
 
@@ -312,17 +304,13 @@ def gradient(
     hinge_qpos = hinge_qpos[dof_indices]  # (partial nv,)
 
     # Compute the gradient itself, shape (partial nv,).
-    grad = 2 * np.matmul(
-        (site_xpos - target_xpos).flatten()[include_inds], jac_partial[include_inds, :]
-    )
+    grad = 2 * np.matmul((site_xpos - target_xpos).flatten()[include_inds], jac_partial[include_inds, :])
     grad += 2 * reg_strength * hinge_qpos  # Regularization term.
 
     return grad  # (partial nv,)
 
 
-def name2id(
-    physics: "mjcf.Physics", names: Union[str, Sequence[str]], object_type: str
-) -> List[int]:
+def name2id(physics: "mjcf.Physics", names: Union[str, Sequence[str]], object_type: str) -> List[int]:
     """Returns list of MuJoCo object ids for specified names and object type."""
     if isinstance(names, str):
         names = [names]

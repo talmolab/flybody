@@ -30,7 +30,6 @@ from flybody.agents.intention_network_base import IntentionNetwork
 class DMPOConfig:
     """Configuration options for the DMPO agent."""
 
-
     discount: float = 0.99
     batch_size: int = 256
     prefetch_size: int = 4
@@ -92,11 +91,8 @@ class DMPONetworks:
                 self.policy_network.decoder,
                 [
                     tf.TensorSpec(
-                        (
-                            self.policy_network.latent_layer_size
-                            + emb_spec.shape[0]
-                            - self.policy_network.ref_size,
-                        ), tf.float32
+                        (self.policy_network.latent_layer_size + emb_spec.shape[0] - self.policy_network.ref_size,),
+                        tf.float32,
                     )
                 ],
             )
@@ -251,7 +247,9 @@ class DMPOBuilder:
             counter=counter,
             checkpoint_enable=checkpoint_enable,
             checkpoint_max_to_keep=checkpoint_max_to_keep,
-            kickstart_teacher_cps_path=self._config["kickstart_teacher_cps_path"], # specify the location of the kickstarter teacher policy's cps
+            kickstart_teacher_cps_path=self._config[
+                "kickstart_teacher_cps_path"
+            ],  # specify the location of the kickstarter teacher policy's cps
             kickstart_epsilon=self._config["kickstart_epsilon"],
         )
 
@@ -261,8 +259,8 @@ class DMPO(agent.Agent):
     This implements a single-process DMPO agent. This is an actor-critic algorithm
     that generates data via a behavior policy, inserts N-step transitions into
     a replay buffer, and periodically updates the policy (and as a result the
-    behavior) by sampling uniformly from this buffer. 
-    
+    behavior) by sampling uniformly from this buffer.
+
     DEPRECATED, being replaced by the ray distributed training.
     """
 
@@ -389,9 +387,7 @@ class DMPO(agent.Agent):
         adder = builder.make_adder(replay_client)
         actor = builder.make_actor(behavior_network, adder)
         dataset = builder.make_dataset_iterator(replay_client)
-        learner = builder.make_learner(
-            networks, dataset, counter, logger, checkpoint_enable
-        )
+        learner = builder.make_learner(networks, dataset, counter, logger, checkpoint_enable)
 
         super().__init__(
             actor=actor,

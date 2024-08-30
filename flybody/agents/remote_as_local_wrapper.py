@@ -49,9 +49,7 @@ class RemoteAsLocal:
         def remote_caller(method_name):
             # Wrapper for remote class's methods to mimic local calling.
             def wrapper(*args, block=True, **kwargs):
-                obj_ref = getattr(self._remote_handle, method_name).remote(
-                    *args, **kwargs
-                )
+                obj_ref = getattr(self._remote_handle, method_name).remote(*args, **kwargs)
                 if block:
                     return ray.get(obj_ref)  # Block until called method returns.
                 else:

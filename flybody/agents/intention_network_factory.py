@@ -13,6 +13,7 @@ from flybody.agents import losses_mpo
 from flybody.agents.intention_split_net import separate_observation
 from flybody.agents.intention_network_base import IntentionNetwork
 
+
 def network_factory_dmpo(
     action_spec,
     encoder_layer_sizes=(512, 512, 512),
@@ -48,9 +49,7 @@ def network_factory_dmpo(
     # The multiplexer concatenates the (maybe transformed) observations/actions.
     critic_network = networks.CriticMultiplexer(
         action_network=networks.ClipToSpec(action_spec),
-        critic_network=networks.LayerNormMLP(
-            layer_sizes=critic_layer_sizes, activate_final=True
-        ),
+        critic_network=networks.LayerNormMLP(layer_sizes=critic_layer_sizes, activate_final=True),
     )
     critic_network = snt.Sequential(
         [

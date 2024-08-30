@@ -22,9 +22,7 @@ _XML_PATH = os.path.join(os.path.dirname(__file__), "assets/fruitfly.xml")
 # === Constants.
 _SPAWN_POS = np.array((0, 0, 0.1278))
 # OrderedDict used to streamline enabling/disabling of action classes.
-_ACTION_CLASSES = col.OrderedDict(
-    adhesion=0, head=0, mouth=0, antennae=0, wings=0, abdomen=0, legs=0, user=0
-)
+_ACTION_CLASSES = col.OrderedDict(adhesion=0, head=0, mouth=0, antennae=0, wings=0, abdomen=0, legs=0, user=0)
 
 
 def neg_quat(quat_a):
@@ -189,11 +187,7 @@ class FruitFly(legacy_base.Walker):
         # Maybe retract and disable legs.
         if not use_legs:
             # Set orientation quaternions to retracted leg position.
-            leg_bodies = [
-                b
-                for b in root.find_all("body")
-                if any_substr_in_str(name_substr["legs"], b.name)
-            ]
+            leg_bodies = [b for b in root.find_all("body") if any_substr_in_str(name_substr["legs"], b.name)]
             for body in leg_bodies:
                 body.quat = body_quat_from_springrefs(body)
             # Remove leg tendons and tendon actuators.
@@ -206,11 +200,7 @@ class FruitFly(legacy_base.Walker):
                         actuator.remove()
                     tendon.remove()
             # Remove leg actuators and joints.
-            leg_joints = [
-                j
-                for j in root.find_all("joint")
-                if any_substr_in_str(name_substr["legs"], j.name)
-            ]
+            leg_joints = [j for j in root.find_all("joint") if any_substr_in_str(name_substr["legs"], j.name)]
             for joint in leg_joints:
                 # Assume joint actuator names are the same as joint names.
                 actuator = root.find("actuator", joint.name)
@@ -220,9 +210,7 @@ class FruitFly(legacy_base.Walker):
                 joint.remove()
             # Remove leg adhesion actuators.
             for actuator in root.find_all("actuator"):
-                if "adhere" in actuator.name and any_substr_in_str(
-                    name_substr["legs"], actuator.name
-                ):
+                if "adhere" in actuator.name and any_substr_in_str(name_substr["legs"], actuator.name):
                     actuator.remove()
             # Remove leg sensors.
             for sensor in root.find_all("sensor"):
@@ -231,11 +219,7 @@ class FruitFly(legacy_base.Walker):
 
         # Maybe retract and disable wings.
         if not use_wings:
-            wing_joints = [
-                j
-                for j in root.find_all("joint")
-                if any_substr_in_str(name_substr["wings"], j.name)
-            ]
+            wing_joints = [j for j in root.find_all("joint") if any_substr_in_str(name_substr["wings"], j.name)]
             for joint in wing_joints:
                 root.find("actuator", joint.name).remove()
                 self.observable_joints.remove(joint)
@@ -246,28 +230,18 @@ class FruitFly(legacy_base.Walker):
 
         # Maybe disable mouth.
         if not use_mouth:
-            mouth_joints = [
-                j
-                for j in root.find_all("joint")
-                if any_substr_in_str(name_substr["mouth"], j.name)
-            ]
+            mouth_joints = [j for j in root.find_all("joint") if any_substr_in_str(name_substr["mouth"], j.name)]
             for joint in mouth_joints:
                 root.find("actuator", joint.name).remove()
                 self.observable_joints.remove(joint)
             # Remove mouth adhesion actuators.
             for actuator in root.find_all("actuator"):
-                if "adhere" in actuator.name and any_substr_in_str(
-                    name_substr["mouth"], actuator.name
-                ):
+                if "adhere" in actuator.name and any_substr_in_str(name_substr["mouth"], actuator.name):
                     actuator.remove()
 
         # Maybe disable antennae.
         if not use_antennae:
-            antenna_joints = [
-                j
-                for j in root.find_all("joint")
-                if any_substr_in_str(name_substr["antennae"], j.name)
-            ]
+            antenna_joints = [j for j in root.find_all("joint") if any_substr_in_str(name_substr["antennae"], j.name)]
             for joint in antenna_joints:
                 root.find("actuator", joint.name).remove()
                 self.observable_joints.remove(joint)
@@ -283,9 +257,7 @@ class FruitFly(legacy_base.Walker):
             up_dir[:] = mul_quat(dquat, up_dir)
             # == Set stroke plane angle.
             stroke_plane_angle = np.deg2rad(stroke_plane_angle)
-            stroke_plane_quat = np.array(
-                [np.cos(stroke_plane_angle / 2), 0, np.sin(stroke_plane_angle / 2), 0]
-            )
+            stroke_plane_quat = np.array([np.cos(stroke_plane_angle / 2), 0, np.sin(stroke_plane_angle / 2), 0])
             for quat, wing in [
                 (np.array([0.0, 0, 0, 1]), "wing_left"),
                 (np.array([0.0, -1, 0, 0]), "wing_right"),
@@ -316,8 +288,7 @@ class FruitFly(legacy_base.Walker):
             indices = [
                 i
                 for i, name in enumerate(names)
-                if any_substr_in_str(name_substr[act_class], name)
-                and "adhere" not in name
+                if any_substr_in_str(name_substr[act_class], name) and "adhere" not in name
             ]
             self._ctrl_indices[act_class] = indices if indices else None
         # Find adhesion ctrl indices.
@@ -356,9 +327,7 @@ class FruitFly(legacy_base.Walker):
 
     # -------------------------------------------------------------------------
 
-    def initialize_episode(
-        self, physics: "mjcf.Physics", random_state: np.random.RandomState
-    ):
+    def initialize_episode(self, physics: "mjcf.Physics", random_state: np.random.RandomState):
         """Set the walker."""
         # Save the weight of the body (in Dyne i.e. gram*cm/s^2).
         body_mass = physics.named.model.body_subtreemass["walker/thorax"]  # gram.
@@ -687,9 +656,7 @@ class FruitFlyObservables(legacy_base.WalkerObservables):
                 force += np.linalg.norm(contact_force)
             return force
 
-        return observable.Generic(
-            sum_body_contact_forces, buffer_size=self._buffer_size, aggregator="mean"
-        )
+        return observable.Generic(sum_body_contact_forces, buffer_size=self._buffer_size, aggregator="mean")
 
     @property
     def vestibular(self):

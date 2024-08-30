@@ -29,12 +29,7 @@ def compute_diffs(
             diffs[k] = np.sum(np.abs(walker_features[k] - reference_features[k]) ** n)
         else:
             # Quaternion differences (always positive, no need to use np.abs).
-            diffs[k] = np.sum(
-                quaternions.quat_dist_short_arc(
-                    walker_features[k], reference_features[k]
-                )
-                ** n
-            )
+            diffs[k] = np.sum(quaternions.quat_dist_short_arc(walker_features[k], reference_features[k]) ** n)
     return diffs
 
 
@@ -50,9 +45,7 @@ def get_walker_features(physics, mocap_joints, mocap_sites):
     # (except root quaternion, which is in world reference frame).
     root_quat = qpos[3:7]
     xaxis1 = physics.bind(mocap_joints).xaxis[1:, :]
-    xaxis1 = quaternions.rotate_vec_with_quat(
-        xaxis1, quaternions.reciprocal_quat(root_quat)
-    )
+    xaxis1 = quaternions.rotate_vec_with_quat(xaxis1, quaternions.reciprocal_quat(root_quat))
     qpos7 = qpos[7:]
     joint_quat = quaternions.joint_orientation_quat(xaxis1, qpos7)
     joint_quat = np.vstack((root_quat, joint_quat))
@@ -72,8 +65,8 @@ def get_reference_features(reference_data, step):
 
     qpos_ref = reference_data["qpos"][step, :]
     qvel_ref = reference_data["qvel"][step, :]
-    root2site_ref = reference_data["root2site"][step, :] #[step, :, :]
-    joint_quat_ref = reference_data["joint_quat"][step, :]#[step, :, :]
+    root2site_ref = reference_data["root2site"][step, :]  # [step, :, :]
+    joint_quat_ref = reference_data["joint_quat"][step, :]  # [step, :, :]
     joint_quat_ref = np.vstack((qpos_ref[3:7], joint_quat_ref))
 
     reference_features = {
@@ -86,9 +79,7 @@ def get_reference_features(reference_data, step):
     return reference_features
 
 
-def reward_factors_deep_mimic(
-    walker_features, reference_features, std=None, weights=(1, 1, 1, 1)
-):
+def reward_factors_deep_mimic(walker_features, reference_features, std=None, weights=(1, 1, 1, 1)):
     """Returns four reward factors, each of which is a product of individual
     (unnormalized) Gaussian distributions evaluated for the four model
     and reference data features:
@@ -118,6 +109,7 @@ def reward_factors_deep_mimic(
     reward_factors *= np.asarray(weights)
 
     return reward_factors
+
 
 # concat reward
 # Copyright 2020 The dm_control Authors.
@@ -201,10 +193,15 @@ def termination_reward_fn(termination_error, termination_error_threshold, **unus
     Returns:
       RewardFnOutput tuple containing reward, debug information and reward terms.
     """
-    debug_terms = {"termination_error": termination_error, "termination_error_threshold": termination_error_threshold}
+    debug_terms = {
+        "termination_error": termination_error,
+        "termination_error_threshold": termination_error_threshold,
+    }
     termination_reward = 1 - termination_error / termination_error_threshold
     return RewardFnOutput(
-        reward=termination_reward, debug=debug_terms, reward_terms=sort_dict({"termination": termination_reward})
+        reward=termination_reward,
+        debug=debug_terms,
+        reward_terms=sort_dict({"termination": termination_reward}),
     )
 
 
@@ -216,9 +213,7 @@ def debug(reference_features, walker_features, **unused_kwargs):
 def multi_term_pose_reward_fn(walker_features, reference_features, **unused_kwargs):
     """A reward based on com, body quaternions, joints velocities & appendages."""
     differences = compute_squared_differences(walker_features, reference_features)
-    com = (
-        0.1 * np.exp(-10 * differences["center_of_mass"]) * 50
-    )  # * scaling the com reward ten times encourage com tracking
+    com = 0.1 * np.exp(-10 * differences["center_of_mass"])  # * scaling the com reward ten times encourage com tracking
     joints_velocity = 1.0 * np.exp(-0.1 * differences["joints_velocity"])
     appendages = 0.15 * np.exp(-40.0 * differences["appendages"])
     body_quaternions = 0.65 * np.exp(-2 * differences["body_quaternions"])
@@ -263,7 +258,9 @@ def comic_reward_fn(
     reward_terms = {k: 0.5 * v for k, v in termination_reward_terms.items()}
     reward_terms.update({k: 0.5 * v for k, v in mt_reward_terms.items()})
     return RewardFnOutput(
-        reward=0.5 * termination_reward + 0.5 * mt_reward, debug=debug_terms, reward_terms=sort_dict(reward_terms)
+        reward=0.5 * termination_reward + 0.5 * mt_reward,
+        debug=debug_terms,
+        reward_terms=sort_dict(reward_terms),
     )
 
 
@@ -275,8 +272,19 @@ _REWARD_FN = {
 
 _REWARD_CHANNELS = {
     "termination_reward": ("termination",),
-    "multi_term_pose_reward": ("appendages", "body_quaternions", "center_of_mass", "joints_velocity"),
-    "comic": ("appendages", "body_quaternions", "center_of_mass", "termination", "joints_velocity"),
+    "multi_term_pose_reward": (
+        "appendages",
+        "body_quaternions",
+        "center_of_mass",
+        "joints_velocity",
+    ),
+    "comic": (
+        "appendages",
+        "body_quaternions",
+        "center_of_mass",
+        "termination",
+        "joints_velocity",
+    ),
 }
 
 

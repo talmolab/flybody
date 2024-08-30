@@ -36,6 +36,10 @@ from flybody.agents.actors import DelayedFeedForwardActor
 from flybody.utils import vision_rollout_and_render, rollout_and_render
 from flybody.agents.utils_tf import TestPolicyWrapper
 
+# logging & plotting
+from matplotlib import pyplot as plt
+from io import BytesIO
+
 
 @dataclasses.dataclass
 class DMPOConfig:
@@ -70,9 +74,9 @@ class DMPOConfig:
     userdata: dict | None = None
     actor_observation_callback: Callable | None = None
     config_dict: dict | None = None
-    kickstart_teacher_cps_path: str = "", # specify the location of the kickstarter teacher policy's cps
-    kickstart_epsilon: float = 0.005,
-    eval_average_over: int = 200, # how many steps of statistic to average over in evaluator.
+    kickstart_teacher_cps_path: str = ("",)  # specify the location of the kickstarter teacher policy's cps
+    kickstart_epsilon: float = (0.005,)
+    eval_average_over: int = (200,)  # how many steps of statistic to average over in evaluator.
 
 
 class ReplayServer:
@@ -115,7 +119,7 @@ class ReplayServer:
 
     def get_server_address(self):
         return self._replay_server_address
-    
+
     def isready(self):
         """Dummy method to check if ReplayServer is ready."""
         pass
@@ -126,7 +130,7 @@ class Learner(DistributionalMPOLearner):
 
     def __init__(
         self,
-        replay_server_addresses: dict, # TODO(SY): Allow multiple replay server address here. Modify corresponding logics.
+        replay_server_addresses: dict,  # TODO(SY): Allow multiple replay server address here. Modify corresponding logics.
         counter: counting.Counter,
         environment_spec: specs.EnvironmentSpec,
         dmpo_config,
@@ -214,7 +218,7 @@ class Learner(DistributionalMPOLearner):
             time_delta_minutes=self._config.time_delta_minutes,
             kickstart_teacher_cps_path=self._config.kickstart_teacher_cps_path,
             kickstart_epsilon=self._config.kickstart_epsilon,
-            replay_server_addresses=replay_server_addresses
+            replay_server_addresses=replay_server_addresses,
         )
 
     def _step(self, iterator):
@@ -282,10 +286,7 @@ class EnvironmentLoop(acme.EnvironmentLoop):
             current_node_id = ray.get_runtime_context().node_id.hex()
             running_on_head_node = False
             for node in ray.nodes():
-                if (
-                    node["NodeID"] == current_node_id
-                    and node["NodeManagerAddress"] == ray_head_node_ip
-                ):
+                if node["NodeID"] == current_node_id and node["NodeManagerAddress"] == ray_head_node_ip:
                     running_on_head_node = True
                     break
             if running_on_head_node:
@@ -400,7 +401,7 @@ class EnvironmentLoop(acme.EnvironmentLoop):
             if len(self._stats) >= self._config.eval_average_over:
                 self._stats.pop(0)  # pop out the stats
             self.load_snapshot_and_render(logging_data)
-            logging_data.update(self._eval_agg_stat(True)) # update in place
+            logging_data.update(self._eval_agg_stat(True))  # update in place
         return logging_data
 
     def _eval_agg_stat(self, include_raw=False) -> loggers.LoggingData:
@@ -410,16 +411,22 @@ class EnvironmentLoop(acme.EnvironmentLoop):
 
         _I am sorry, but this is some very hard to read list comprehension._
         """
+        agg = {}
         stats_key = ["episode_length", "episode_return"]
-        agg = {f"avg_{key}": np.mean([d[key] for d in self._stats]) for key in ["episode_length", "episode_return", "steps_per_second"]}
-        var = {f"var_{key}": np.var([d[key] for d in self._stats]) for key in stats_key}
-        maxi = {f"max_{key}": np.max([d[key] for d in self._stats]) for key in stats_key}
-        mini = {f"min_{key}": np.min([d[key] for d in self._stats]) for key in stats_key}
-        agg.update(var)
-        agg.update(maxi)
-        agg.update(mini)
-        if include_raw:
-            agg.update({f"curr_{key}": [d[key] for d in self._stats] for key in stats_key})
+        if len(self._stats[stats_key[0]]) >= 200:  # only report summary statistic one a while
+            avg = {
+                f"avg_{key}": np.mean([d[key] for d in self._stats])
+                for key in ["episode_length", "episode_return", "steps_per_second"]
+            }
+            var = {f"var_{key}": np.var([d[key] for d in self._stats]) for key in stats_key}
+            maxi = {f"max_{key}": np.max([d[key] for d in self._stats]) for key in stats_key}
+            mini = {f"min_{key}": np.min([d[key] for d in self._stats]) for key in stats_key}
+            agg.update(avg)
+            agg.update(var)
+            agg.update(maxi)
+            agg.update(mini)
+            if include_raw:
+                agg.update({f"curr_{key}": [d[key] for d in self._stats] for key in stats_key})
         return agg
 
     def load_snapshot_and_render(self, logging_data):
@@ -439,9 +446,7 @@ class EnvironmentLoop(acme.EnvironmentLoop):
         if render:
             videos_path = self._snapshotter_dir.parent / "videos"
             videos_path.mkdir(parents=True, exist_ok=True)
-            rendering_path = os.path.join(
-                str(videos_path), f"{self._task_name}-{self._highest_snap_num}.mp4"
-            )
+            rendering_path = os.path.join(str(videos_path), f"{self._task_name}-{self._highest_snap_num}.mp4")
             # Frame width and height for rendering.
             render_kwargs = {"width": 640, "height": 480}
             try:
@@ -469,9 +474,7 @@ class EnvironmentLoop(acme.EnvironmentLoop):
                 env = wrappers.SinglePrecisionWrapper(env)
                 env = wrappers.CanonicalSpecWrapper(env, clip=False)
                 frames = vision_rollout_and_render(env, policy, camera_id=2, eye_blow_factor=3, **render_kwargs)
-            with imageio.get_writer(
-                rendering_path, fps=1 / env.control_timestep()
-            ) as video:
+            with imageio.get_writer(rendering_path, fps=1 / env.control_timestep()) as video:
                 for f in frames:
                     video.append_data(f)
             logging_data["rollout"] = wandb.Video(rendering_path, format="mp4")

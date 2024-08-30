@@ -9,14 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def rollout_and_render(
-    env,
-    policy,
-    n_steps=100,
-    run_until_termination=False,
-    camera_ids=[-1],
-    **render_kwargs
-):
+def rollout_and_render(env, policy, n_steps=100, run_until_termination=False, camera_ids=[-1], **render_kwargs):
     """Rollout policy for n_steps or until termination, and render video.
     Rendering is possible from multiple cameras; in that case, each element in
     returned `frames` is a list of cameras."""
@@ -25,9 +18,7 @@ def rollout_and_render(
     timestep = env.reset()
     frames = []
     i = 0
-    while (i < n_steps and not run_until_termination) or (
-        timestep.step_type != 2 and run_until_termination
-    ):
+    while (i < n_steps and not run_until_termination) or (timestep.step_type != 2 and run_until_termination):
         i += 1
         frame = []
         for camera_id in camera_ids:
@@ -67,9 +58,7 @@ def display_video(frames, framerate=30):
         return [im]
 
     interval = 1000 / framerate
-    anim = animation.FuncAnimation(
-        fig=fig, func=update, frames=frames, interval=interval, blit=True, repeat=False
-    )
+    anim = animation.FuncAnimation(fig=fig, func=update, frames=frames, interval=interval, blit=True, repeat=False)
     return HTML(anim.to_html5_video())
 
 
@@ -93,21 +82,19 @@ def blow(x, repeats=2):
     return np.repeat(np.repeat(x, repeats, axis=0), repeats, axis=1)
 
 
-def vision_rollout_and_render(env, policy, camera_id=1,
-                              eye_blow_factor=5, **render_kwargs):
+def vision_rollout_and_render(env, policy, camera_id=1, eye_blow_factor=5, **render_kwargs):
     """Run vision-guided flight episode and render frames, including eyes."""
     frames = []
     timestep = env.reset()
     # Run full episode until it ends.
-    i=0
+    i = 0
     while timestep.step_type != 2 and i < 500:
-        i+=1
+        i += 1
         # Render eyes and scene.
         pixels = env.physics.render(camera_id=camera_id, **render_kwargs)
-        eyes = eye_pixels_from_observation(
-            timestep, blow_factor=eye_blow_factor)
+        eyes = eye_pixels_from_observation(timestep, blow_factor=eye_blow_factor)
         # Add eye pixels to scene.
-        pixels[0:eyes.shape[0], 0:eyes.shape[1], :] = eyes
+        pixels[0 : eyes.shape[0], 0 : eyes.shape[1], :] = eyes
         frames.append(pixels)
         # Step environment.
         action = policy(timestep.observation)
@@ -120,26 +107,26 @@ def eye_pixels_from_observation(timestep, blow_factor=4):
     # In the actual task, the averaging over axis=-1 is done by the visual
     # network as a pre-processing step, so effectively the visual observations
     # are gray-scale.
-    egocentric_camera = timestep.observation['walker/egocentric_camera'].mean(axis=-1)
+    egocentric_camera = timestep.observation["walker/egocentric_camera"].mean(axis=-1)
 
     pixels = egocentric_camera
     pixels = np.tile(pixels[:, :, None], reps=(1, 1, 3))
     pixels = blow(pixels, blow_factor)
-    pixels = pixels.astype('uint8')
+    pixels = pixels.astype("uint8")
     return pixels
 
 
 def eye_pixels_from_cameras(physics, **render_kwargs):
     """Render two-eye view, assuming eye cameras have particular names."""
     for i in range(physics.model.ncam):
-        name = physics.model.id2name(i, 'camera')
-        if 'eye_left' in name:
+        name = physics.model.id2name(i, "camera")
+        if "eye_left" in name:
             left_eye = physics.render(camera_id=i, **render_kwargs)
-        if 'eye_right' in name:
+        if "eye_right" in name:
             right_eye = physics.render(camera_id=i, **render_kwargs)
     pixels = np.hstack((left_eye, right_eye))
     return pixels
 
 
 # Frame width and height for rendering.
-render_kwargs = {'width': 640, 'height': 480}
+render_kwargs = {"width": 640, "height": 480}

@@ -19,6 +19,7 @@ NestedArray = Any
 
 _MPO_FLOAT_EPSILON = 1e-8
 
+
 class PenalizationCostRealActions:
     """Class to covert canonical actions to real (not wrapped) environment
     actions, and then to calculate penalization cost based on real actions.
@@ -31,9 +32,7 @@ class PenalizationCostRealActions:
                 environment.
             dtype: Action datatype.
         """
-        self._scale = tf.constant(
-            action_spec.maximum - action_spec.minimum, dtype=dtype
-        )
+        self._scale = tf.constant(action_spec.maximum - action_spec.minimum, dtype=dtype)
         self._offset = tf.constant(action_spec.minimum, dtype=dtype)
         assert not all(self._scale == 2) and not all(self._offset == -1), (
             "With the provided action_spec, the action transformation is no-op."
@@ -219,9 +218,7 @@ class MPO(snt.Module):
                 1:
             ]  # Should be [D].
         else:
-            dual_variable_shape = target_action_distribution.kl_divergence(
-                online_action_distribution
-            ).shape[
+            dual_variable_shape = target_action_distribution.kl_divergence(online_action_distribution).shape[
                 1:
             ]  # Should be [1].
 
@@ -231,9 +228,7 @@ class MPO(snt.Module):
         # Project dual variables to ensure they stay positive.
         min_log_temperature = tf.constant(-18.0, scalar_dtype)
         min_log_alpha = tf.constant(-18.0, scalar_dtype)
-        self._log_temperature.assign(
-            tf.maximum(min_log_temperature, self._log_temperature)
-        )
+        self._log_temperature.assign(tf.maximum(min_log_temperature, self._log_temperature))
         self._log_alpha_mean.assign(tf.maximum(min_log_alpha, self._log_alpha_mean))
         self._log_alpha_stddev.assign(tf.maximum(min_log_alpha, self._log_alpha_stddev))
 
@@ -258,18 +253,12 @@ class MPO(snt.Module):
 
         # Only needed for diagnostics: Compute estimated actualized KL between the
         # non-parametric and current target policies.
-        kl_nonparametric = compute_nonparametric_kl_from_normalized_weights(
-            normalized_weights
-        )
+        kl_nonparametric = compute_nonparametric_kl_from_normalized_weights(normalized_weights)
 
         if self._action_penalization:
             # Project and transform action penalization temperature.
-            self._log_penalty_temperature.assign(
-                tf.maximum(min_log_temperature, self._log_penalty_temperature)
-            )
-            penalty_temperature = (
-                tf.math.softplus(self._log_penalty_temperature) + _MPO_FLOAT_EPSILON
-            )
+            self._log_penalty_temperature.assign(tf.maximum(min_log_temperature, self._log_penalty_temperature))
+            penalty_temperature = tf.math.softplus(self._log_penalty_temperature) + _MPO_FLOAT_EPSILON
 
             # Compute action penalization cost.
             # Note: the cost is zero in [-1, 1] and quadratic beyond.
@@ -280,17 +269,13 @@ class MPO(snt.Module):
             else:
                 cost_out_of_bound = self._penalization_cost(actions)
 
-            penalty_normalized_weights, loss_penalty_temperature = (
-                compute_weights_and_temperature_loss(
-                    cost_out_of_bound, self._epsilon_penalty, penalty_temperature
-                )
+            penalty_normalized_weights, loss_penalty_temperature = compute_weights_and_temperature_loss(
+                cost_out_of_bound, self._epsilon_penalty, penalty_temperature
             )
 
             # Only needed for diagnostics: Compute estimated actualized KL between the
             # non-parametric and current target policies.
-            penalty_kl_nonparametric = compute_nonparametric_kl_from_normalized_weights(
-                penalty_normalized_weights
-            )
+            penalty_kl_nonparametric = compute_nonparametric_kl_from_normalized_weights(penalty_normalized_weights)
 
             # Combine normalized weights.
             normalized_weights += penalty_normalized_weights
@@ -298,20 +283,12 @@ class MPO(snt.Module):
         # Decompose the online policy into fixed-mean & fixed-stddev distributions.
         # This has been documented as having better performance in bandit settings,
         # see e.g. https://arxiv.org/pdf/1812.02256.pdf.
-        fixed_stddev_distribution = tfd.Independent(
-            tfd.Normal(loc=online_mean, scale=target_scale)
-        )
-        fixed_mean_distribution = tfd.Independent(
-            tfd.Normal(loc=target_mean, scale=online_scale)
-        )
+        fixed_stddev_distribution = tfd.Independent(tfd.Normal(loc=online_mean, scale=target_scale))
+        fixed_mean_distribution = tfd.Independent(tfd.Normal(loc=target_mean, scale=online_scale))
 
         # Compute the decomposed policy losses.
-        loss_policy_mean = compute_cross_entropy_loss(
-            actions, normalized_weights, fixed_stddev_distribution
-        )
-        loss_policy_stddev = compute_cross_entropy_loss(
-            actions, normalized_weights, fixed_mean_distribution
-        )
+        loss_policy_mean = compute_cross_entropy_loss(actions, normalized_weights, fixed_stddev_distribution)
+        loss_policy_stddev = compute_cross_entropy_loss(actions, normalized_weights, fixed_mean_distribution)
 
         # Compute the decomposed KL between the target and online policies.
         if self._per_dim_constraining:
@@ -322,12 +299,8 @@ class MPO(snt.Module):
                 fixed_mean_distribution.distribution
             )  # Shape [B, D].
         else:
-            kl_mean = target_action_distribution.kl_divergence(
-                fixed_stddev_distribution
-            )  # Shape [B].
-            kl_stddev = target_action_distribution.kl_divergence(
-                fixed_mean_distribution
-            )  # Shape [B].
+            kl_mean = target_action_distribution.kl_divergence(fixed_stddev_distribution)  # Shape [B].
+            kl_stddev = target_action_distribution.kl_divergence(fixed_mean_distribution)  # Shape [B].
 
         # Compute the alpha-weighted KL-penalty and dual losses to adapt the alphas.
         loss_kl_mean, loss_alpha_mean = compute_parametric_kl_penalty_and_dual_loss(
@@ -336,7 +309,6 @@ class MPO(snt.Module):
         loss_kl_stddev, loss_alpha_stddev = compute_parametric_kl_penalty_and_dual_loss(
             kl_stddev, alpha_stddev, self._epsilon_stddev
         )
-
 
         # Combine losses.
         loss_policy = loss_policy_mean + loss_policy_stddev
@@ -357,14 +329,10 @@ class MPO(snt.Module):
         stats["kl_q_rel"] = tf.reduce_mean(kl_nonparametric) / self._epsilon
 
         if self._action_penalization:
-            stats["penalty_kl_q_rel"] = (
-                tf.reduce_mean(penalty_kl_nonparametric) / self._epsilon_penalty
-            )
+            stats["penalty_kl_q_rel"] = tf.reduce_mean(penalty_kl_nonparametric) / self._epsilon_penalty
 
         stats["kl_mean_rel"] = tf.reduce_mean(kl_mean, axis=0) / self._epsilon_mean
-        stats["kl_stddev_rel"] = (
-            tf.reduce_mean(kl_stddev, axis=0) / self._epsilon_stddev
-        )
+        stats["kl_stddev_rel"] = tf.reduce_mean(kl_stddev, axis=0) / self._epsilon_stddev
         # Q measurements.
         stats["q_min"] = tf.reduce_mean(tf.reduce_min(q_values, axis=0))
         stats["q_max"] = tf.reduce_mean(tf.reduce_max(q_values, axis=0))
@@ -373,22 +341,16 @@ class MPO(snt.Module):
         stats["pi_stddev_min"] = tf.reduce_mean(tf.reduce_min(pi_stddev, axis=-1))
         stats["pi_stddev_max"] = tf.reduce_mean(tf.reduce_max(pi_stddev, axis=-1))
         # Condition number of the diagonal covariance (actually, stddev) matrix.
-        stats["pi_stddev_cond"] = tf.reduce_mean(
-            tf.reduce_max(pi_stddev, axis=-1) / tf.reduce_min(pi_stddev, axis=-1)
-        )
+        stats["pi_stddev_cond"] = tf.reduce_mean(tf.reduce_max(pi_stddev, axis=-1) / tf.reduce_min(pi_stddev, axis=-1))
 
         # Log mean and std of absolute values of policy mean to track progress.
         pi_mean = online_action_distribution.distribution.mean()
         stats["pi_mean_abs_mean"] = tf.reduce_mean(tf.abs(pi_mean))
-        stats["pi_stddev_abs_mean"] = tf.reduce_mean(
-            tf.math.reduce_std(tf.abs(pi_mean), axis=-1)
-        )
+        stats["pi_stddev_abs_mean"] = tf.reduce_mean(tf.math.reduce_std(tf.abs(pi_mean), axis=-1))
         # Log mean and std of policy stddev to track progress.
         pi_stddev = online_action_distribution.distribution.stddev()
         stats["pi_mean_stddev"] = tf.reduce_mean(pi_stddev)
-        stats["pi_stddev_stddev"] = tf.reduce_mean(
-            tf.math.reduce_std(pi_stddev, axis=-1)
-        )
+        stats["pi_stddev_stddev"] = tf.reduce_mean(tf.math.reduce_std(pi_stddev, axis=-1))
 
         return loss, stats
 

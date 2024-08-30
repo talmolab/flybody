@@ -36,10 +36,13 @@ import os
 import h5py
 
 from flybody import rodent_tasks_modified as T
+
 # from flybody import rodent_walker as rodent
 from dm_control.locomotion.walkers import rodent
 
-from flybody.tasks import tracking_old as tracking # TODO hacky tape, new tracking did not work yet
+from flybody.tasks import (
+    tracking_old as tracking,
+)  # TODO hacky tape, new tracking did not work yet
 
 from flybody.tasks.trajectory_loaders import (
     HDF5WalkingTrajectoryLoader,

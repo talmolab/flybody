@@ -20,6 +20,7 @@ from flybody.tasks.task_utils import (
 )
 from flybody.quaternions import rotate_vec_with_quat
 
+
 class WalkImitation(RodentWalking):
     """Class for task of fly walking and tracking reference."""
 
@@ -60,28 +61,20 @@ class WalkImitation(RodentWalking):
         # Get mocap joints.
         self._mocap_joints = [self._root_joint]
         for mocap_joint_name in mocap_joint_names:
-            self._mocap_joints.append(
-                self._walker.mjcf_model.find("joint", mocap_joint_name)
-            )
+            self._mocap_joints.append(self._walker.mjcf_model.find("joint", mocap_joint_name))
 
         # Get mocap sites.
         self._mocap_sites = []
         for mocap_site_name in mocap_site_names:
-            self._mocap_sites.append(
-                self._walker.mjcf_model.find("site", mocap_site_name)
-            )
+            self._mocap_sites.append(self._walker.mjcf_model.find("site", mocap_site_name))
 
         # Maybe add trajectory sites, one every 10 steps.
         if self._trajectory_sites:
-            self._n_traj_sites = (
-                round(self._time_limit / self.control_timestep) + 1
-            ) // 10
+            self._n_traj_sites = (round(self._time_limit / self.control_timestep) + 1) // 10
             add_trajectory_sites(self.root_entity, self._n_traj_sites, group=1)
 
         # Additional task observables for tracking reference fly.
-        self._walker.observables.add_observable(
-            "ref_displacement", self.ref_displacement
-        )
+        self._walker.observables.add_observable("ref_displacement", self.ref_displacement)
         self._walker.observables.add_observable("ref_root_quat", self.ref_root_quat)
 
     def set_next_trajectory_index(self, idx):
@@ -93,9 +86,7 @@ class WalkImitation(RodentWalking):
         super().initialize_episode_mjcf(random_state)
 
         # Pick walking snippet (get snippet dict).
-        self._snippet = self._traj_generator.get_trajectory(
-            traj_idx=self._next_traj_idx
-        )
+        self._snippet = self._traj_generator.get_trajectory(traj_idx=self._next_traj_idx)
         self._next_traj_idx = None  # Reset if wasn't None.
 
         # Update reference trajectory for tracking observables.
@@ -114,9 +105,7 @@ class WalkImitation(RodentWalking):
                 self._episode_steps,
             )
 
-    def initialize_episode(
-        self, physics: "mjcf.Physics", random_state: np.random.RandomState
-    ):
+    def initialize_episode(self, physics: "mjcf.Physics", random_state: np.random.RandomState):
         """Randomly selects a starting point and set the walker."""
         super().initialize_episode(physics, random_state)
 
@@ -128,9 +117,7 @@ class WalkImitation(RodentWalking):
             physics.bind(self._mocap_joints).qvel = self._ref_qvel[0, :]
 
         # Rotate ghost offset, depending on initial reference orientation.
-        rotated_offset = rotate_vec_with_quat(
-            self._ghost_offset, self._ref_qpos[0, 3:7]
-        )
+        rotated_offset = rotate_vec_with_quat(self._ghost_offset, self._ref_qpos[0, 3:7])
 
         rotated_offset[2] = self._ghost_offset[2]  # Restore original z-offset.
         self._ghost_offset_with_quat = np.hstack((rotated_offset, 4 * [0]))
@@ -139,9 +126,7 @@ class WalkImitation(RodentWalking):
         ghost_qpos = self._ref_qpos[0, :7] + self._ghost_offset_with_quat
         self._ghost.set_pose(physics, ghost_qpos[:3], ghost_qpos[3:])
 
-    def before_step(
-        self, physics: "mjcf.Physics", action, random_state: np.random.RandomState
-    ):
+    def before_step(self, physics: "mjcf.Physics", action, random_state: np.random.RandomState):
         # Set ghost joint position and velocity.
         step = int(np.round(physics.data.time / self.control_timestep))
         ghost_qpos = self._ref_qpos[step, :7] + self._ghost_offset_with_quat
@@ -174,9 +159,7 @@ class WalkImitation(RodentWalking):
         angvel = np.linalg.norm(self._walker.observables.gyro(physics))
 
         step = round(physics.time() / self.control_timestep)
-        com_dist = np.linalg.norm(
-            self.observables["walker/ref_displacement"](physics)[0]
-        )
+        com_dist = np.linalg.norm(self.observables["walker/ref_displacement"](physics)[0])
         self._reached_traj_end = step == self._episode_steps
 
         return (

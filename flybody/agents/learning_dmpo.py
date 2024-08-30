@@ -50,7 +50,7 @@ class DistributionalMPOLearner(acme.Learner):
         directory: str | None = "~/acme/",
         checkpoint_to_load: Optional[str] = None,
         time_delta_minutes: float = 15.0,
-        kickstart_teacher_cps_path: str = None, # specify the location of the kickstarter teacher policy's cps
+        kickstart_teacher_cps_path: str = None,  # specify the location of the kickstarter teacher policy's cps
         kickstart_epsilon: float = 0.005,
         replay_server_addresses: dict = None,
     ):
@@ -63,9 +63,7 @@ class DistributionalMPOLearner(acme.Learner):
 
         # Make sure observation networks are snt.Module's so they have variables.
         self._observation_network = tf2_utils.to_sonnet_module(observation_network)
-        self._target_observation_network = tf2_utils.to_sonnet_module(
-            target_observation_network
-        )
+        self._target_observation_network = tf2_utils.to_sonnet_module(target_observation_network)
 
         # General learner book-keeping and loggers.
         self._counter = counter or counting.Counter()
@@ -112,9 +110,7 @@ class DistributionalMPOLearner(acme.Learner):
         self._replay_server_addresses = replay_server_addresses
 
         # Expose the variables.
-        policy_network_to_expose = snt.Sequential(
-            [self._target_observation_network, self._target_policy_network]
-        )
+        policy_network_to_expose = snt.Sequential([self._target_observation_network, self._target_policy_network])
         self._variables = {
             "critic": self._target_critic_network.variables,
             "policy": policy_network_to_expose.variables,
@@ -147,9 +143,7 @@ class DistributionalMPOLearner(acme.Learner):
             )
 
             objects_to_save = {
-                "policy-0": snt.Sequential(
-                    [self._target_observation_network, self._target_policy_network]
-                ),
+                "policy-0": snt.Sequential([self._target_observation_network, self._target_policy_network]),
                 # "policy-only-no-obs-network-0": snt.Sequential([self._target_policy_network]), '
                 # we don't need to do kickstarting for now
             }
@@ -243,9 +237,7 @@ class DistributionalMPOLearner(acme.Learner):
             # observation network. In addition, since the online policy network is
             # evaluated at o_t, this also means the policy loss does not influence
             # the observation network training.
-            o_t = tf.stop_gradient(
-                self._target_observation_network(transitions.next_observation)
-            )
+            o_t = tf.stop_gradient(self._target_observation_network(transitions.next_observation))
 
             # Get online and target action distributions from policy networks.
             online_action_distribution = self._policy_network(o_t)
@@ -397,15 +389,13 @@ class DistributionalMPOLearner(acme.Learner):
                                 "policy-encoder-" + str(int(current_counter) + 1),
                             )
                         # Redirect snapshot to new key and delete old key.
-                        self._snapshotter._snapshots[new_path] = (
-                            self._snapshotter._snapshots.pop(path)
-                        )
+                        self._snapshotter._snapshots[new_path] = self._snapshotter._snapshots.pop(path)
                     # frames = vision_rollout_and_render() # need to think about environment loading / rendering
-            fetches["actor_sps"] = (
-                fetches["actor_steps"] / (fetches["learner_walltime"]+1)
+            fetches["actor_sps"] = fetches["actor_steps"] / (
+                fetches["learner_walltime"] + 1
             )  # calculate and report the sps of the actor
-            fetches["learner_sps"] = (
-                fetches["learner_steps"] / (fetches["learner_walltime"]+1)
+            fetches["learner_sps"] = fetches["learner_steps"] / (
+                fetches["learner_walltime"] + 1
             )  # calculate and report the sps fo the learner
             self._logger.write(fetches)
 

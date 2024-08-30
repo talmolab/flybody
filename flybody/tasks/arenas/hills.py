@@ -52,9 +52,7 @@ def terrain_bowl(
     axis = np.linspace(-1, 1, terrain.shape[0])
     xv, yv = np.meshgrid(axis, axis)
     r = np.sqrt(xv**2 + yv**2)
-    bowl_shape = (
-        0.5 * np.tanh(tanh_sharpness * (r - tanh_rel_radius)) + 0.5
-    )  # Between 0 and 1.
+    bowl_shape = 0.5 * np.tanh(tanh_sharpness * (r - tanh_rel_radius)) + 0.5  # Between 0 and 1.
     terrain *= bowl_shape
 
     return terrain  # Normalized between [0, elevation_z].
@@ -242,9 +240,7 @@ class Hills(composer.Arena):
             # Create bowl arena.
             # Elevation of horizon mountains.
             elevation_z = random_state.uniform(*self._elevation_z_range)
-            terrain = terrain_bowl(
-                physics, elevation_z=elevation_z, random_state=random_state
-            )
+            terrain = terrain_bowl(physics, elevation_z=elevation_z, random_state=random_state)
 
             start_idx = physics.bind(self._hfield).adr
             res = physics.bind(self._hfield).nrow
@@ -335,9 +331,7 @@ class SineTrench(Hills):
 
             # Create bowl arena.
             elevation_z = random_state.uniform(*self._elevation_z_range)
-            bowl = terrain_bowl(
-                physics, elevation_z=elevation_z, random_state=random_state
-            )
+            bowl = terrain_bowl(physics, elevation_z=elevation_z, random_state=random_state)
             size = physics.model.hfield_size[0, :2]
 
             # Add sine trench.
@@ -436,9 +430,7 @@ class SineBumps(Hills):
 
             # Create bowl arena.
             elevation_z = random_state.uniform(*self._elevation_z_range)
-            bowl = terrain_bowl(
-                physics, elevation_z=elevation_z, random_state=random_state
-            )
+            bowl = terrain_bowl(physics, elevation_z=elevation_z, random_state=random_state)
             size = physics.model.hfield_size[0, :2]
 
             # Add sine trench.

@@ -95,9 +95,7 @@ class RunThroughCorridorSameObs(RunThroughCorridor):
         self._task_observables["task_logic"] = dm_observable.Generic(dummy_task_logic)
         list(self._task_observables.values())[0].enabled = True
         # add dummy origin observations
-        self._walker.observables.add_observable(
-            "origin", base_observable.Generic(dummy_origin)
-        )
+        self._walker.observables.add_observable("origin", base_observable.Generic(dummy_origin))
 
     @property
     def task_observables(self):
@@ -146,9 +144,7 @@ class ManyGoalsMazeSameObs(ManyGoalsMaze):
         self._task_observables = collections.OrderedDict()
         self._task_observables["task_logic"] = dm_observable.Generic(dummy_task_logic)
         # add dummy origin observations
-        self._walker.observables.add_observable(
-            "origin", base_observable.Generic(dummy_origin)
-        )
+        self._walker.observables.add_observable("origin", base_observable.Generic(dummy_origin))
         list(self._task_observables.values())[0].enabled = True
 
     @property
@@ -199,6 +195,4 @@ class TwoTouchSamObs(TwoTouch):
         )
 
         # add dummy origin observations
-        self._walker.observables.add_observable(
-            "origin", base_observable.Generic(dummy_origin)
-        )
+        self._walker.observables.add_observable("origin", base_observable.Generic(dummy_origin))

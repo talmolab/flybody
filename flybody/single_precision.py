@@ -78,11 +78,9 @@ def _convert_value(nested_value: types.Nest) -> types.Nest:
             if np.issubdtype(value.dtype, np.float64):
                 value = np.array(value, copy=False, dtype=np.float32)
             elif np.issubdtype(value.dtype, np.int64):
-                value = np.array(
-                    value, copy=False, dtype=np.float32
-                )  # also cast int to float
+                value = np.array(value, copy=False, dtype=np.float32)  # also cast int to float
             elif np.issubdtype(value.dtype, np.int32):
-                value = np.array(value, copy=False, dtype=np.float32) # also cast int32 to float
+                value = np.array(value, copy=False, dtype=np.float32)  # also cast int32 to float
         return value
 
     return tree.map_structure(_convert_single_value, nested_value)

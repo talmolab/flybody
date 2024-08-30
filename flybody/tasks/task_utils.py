@@ -22,9 +22,7 @@ def get_random_policy(
     return random_policy
 
 
-def real2canonical(
-    action: np.ndarray, action_spec: "acme.types.NestedSpec", clip: bool = True
-) -> np.ndarray:
+def real2canonical(action: np.ndarray, action_spec: "acme.types.NestedSpec", clip: bool = True) -> np.ndarray:
     """Transform action of real (not wrapped) environment to canonical
     representation in range [-1, 1].
 
@@ -50,9 +48,7 @@ def real2canonical(
     return canonical_action
 
 
-def canonical2real(
-    action: np.ndarray, action_spec: "acme.types.NestedSpec", clip: bool = True
-) -> np.ndarray:
+def canonical2real(action: np.ndarray, action_spec: "acme.types.NestedSpec", clip: bool = True) -> np.ndarray:
     """Transform action in canonical representation in range [-1, 1] to
     action in real (not wrapped) environment.
 
@@ -107,9 +103,7 @@ def make_ghost_fly(walker, visible=True, visible_legs=True):
         # alpha=0.999 ensures grey ghost reference.
         # for alpha=1.0 there is no visible difference between real walker and
         # ghost reference.
-        if not visible_legs and any_substr_in_str(
-            ["coxa", "femur", "tibia", "tarsus", "claw"], geom.name
-        ):
+        if not visible_legs and any_substr_in_str(["coxa", "femur", "tibia", "tarsus", "claw"], geom.name):
             rgba = (0, 0, 0, 0)
         else:
             rgba = (0.5, 0.5, 0.5, 0.2 if visible else 0.0)
@@ -118,9 +112,7 @@ def make_ghost_fly(walker, visible=True, visible_legs=True):
             geom.remove()
 
 
-def retract_wings(
-    physics: "mjcf.Physics", prefix: str = "walker/", roll=0.7, pitch=-1.0, yaw=1.5
-) -> None:
+def retract_wings(physics: "mjcf.Physics", prefix: str = "walker/", roll=0.7, pitch=-1.0, yaw=1.5) -> None:
     """Set wing qpos to default retracted position."""
     for side in ["left", "right"]:
         physics.named.data.qpos[f"{prefix}wing_roll_{side}"] = roll

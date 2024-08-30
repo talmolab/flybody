@@ -40,9 +40,7 @@ for mesh in meshes:
 
 print("Get string from lxml.")
 xml_string = etree.tostring(root, pretty_print=True)
-xml_string = xml_string.replace(
-    b' class="__flyid__/"', b""
-)  # This line is different from make_fruitfly.py.
+xml_string = xml_string.replace(b' class="__flyid__/"', b"")  # This line is different from make_fruitfly.py.
 
 print('Remove gravcomp="0".')
 xml_string = xml_string.replace(b' gravcomp="0"', b"")

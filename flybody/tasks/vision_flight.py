@@ -109,9 +109,7 @@ class VisionFlightImitationWBPG(Flying):
         theta = np.deg2rad(self._body_pitch_angle)
         self._target_zaxis = np.array([np.sin(theta), 0, np.cos(theta)])
 
-    def initialize_episode(
-        self, physics: "mjcf.Physics", random_state: np.random.RandomState
-    ):
+    def initialize_episode(self, physics: "mjcf.Physics", random_state: np.random.RandomState):
         """Randomly selects a starting point and set the walker.
 
         Environment call sequence:
@@ -131,9 +129,7 @@ class VisionFlightImitationWBPG(Flying):
         # Initialize root position and orientation.
         hfield_height = self.get_hfield_height(init_x, init_y, physics)
         init_z = hfield_height + self._target_height
-        self._walker.set_pose(
-            physics, np.array([init_x, init_y, init_z]), neg_quat(self._up_dir)
-        )
+        self._walker.set_pose(physics, np.array([init_x, init_y, init_z]), neg_quat(self._up_dir))
 
         # Initialize wing qpos.
         physics.bind(self._wing_joints).qpos = init_wing_qpos
@@ -141,13 +137,9 @@ class VisionFlightImitationWBPG(Flying):
         if self._initialize_qvel:
             # Only initialize linear CoM velocity, not rotational velocity.
             init_vel, _ = self._walker.get_velocity(physics)
-            self._walker.set_velocity(
-                physics, [self._target_speed, init_vel[1], init_vel[2]]
-            )
+            self._walker.set_velocity(physics, [self._target_speed, init_vel[1], init_vel[2]])
 
-    def before_step(
-        self, physics: "mjcf.Physics", action, random_state: np.random.RandomState
-    ):
+    def before_step(self, physics: "mjcf.Physics", action, random_state: np.random.RandomState):
         # Get target wing joint angles at beat frequency requested by the agent.
         base_freq, rel_range = self._wbpg.base_beat_freq, self._wbpg.rel_freq_range
         act = action[self._user_idx_action]  # Action in [-1, 1].
@@ -212,20 +204,14 @@ class VisionFlightImitationWBPG(Flying):
 
         # Keep zero egocentric side speed.
         vel = self.observables["walker/velocimeter"](physics)
-        side_speed = rewards.tolerance(
-            vel[1], bounds=(0, 0), sigmoid="linear", margin=10, value_at_margin=0.0
-        )
+        side_speed = rewards.tolerance(vel[1], bounds=(0, 0), sigmoid="linear", margin=10, value_at_margin=0.0)
 
         # World z-axis, to replace root quaternion reward above.
         current_zaxis = self.observables["walker/world_zaxis"](physics)
         angle = np.arccos(np.dot(self._target_zaxis, current_zaxis))
-        world_zaxis = rewards.tolerance(
-            angle, bounds=(0, 0), sigmoid="linear", margin=np.pi, value_at_margin=0.0
-        )
+        world_zaxis = rewards.tolerance(angle, bounds=(0, 0), sigmoid="linear", margin=np.pi, value_at_margin=0.0)
 
-        return np.hstack(
-            (height, x_speed, speed, side_speed, world_zaxis, center_of_trench)
-        )
+        return np.hstack((height, x_speed, speed, side_speed, world_zaxis, center_of_trench))
 
     def check_floor_contact(self, physics):
         """Check if fly collides with floor geom."""
@@ -243,9 +229,7 @@ class VisionFlightImitationWBPG(Flying):
 
     def check_termination(self, physics: "mjcf.Physics") -> bool:
         if self._floor_contacts_fatal:
-            return self.check_floor_contact(physics) or super().check_termination(
-                physics
-            )
+            return self.check_floor_contact(physics) or super().check_termination(physics)
         else:
             return super().check_termination(physics)
 

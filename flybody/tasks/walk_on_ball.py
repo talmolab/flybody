@@ -27,9 +27,7 @@ class WalkOnBall(Walking):
         super().__init__(add_ghost=False, ghost_visible_legs=False, **kwargs)
 
         # Fuse fly's thorax with world.
-        self.root_entity.mjcf_model.find(
-            "attachment_frame", "walker"
-        ).freejoint.remove()
+        self.root_entity.mjcf_model.find("attachment_frame", "walker").freejoint.remove()
 
         # Exclude "surprising" thorax-children collisions.
         for child in self._walker.mjcf_model.find("body", "thorax").all_children():
@@ -43,9 +41,7 @@ class WalkOnBall(Walking):
 
         # Maybe change default claw friction.
         if claw_friction is not None:
-            self._walker.mjcf_model.find(
-                "default", "adhesion-collision"
-            ).geom.friction = (claw_friction,)
+            self._walker.mjcf_model.find("default", "adhesion-collision").geom.friction = (claw_friction,)
 
         # Enable task-specific observables.
         self._walker.observables.add_observable("ball_qvel", self.ball_qvel)
@@ -54,15 +50,11 @@ class WalkOnBall(Walking):
         super().initialize_episode_mjcf(random_state)
         # Maybe do something here.
 
-    def initialize_episode(
-        self, physics: "mjcf.Physics", random_state: np.random.RandomState
-    ):
+    def initialize_episode(self, physics: "mjcf.Physics", random_state: np.random.RandomState):
         """Randomly selects a starting point and set the walker."""
         super().initialize_episode(physics, random_state)
 
-    def before_step(
-        self, physics: "mjcf.Physics", action, random_state: np.random.RandomState
-    ):
+    def before_step(self, physics: "mjcf.Physics", action, random_state: np.random.RandomState):
         # Maybe do something here.
         super().before_step(physics, action, random_state)
 
@@ -84,11 +76,7 @@ class WalkOnBall(Walking):
         """Check various termination conditions."""
         linvel = np.linalg.norm(self._walker.observables.velocimeter(physics))
         angvel = np.linalg.norm(self._walker.observables.gyro(physics))
-        return (
-            linvel > _TERMINAL_LINVEL
-            or angvel > _TERMINAL_ANGVEL
-            or super().check_termination(physics)
-        )
+        return linvel > _TERMINAL_LINVEL or angvel > _TERMINAL_ANGVEL or super().check_termination(physics)
 
     @composer.observable
     def ball_qvel(self):
