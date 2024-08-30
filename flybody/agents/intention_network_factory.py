@@ -9,7 +9,6 @@ import numpy as np
 import sonnet as snt
 
 from flybody.agents import losses_mpo
-from flybody.agents.vis_net import VisNetFly, VisNetRodent, VisNetRodentImitation
 
 from flybody.agents.intention_split_net import separate_observation
 from flybody.agents.intention_network_base import IntentionNetwork

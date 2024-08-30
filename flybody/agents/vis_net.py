@@ -208,27 +208,4 @@ class VisNetRodent(snt.Module):
             )  # (batch, -1), keep the consistency of observation space between task
 
         return out
-
-class VisNetRodentImitation(snt.Module):
-    """Remove rodent vision for imitation"""
-
-    def __init__(self):
-        super().__init__()
-
-    def __call__(self, observation):
-        # Copy to prevent modifying observation in-place.
-        # (the modification is done with .pop() below.)
-        observation = observation.copy()
-        # print("TRY: ", observation)
-
-        # Pop eyes from `observation` to avoid type differences going to tf, no uint8, no egocentric camera now.
-        # also cannot have int32, single preciison wrapper, must be float
-        # this here is actually before the wrppaer is called
-        # observation.pop('walker/egocentric_camera')
-       
-        # Concatenate the rest of observation.
-        observation = tf2_utils.batch_concat(observation)
-
-        # print("TRY: ", observation)
-        
-        return observation
+    

@@ -9,7 +9,7 @@ import numpy as np
 import sonnet as snt
 
 from flybody.agents import losses_mpo
-from flybody.agents.vis_net import VisNetFly, VisNetRodent, VisNetRodentImitation
+from flybody.agents.vis_net import VisNetRodent
 
 
 def network_factory_d4pg(
