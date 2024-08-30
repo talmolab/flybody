@@ -147,12 +147,16 @@ class DistributionalMPOLearner(acme.Learner):
             )
 
             objects_to_save = {
-                "policy-0": snt.Sequential([self._target_observation_network, self._target_policy_network]),
-                "policy-only-no-obs-network-0": snt.Sequential([self._target_policy_network]),
+                "policy-0": snt.Sequential(
+                    [self._target_observation_network, self._target_policy_network]
+                ),
+                # "policy-only-no-obs-network-0": snt.Sequential([self._target_policy_network]), '
+                # we don't need to do kickstarting for now
             }
             # optionally save the decoder if we have one.
             if isinstance(self._target_policy_network, IntentionNetwork):
                 objects_to_save["policy-decoder-0"] = self._target_policy_network.decoder
+                objects_to_save["policy-encoder-0"] = self._target_policy_network.encoder
 
             self._snapshotter = tf2_savers.Snapshotter(
                 objects_to_save=objects_to_save,
@@ -374,7 +378,7 @@ class DistributionalMPOLearner(acme.Learner):
                         snapshot = self._snapshotter._snapshots[path]  # noqa: F841
                         # Assume that path ends with, e.g., "/policy-17".
                         # Find sequence of digits at end of string.
-                        current_counter = re.findall("[\d]+$", path)[0]
+                        current_counter = re.findall("[0-9]+$", path)[0]
                         new_path = path.replace(
                             "policy-only-no-obs-network-" + current_counter,
                             "policy-only-no-obs-network-" + str(int(current_counter) + 1),
@@ -387,6 +391,10 @@ class DistributionalMPOLearner(acme.Learner):
                             new_path = new_path.replace(
                                 "policy-decoder-" + current_counter,
                                 "policy-decoder-" + str(int(current_counter) + 1),
+                            )
+                            new_path = new_path.replace(
+                                "policy-encoder-" + current_counter,
+                                "policy-encoder-" + str(int(current_counter) + 1),
                             )
                         # Redirect snapshot to new key and delete old key.
                         self._snapshotter._snapshots[new_path] = (

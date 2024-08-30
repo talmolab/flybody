@@ -87,6 +87,7 @@ class DMPONetworks:
         _ = utils.create_variables(self.policy_network, [emb_spec])
         _ = utils.create_variables(self.critic_network, [emb_spec, act_spec])
         if isinstance(self.policy_network, IntentionNetwork):
+            # initialize the variable for the intention network
             _ = utils.create_variables(
                 self.policy_network.decoder,
                 [
@@ -98,6 +99,10 @@ class DMPONetworks:
                         ), tf.float32
                     )
                 ],
+            )
+            _ = utils.create_variables(
+                self.policy_network.encoder,
+                [tf.TensorSpec((self.policy_network.ref_size,), tf.float32)],
             )
 
     def make_policy(self, stochastic: bool = False) -> snt.Module:
