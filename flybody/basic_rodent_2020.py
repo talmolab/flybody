@@ -36,7 +36,8 @@ import os
 import h5py
 
 from flybody import rodent_tasks_modified as T
-from flybody import rodent_walker as rodent
+# from flybody import rodent_walker as rodent
+from dm_control.locomotion.walkers import rodent
 
 from flybody.tasks import tracking_old as tracking # TODO hacky tape, new tracking did not work yet
 
@@ -224,7 +225,6 @@ def rodent_walk_imitation(
     ref_path: str | None = None,
     random_state: np.random.RandomState | None = None,
     termination_error_threshold: float = 0.12,
-    remove_skin: float = True,
 ):
     """
     Rodent walking imitation, following similar calling with fruitfly imitation
@@ -237,7 +237,6 @@ def rodent_walk_imitation(
     walker = functools.partial(
         rodent.Rat,
         foot_mods=True,
-        remove_skin=remove_skin
     )
     arena = floors.Floor()
 
