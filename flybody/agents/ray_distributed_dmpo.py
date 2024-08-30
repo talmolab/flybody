@@ -73,7 +73,6 @@ class DMPOConfig:
     kickstart_teacher_cps_path: str = "", # specify the location of the kickstarter teacher policy's cps
     kickstart_epsilon: float = 0.005,
     eval_average_over: int = 200, # how many steps of statistic to average over in evaluator.
-    
 
 
 class ReplayServer:
@@ -426,7 +425,7 @@ class EnvironmentLoop(acme.EnvironmentLoop):
     def load_snapshot_and_render(self, logging_data):
         """
         Check the snapshot directory, renders whenever there is a
-        new policy snapshot, optionally send it to wandb
+        new policy snapshot, optionally send it to wandb. Modify the logging_data dict in place
         """
         render = False
         for path in self._snapshotter_dir.iterdir():
@@ -440,25 +439,42 @@ class EnvironmentLoop(acme.EnvironmentLoop):
         if render:
             videos_path = self._snapshotter_dir.parent / "videos"
             videos_path.mkdir(parents=True, exist_ok=True)
-            rendering_path = os.path.join(str(videos_path), f"{self._task_name}-{self._highest_snap_num}.mp4")
-            env = self._environment_factory()
-            env = wrappers.SinglePrecisionWrapper(env)
-            env = wrappers.CanonicalSpecWrapper(env, clip=False)
+            rendering_path = os.path.join(
+                str(videos_path), f"{self._task_name}-{self._highest_snap_num}.mp4"
+            )
             # Frame width and height for rendering.
             render_kwargs = {"width": 640, "height": 480}
-            policy = tf.saved_model.load(str(self._latest_snapshot))
-            policy = TestPolicyWrapper(policy)
+            try:
+                policy = tf.saved_model.load(str(self._latest_snapshot))
+                policy = TestPolicyWrapper(policy)
+            except OSError as e:
+                print(f"Policy Loading Error: {e}. Skipping rendering for this policy.")
+                return
             if "imitation" in self._task_name:
+                env = self._environment_factory(
+                    termination_error_threshold=100
+                )  # does not terminate through the whole episode
+                env = wrappers.SinglePrecisionWrapper(env)
+                env = wrappers.CanonicalSpecWrapper(env, clip=False)
                 frames = rollout_and_render(
-                    env, policy, run_until_termination=False, n_steps=1500, camera_ids=1, **render_kwargs
+                    env,
+                    policy,
+                    run_until_termination=False,
+                    n_steps=3000,
+                    camera_ids=1,
+                    **render_kwargs,
                 )
             else:
+                env = self._environment_factory()
+                env = wrappers.SinglePrecisionWrapper(env)
+                env = wrappers.CanonicalSpecWrapper(env, clip=False)
                 frames = vision_rollout_and_render(env, policy, camera_id=2, eye_blow_factor=3, **render_kwargs)
-            with imageio.get_writer(rendering_path, fps=30) as video:
+            with imageio.get_writer(
+                rendering_path, fps=1 / env.control_timestep()
+            ) as video:
                 for f in frames:
                     video.append_data(f)
             logging_data["rollout"] = wandb.Video(rendering_path, format="mp4")
-            return logging_data
 
     def isready(self):
         """Dummy method to check if actor is ready."""
