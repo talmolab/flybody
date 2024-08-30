@@ -15,6 +15,9 @@ from acme.utils import loggers
 import numpy as np
 import sonnet as snt
 import tensorflow as tf
+import tensorflow_probability as tfp
+
+tfd = tfp.distributions
 
 from flybody.utils import vision_rollout_and_render
 from flybody.agents.intention_network_base import IntentionNetwork
@@ -53,7 +56,11 @@ class DistributionalMPOLearner(acme.Learner):
         kickstart_teacher_cps_path: str = None,  # specify the location of the kickstarter teacher policy's cps
         kickstart_epsilon: float = 0.005,
         replay_server_addresses: dict = None,
+        KL_weights: List[float] = (0, 0),
     ):
+        """
+        KL_weights: list of float that specify the KL regularizer strength for the intention and action layer
+        """
 
         # Store online and target networks.
         self._policy_network = policy_network
@@ -106,6 +113,20 @@ class DistributionalMPOLearner(acme.Learner):
             print("KICKSTART: Loading Teacher Policy from: {kickstart_teacher_cps_path}")
             self._kickstart_teacher_policy = tf.saved_model.load(kickstart_teacher_cps_path)
             self._kickstart_epsilon = tf.constant(kickstart_epsilon)
+
+        # KL regularizing related
+        self._KL_weights = KL_weights
+        self._KL_regularized = max(self._KL_weights) != 0
+        if self._KL_regularized and isinstance(self._target_policy_network, IntentionNetwork):
+            # create standard normal distribution for KL divergence calculation.
+            self._intention_std_normal_dist = tfd.MultivariateNormalDiag(
+                loc=tf.zeros(self._target_policy_network.intention_size),
+                scale_diag=tf.ones(self._target_policy_network.intention_size),
+            )
+            self._action_std_normkal_dist = tfd.MultivariateNormalDiag(
+                loc=tf.zeros(self._target_policy_network.action_size),
+                scale_diag=tf.ones(self._target_policy_network.action_size),
+            )
 
         self._replay_server_addresses = replay_server_addresses
 
@@ -217,7 +238,7 @@ class DistributionalMPOLearner(acme.Learner):
         # Get data from replay (dropping extras if any). Note there is no
         # extra data here because we do not insert any into Reverb.
 
-        # TODO(SY) Insert multiple replay buffers implementation here.
+        # multiple replay buffers implementation here.
         inputs = next(iterator)
         transitions: types.Transition = inputs.data
 
@@ -233,6 +254,8 @@ class DistributionalMPOLearner(acme.Learner):
             # step effectively means that the policy and critic share observation
             # network weights.
             o_tm1 = self._observation_network(transitions.observation)
+            # Scott: This is the raw observation from the replay server. # TODO for Kickstarting, use this observation instead!
+
             # This stop_gradient prevents gradients to propagate into the target
             # observation network. In addition, since the online policy network is
             # evaluated at o_t, this also means the policy loss does not influence
@@ -240,8 +263,13 @@ class DistributionalMPOLearner(acme.Learner):
             o_t = tf.stop_gradient(self._target_observation_network(transitions.next_observation))
 
             # Get online and target action distributions from policy networks.
-            online_action_distribution = self._policy_network(o_t)
+            # we calculate the losses on the online action distribution
+
             target_action_distribution = self._target_policy_network(o_t)
+            if self._KL_regularized:
+                online_action_distribution, intentions_dist = self._policy_network(o_t, return_intentions_dist=True)
+            else:
+                online_action_distribution = self._policy_network(o_t)
 
             # Sample actions to evaluate policy; of size [N, B, ...].
             sampled_actions = target_action_distribution.sample(self._num_samples)
@@ -306,6 +334,18 @@ class DistributionalMPOLearner(acme.Learner):
                 loss_policy_teacher = kl_teacher_student * self._kickstart_epsilon
             policy_loss += loss_policy_teacher
             policy_stats["loss_kickstart"] = tf.reduce_mean(loss_policy_teacher)
+            print("DEBUG: IN LEARNER KL Weights: ", self._KL_weights)
+            # compute the KL regularization costs
+            if self._KL_regularized:
+                KL_intention = intentions_dist.kl_divergence(self._intention_std_normal_dist)  # TODO
+                KL_action = online_action_distribution.kl_divergence(self._action_std_normkal_dist)
+                # apply beta weights to the KL loss
+                KL_intention_loss = tf.reduce_mean(KL_intention * self._KL_weights[0])
+                KL_action_loss = tf.reduce_mean(KL_action * self._KL_weights[1])
+                print("DEBUG: KL INTENTION LOSS: ", KL_intention_loss)
+                policy_stats["intention_KL_loss"] = KL_intention_loss
+                policy_stats["action_KL_loss"] = KL_action_loss
+                policy_loss += KL_intention_loss + KL_action_loss
 
         # For clarity, explicitly define which variables are trained by which loss.
         critic_trainable_variables = (

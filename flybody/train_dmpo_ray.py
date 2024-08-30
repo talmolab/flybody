@@ -218,7 +218,8 @@ def main(config: DictConfig) -> None:
             encoder_layer_sizes=config["encoder_layer_sizes"],
             decoder_layer_sizes=config["decoder_layer_sizes"],
             critic_layer_sizes=config["critic_layer_sizes"],
-            latent_layer_sizes=config["latent_layer_sizes"],
+            intention_size=config["intention_size"],
+            use_tfd_independent=True, # for easier KL calculation
         )
     else:
         # online settings
@@ -275,6 +276,7 @@ def main(config: DictConfig) -> None:
         kickstart_epsilon=config["kickstart_epsilon"],
         time_delta_minutes=30,
         eval_average_over=config["eval_average_over"],
+        KL_weights=(1e-4, 1e-4),  # specify the KL with intention & action output layer
     )
 
     dmpo_dict_config = dataclasses.asdict(dmpo_config)

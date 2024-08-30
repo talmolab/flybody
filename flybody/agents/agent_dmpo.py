@@ -78,9 +78,9 @@ class DMPONetworks:
 
         # Create variables for the observation net and, as a side-effect, get a
         # spec describing the embedding space.
-        print("DEBUG: ", obs_spec)
+        # print("DEBUG: ", obs_spec)
         emb_spec = utils.create_variables(self.observation_network, [obs_spec])
-        print("DEBUG: ", emb_spec)
+        # print("DEBUG: ", emb_spec)
         # print("DEBUG: ", self.observation_network)
         # Create variables for the policy and critic nets.
         _ = utils.create_variables(self.policy_network, [emb_spec])
@@ -91,7 +91,7 @@ class DMPONetworks:
                 self.policy_network.decoder,
                 [
                     tf.TensorSpec(
-                        (self.policy_network.latent_layer_size + emb_spec.shape[0] - self.policy_network.ref_size,),
+                        (self.policy_network.intention_size + emb_spec.shape[0] - self.policy_network.ref_size,),
                         tf.float32,
                     )
                 ],
@@ -376,7 +376,7 @@ class DMPO(agent.Agent):
             ]
         )
 
-        # TODO(SY): Create mulitple replay servers here, and log their address.
+        # Create mulitple replay servers here, and log their address.
         # Create the replay server and grab its address.
         replay_tables = builder.make_replay_tables(environment_spec)
         replay_server = reverb.Server(replay_tables, port=None)

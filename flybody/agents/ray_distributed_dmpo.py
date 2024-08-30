@@ -1,6 +1,6 @@
 """Classes for DMPO agent distributed with Ray."""
 
-from typing import Iterator, Callable
+from typing import Iterator, Callable, List
 import socket
 import dataclasses
 import copy
@@ -77,6 +77,7 @@ class DMPOConfig:
     kickstart_teacher_cps_path: str = ("",)  # specify the location of the kickstarter teacher policy's cps
     kickstart_epsilon: float = (0.005,)
     eval_average_over: int = (200,)  # how many steps of statistic to average over in evaluator.
+    KL_weights: List[float] = (0.0, 0.0)
 
 
 class ReplayServer:
@@ -130,7 +131,7 @@ class Learner(DistributionalMPOLearner):
 
     def __init__(
         self,
-        replay_server_addresses: dict,  # TODO(SY): Allow multiple replay server address here. Modify corresponding logics.
+        replay_server_addresses: dict,  # Allow multiple replay server address here. Modify corresponding logics.
         counter: counting.Counter,
         environment_spec: specs.EnvironmentSpec,
         dmpo_config,
@@ -219,6 +220,7 @@ class Learner(DistributionalMPOLearner):
             kickstart_teacher_cps_path=self._config.kickstart_teacher_cps_path,
             kickstart_epsilon=self._config.kickstart_epsilon,
             replay_server_addresses=replay_server_addresses,
+            KL_weights=self._config.KL_weights
         )
 
     def _step(self, iterator):
@@ -226,7 +228,6 @@ class Learner(DistributionalMPOLearner):
         # @tf.function
         # def _step(self)
         #    ...
-        # TODO: ISSUE?
         return DistributionalMPOLearner._step(self, iterator)
 
     def run(self, num_steps=None):
@@ -398,6 +399,7 @@ class EnvironmentLoop(acme.EnvironmentLoop):
         logging_data = super().run_episode()
         if self._actor_or_evaluator == "evaluator":
             self._stats.append(logging_data)
+            # self.stats is a [t1_data, t2_data, ...] array.
             if len(self._stats) >= self._config.eval_average_over:
                 self._stats.pop(0)  # pop out the stats
             self.load_snapshot_and_render(logging_data)
@@ -413,7 +415,7 @@ class EnvironmentLoop(acme.EnvironmentLoop):
         """
         agg = {}
         stats_key = ["episode_length", "episode_return"]
-        if len(self._stats[stats_key[0]]) >= 200:  # only report summary statistic one a while
+        if len(self._stats) >= 200:  # only report summary statistic one a while
             avg = {
                 f"avg_{key}": np.mean([d[key] for d in self._stats])
                 for key in ["episode_length", "episode_return", "steps_per_second"]
@@ -426,7 +428,7 @@ class EnvironmentLoop(acme.EnvironmentLoop):
             agg.update(maxi)
             agg.update(mini)
             if include_raw:
-                agg.update({f"curr_{key}": [d[key] for d in self._stats] for key in stats_key})
+                agg.update({f"curr_{key}": np.array([d[key] for d in self._stats]) for key in stats_key})
         return agg
 
     def load_snapshot_and_render(self, logging_data):

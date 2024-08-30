@@ -1,3 +1,4 @@
+from typing import List
 from acme.tf import utils as tf2_utils
 from acme.tf import networks
 import tensorflow as tf
@@ -48,27 +49,32 @@ class IntentionNetwork(snt.Module):
 
     def __init__(
         self,
-        action_size,
-        latent_layer_size,
-        ref_size,
-        min_scale,
-        tanh_mean,
-        init_scale,
-        fixed_scale,
-        use_tfd_independent,
-        encoder_layer_sizes,
-        decoder_layer_sizes,
+        action_size: int,
+        intention_size: int,
+        ref_size: int,
+        min_scale: float,
+        tanh_mean: bool,
+        init_scale: float,
+        action_dist_scale: float,
+        use_tfd_independent: bool,
+        encoder_layer_sizes: List[int],
+        decoder_layer_sizes: List[int],
     ):
+        """
+        action_size: the action size for the output of the network
+        intention_size: specify the size of the intention stochastic layer
+        """
 
         super().__init__()
         self.ref_size = ref_size
-        self.latent_layer_size = latent_layer_size
+        self.action_size = action_size
+        self.intention_size = intention_size
         self.encoder = snt.Sequential(
             [
                 tf2_utils.batch_concat,
                 networks.LayerNormMLP(layer_sizes=encoder_layer_sizes, activate_final=True),
                 networks.MultivariateNormalDiagHead(
-                    latent_layer_size,
+                    intention_size,
                     min_scale=min_scale,
                     tanh_mean=tanh_mean,
                     init_scale=init_scale,
@@ -83,16 +89,18 @@ class IntentionNetwork(snt.Module):
             action_size=action_size,
             min_scale=min_scale,
             tanh_mean=tanh_mean,
-            init_scale=init_scale,
+            init_scale=action_dist_scale,
             fixed_scale=True,
             use_tfd_independent=use_tfd_independent,
         )
 
-    def __call__(self, observations):
+    def __call__(self, observations, return_intentions_dist=False):
         reference_obs = observations[..., : self.ref_size]
         env_obs = observations[..., self.ref_size :]
         intentions_dist = self.encoder(tf2_utils.batch_concat(reference_obs))
         intentions = intentions_dist.sample()
         concatenated = tf.concat([intentions, env_obs], axis=-1)
         actions = self.decoder(tf2_utils.batch_concat(concatenated))
+        if return_intentions_dist:
+            return actions, intentions_dist
         return actions
