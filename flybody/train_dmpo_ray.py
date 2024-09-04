@@ -127,7 +127,7 @@ tasks = {
 @hydra.main(
     version_base=None,
     config_path="./config",
-    config_name="train_config_rodent_imitation",
+    config_name="train_config_gaps", #change task here
 )
 def main(config: DictConfig) -> None:
     print("CONFIG:", config)
@@ -276,7 +276,7 @@ def main(config: DictConfig) -> None:
         kickstart_epsilon=config["kickstart_epsilon"],
         time_delta_minutes=30,
         eval_average_over=config["eval_average_over"],
-        KL_weights=(1e-4, 1e-4),  # specify the KL with intention & action output layer
+        KL_weights=(0, 0),  # specify the KL with intention & action output layer
     )
 
     dmpo_dict_config = dataclasses.asdict(dmpo_config)
