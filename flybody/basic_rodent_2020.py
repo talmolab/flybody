@@ -93,7 +93,7 @@ def rodent_run_gaps(random_state=None, contact_termination=True):  # enable cont
     # platforms are uniformly randomized.
     arena = corr_arenas.GapsCorridor(
         platform_length=distributions.Uniform(0.4, 0.8),
-        gap_length=distributions.Uniform(0.05, 0.2),
+        gap_length=distributions.Uniform(0.05, 0.15),
         corridor_width=2,
         corridor_length=40,
         aesthetic="outdoor_natural",
@@ -108,7 +108,7 @@ def rodent_run_gaps(random_state=None, contact_termination=True):  # enable cont
         walker_spawn_rotation=0,
         target_velocity=1.0,
         contact_termination=contact_termination,
-        terminate_at_height=-0.3,
+        terminate_at_height=-0.2,
         physics_timestep=_PHYSICS_TIMESTEP,
         control_timestep=_CONTROL_TIMESTEP,
     )
