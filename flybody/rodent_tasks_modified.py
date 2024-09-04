@@ -20,6 +20,7 @@ from dm_control.locomotion.tasks.reach import (
     DEFAULT_PHYSICS_TIMESTEP,
     TwoTouch,
 )
+from dm_control.locomotion.tasks.escape import _upright_reward
 
 import numpy as np
 
@@ -100,6 +101,16 @@ class RunThroughCorridorSameObs(RunThroughCorridor):
     @property
     def task_observables(self):
         return self._task_observables
+    
+    def get_reward(self, physics):
+        walker_xvel = physics.bind(self._walker.root_body).subtree_linvel[0]
+        xvel_term = rewards.tolerance(
+            walker_xvel, (self._vel, self._vel),
+            margin=self._vel,
+            sigmoid='linear',
+            value_at_margin=0.0)
+        upright_reward = _upright_reward(physics, self._walker, deviation_angle=30)
+        return xvel_term + 0.5 * upright_reward
 
 
 # Aliveness in [-1., 0.].
