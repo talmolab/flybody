@@ -22,8 +22,6 @@ from flybody.tasks.constants import (
     _WING_PARAMS,
 )
 
-import flybody.tasks.utils as utils
-
 
 class FruitFlyTask(composer.Task, ABC):
     """Base class for all tasks with fruitfly walkers."""

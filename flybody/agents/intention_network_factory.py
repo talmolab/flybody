@@ -10,33 +10,33 @@ import sonnet as snt
 
 from flybody.agents import losses_mpo
 
-from flybody.agents.intention_split_net import separate_observation
+from flybody.agents.utils_intention import separate_observation
 from flybody.agents.intention_network_base import IntentionNetwork
 
 
 def network_factory_dmpo(
     action_spec,
+    task_obs_size: int,
     encoder_layer_sizes=(512, 512, 512),
     decoder_layer_sizes=(512, 512, 512),
     critic_layer_sizes=(512, 512, 256),
     intention_size=60,
-    ref_size=1520,
     vmin=-150.0,
     vmax=150.0,
     num_atoms=51,
     min_scale=1e-6,
     tanh_mean=False,
     init_scale=1.0,
-    action_dist_scale=0.15,
+    action_dist_scale=0.1,
     use_tfd_independent=True,
 ):
     """Networks for DMPO agent."""
     action_size = np.prod(action_spec.shape, dtype=int)
 
     policy_network = IntentionNetwork(
-        action_size,
-        intention_size,
-        ref_size,
+        action_size=action_size,
+        intention_size=intention_size,
+        task_obs_size=task_obs_size,
         min_scale=min_scale,
         tanh_mean=tanh_mean,
         init_scale=init_scale,
@@ -67,6 +67,7 @@ def network_factory_dmpo(
 
 
 def make_network_factory_dmpo(
+    task_obs_size: int, # required for routing obs.
     encoder_layer_sizes=(512, 512, 512),
     decoder_layer_sizes=(512, 512, 512),
     critic_layer_sizes=(512, 512, 256),
@@ -83,7 +84,8 @@ def make_network_factory_dmpo(
 
     def network_factory(action_spec):
         return network_factory_dmpo(
-            action_spec,
+            action_spec=action_spec,
+            task_obs_size=task_obs_size,
             encoder_layer_sizes=encoder_layer_sizes,
             decoder_layer_sizes=decoder_layer_sizes,
             critic_layer_sizes=critic_layer_sizes,

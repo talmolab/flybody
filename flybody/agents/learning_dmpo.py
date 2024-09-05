@@ -52,6 +52,7 @@ class DistributionalMPOLearner(acme.Learner):
         checkpoint_max_to_keep: Optional[int] = 1,  # If None, all checkpoints are kept.
         directory: str | None = "~/acme/",
         checkpoint_to_load: Optional[str] = None,
+        load_decoder_only: bool = False,  # whether we only load the decoder from the previous checkpoint, but not other network.
         time_delta_minutes: float = 15.0,
         kickstart_teacher_cps_path: str = None,  # specify the location of the kickstarter teacher policy's cps
         kickstart_epsilon: float = 0.005,
@@ -128,6 +129,20 @@ class DistributionalMPOLearner(acme.Learner):
                 scale_diag=tf.ones(self._target_policy_network.action_size),
             )
 
+            # if we want to use tdf independent (event size mismatch now.)
+            # self._intention_std_normal_dist = tfd.Independent(
+            #     tfd.Normal(
+            #         loc=tf.zeros(self._target_policy_network.intention_size),
+            #         scale=tf.ones(self._target_policy_network.intention_size),
+            #     )
+            # )
+            # self._action_std_normkal_dist = tfd.Independent(
+            #     tfd.Normal(
+            #         loc=tf.zeros(self._target_policy_network.action_size),
+            #         scale=tf.ones(self._target_policy_network.action_size),
+            #     )
+            # )
+
         self._replay_server_addresses = replay_server_addresses
 
         # Expose the variables.
@@ -142,22 +157,26 @@ class DistributionalMPOLearner(acme.Learner):
         self._snapshotter = None
 
         if checkpoint_enable:
+            objects_to_save = {
+                "counter": self._counter,
+                "policy": self._policy_network,
+                "critic": self._critic_network,
+                "observation": self._observation_network,
+                "target_policy": self._target_policy_network,
+                "target_critic": self._target_critic_network,
+                "target_observation": self._target_observation_network,
+                "policy_optimizer": self._policy_optimizer,
+                "critic_optimizer": self._critic_optimizer,
+                "dual_optimizer": self._dual_optimizer,
+                "policy_loss_module": self._policy_loss_module,
+                "num_steps": self._num_steps,
+            }
+            if isinstance(self._target_policy_network, IntentionNetwork):
+                objects_to_save["policy_encoder"] = self._target_policy_network.encoder
+                objects_to_save["policy_decoder"] = self._target_policy_network.decoder
             self._checkpointer = tf2_savers.Checkpointer(
                 subdirectory="dmpo_learner",
-                objects_to_save={
-                    "counter": self._counter,
-                    "policy": self._policy_network,
-                    "critic": self._critic_network,
-                    "observation": self._observation_network,
-                    "target_policy": self._target_policy_network,
-                    "target_critic": self._target_critic_network,
-                    "target_observation": self._target_observation_network,
-                    "policy_optimizer": self._policy_optimizer,
-                    "critic_optimizer": self._critic_optimizer,
-                    "dual_optimizer": self._dual_optimizer,
-                    "policy_loss_module": self._policy_loss_module,
-                    "num_steps": self._num_steps,
-                },
+                objects_to_save=objects_to_save,
                 directory=directory,
                 time_delta_minutes=time_delta_minutes,
                 max_to_keep=checkpoint_max_to_keep,
@@ -181,7 +200,7 @@ class DistributionalMPOLearner(acme.Learner):
 
         # Maybe load checkpoint.
         print(checkpoint_to_load)
-        if checkpoint_to_load is not None:
+        if checkpoint_to_load is not None and not load_decoder_only:
             _checkpoint = tf.train.Checkpoint(
                 counter=tf2_savers.SaveableAdapter(self._counter),
                 policy=self._policy_network,
@@ -204,6 +223,12 @@ class DistributionalMPOLearner(acme.Learner):
             # the checkpoint loading in the self.step method below, then the assertion
             # will work.
             # status.assert_existing_objects_matched()  # Sanity check.
+
+        if checkpoint_to_load is not None and load_decoder_only:
+            _decoder_checkpoint = tf.train.Checkpoint(policy_decoder=self._target_policy_network.decoder)
+            status = _decoder_checkpoint.restore(checkpoint_to_load)
+            print(f"CKPTS: Decoder LOADED checkpoint from {checkpoint_to_load}")
+            self._target_policy_network.decoder.trainable=False # freeze the weights of decoder
 
         # Do not record timestamps until after the first learning step is done.
         # This is to avoid including the time it takes for actors to come online and

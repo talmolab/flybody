@@ -51,7 +51,7 @@ class IntentionNetwork(snt.Module):
         self,
         action_size: int,
         intention_size: int,
-        ref_size: int,
+        task_obs_size: int,
         min_scale: float,
         tanh_mean: bool,
         init_scale: float,
@@ -66,7 +66,7 @@ class IntentionNetwork(snt.Module):
         """
 
         super().__init__()
-        self.ref_size = ref_size
+        self.task_obs_size = task_obs_size
         self.action_size = action_size
         self.intention_size = intention_size
         self.encoder = snt.Sequential(
@@ -95,11 +95,15 @@ class IntentionNetwork(snt.Module):
         )
 
     def __call__(self, observations, return_intentions_dist=False):
-        reference_obs = observations[..., : self.ref_size]
-        env_obs = observations[..., self.ref_size :]
-        intentions_dist = self.encoder(tf2_utils.batch_concat(reference_obs))
+        """
+        split the observation tensor to task obs and egocentric obs, and pass through 
+        the encoder -> intention -> decoder
+        """
+        task_obs = observations[..., : self.task_obs_size] 
+        egocentric_obs = observations[..., self.task_obs_size :]
+        intentions_dist = self.encoder(tf2_utils.batch_concat(task_obs))
         intentions = intentions_dist.sample()
-        concatenated = tf.concat([intentions, env_obs], axis=-1)
+        concatenated = tf.concat([intentions, egocentric_obs], axis=-1)
         actions = self.decoder(tf2_utils.batch_concat(concatenated))
         if return_intentions_dist:
             return actions, intentions_dist

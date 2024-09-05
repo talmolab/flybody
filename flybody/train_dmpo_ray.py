@@ -59,7 +59,7 @@ from flybody.agents.remote_as_local_wrapper import RemoteAsLocal
 from flybody.agents.counting import PicklableCounter
 from flybody.agents.network_factory import policy_loss_module_dmpo
 from flybody.agents.losses_mpo import PenalizationCostRealActions
-from flybody.basic_rodent_2020 import (
+from flybody.tasks.basic_rodent_2020 import (
     rodent_run_gaps,
     rodent_maze_forage,
     rodent_escape_bowl,
@@ -80,14 +80,14 @@ from flybody.single_precision import SinglePrecisionWrapper
 
 
 # fly body uses mlp + fly tracking
-from flybody.agents.network_factory import (
-    make_network_factory_dmpo as make_network_factory_dmpo_fly,
-)
+from flybody.agents.network_factory import make_network_factory_dmpo
 
 # humanoid body use intention + comic tracking
 from flybody.agents.intention_network_factory import (
-    make_network_factory_dmpo as make_network_factory_dmpo_comic,
+    make_network_factory_dmpo as make_network_factory_dmpo_intention,
 )
+
+from flybody.tasks.task_utils import get_task_obs_size
 
 PYHTONPATH = os.path.dirname(os.path.dirname(flybody.__file__))
 LD_LIBRARY_PATH = os.environ["LD_LIBRARY_PATH"] if "LD_LIBRARY_PATH" in os.environ else ""
@@ -207,12 +207,16 @@ def main(config: DictConfig) -> None:
             termination_error_threshold=config["termination_error_threshold"],
         ),
     }
+    
+    # Dummy environment and network for quick use, deleted later. # create this earlier to access the obs
+    dummy_env = environment_factories[config["task_name"]]()
 
     # Create network factory for RL task.
     if config["training_type"] == "imitation" and (config["agent_name"] == "humanoid") | (
         config["agent_name"] == "rodent"
     ):
-        network_factory = make_network_factory_dmpo_comic(
+        network_factory = make_network_factory_dmpo_intention(
+            task_obs_size=get_task_obs_size(dummy_env.observation_spec(), config["agent_name"]),
             encoder_layer_sizes=config["encoder_layer_sizes"],
             decoder_layer_sizes=config["decoder_layer_sizes"],
             critic_layer_sizes=config["critic_layer_sizes"],
@@ -221,13 +225,11 @@ def main(config: DictConfig) -> None:
         )
     else:
         # online settings
-        network_factory = make_network_factory_dmpo_fly(
+        network_factory = make_network_factory_dmpo(
             policy_layer_sizes=config["policy_layer_sizes"],
             critic_layer_sizes=config["critic_layer_sizes"],
         )
-
-    # Dummy environment and network for quick use, deleted later.
-    dummy_env = environment_factories[config["task_name"]]()
+    
     dummy_net = network_factory(dummy_env.action_spec())  # we should share this net for joint training
     # Get full environment specs.
     environment_spec = specs.make_environment_spec(dummy_env)

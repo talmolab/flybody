@@ -91,14 +91,14 @@ class DMPONetworks:
                 self.policy_network.decoder,
                 [
                     tf.TensorSpec(
-                        (self.policy_network.intention_size + emb_spec.shape[0] - self.policy_network.ref_size,),
+                        (self.policy_network.intention_size + emb_spec.shape[0] - self.policy_network.task_obs_size,),
                         tf.float32,
                     )
                 ],
             )
             _ = utils.create_variables(
                 self.policy_network.encoder,
-                [tf.TensorSpec((self.policy_network.ref_size,), tf.float32)],
+                [tf.TensorSpec((self.policy_network.task_obs_size,), tf.float32)],
             )
 
     def make_policy(self, stochastic: bool = False) -> snt.Module:
