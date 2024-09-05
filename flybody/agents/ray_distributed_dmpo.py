@@ -65,6 +65,7 @@ class DMPOConfig:
     log_every: float = 60.0  # Seconds.
     logger_save_csv_data: bool = False
     checkpoint_to_load: str | None = None  # Path to checkpoint.
+    load_decoder_only: bool = False # whether only loads decoder
     checkpoint_max_to_keep: int | None = 1  # None: keep all checkpoints.
     checkpoint_directory: str | None = "~/ray-ckpts/"  # None: no checkpointing.
     time_delta_minutes: float = 30
@@ -220,7 +221,8 @@ class Learner(DistributionalMPOLearner):
             kickstart_teacher_cps_path=self._config.kickstart_teacher_cps_path,
             kickstart_epsilon=self._config.kickstart_epsilon,
             replay_server_addresses=replay_server_addresses,
-            KL_weights=self._config.KL_weights
+            KL_weights=self._config.KL_weights,
+            load_decoder_only=self._config.load_decoder_only
         )
 
     def _step(self, iterator):
@@ -455,7 +457,9 @@ class EnvironmentLoop(acme.EnvironmentLoop):
                 policy = tf.saved_model.load(str(self._latest_snapshot))
                 policy = TestPolicyWrapper(policy)
             except OSError as e:
+                # sometime, the snapshotter will take a while to store the object. If the evaluator is  
                 print(f"Policy Loading Error: {e}. Skipping rendering for this policy.")
+                self._highest_snap_num -= 1 # retry rendering the next iter.
                 return
             if "imitation" in self._task_name:
                 env = self._environment_factory(

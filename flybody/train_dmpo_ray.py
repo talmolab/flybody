@@ -180,17 +180,16 @@ def main(config: DictConfig) -> None:
         return env
 
     def environment_factory_imitation_rodent(
-        termination_error_threshold=0.12, random_range=0
+        termination_error_threshold=0.12, always_init_at_clip_start=False
     ) -> "composer.Environment":
         """
         Creates replicas of environment for the agent. random range controls the
         range of the uniformed distributed termination logics
         """
-        if random_range != 0:
-            termination_error_threshold = np.random.normal(termination_error_threshold, scale=random_range)
         env = tasks["rodent_imitation"](
             config["ref_traj_path"],
             termination_error_threshold=termination_error_threshold,
+            always_init_at_clip_start=always_init_at_clip_start,
         )
         env = wrappers.SinglePrecisionWrapper(env)
         env = wrappers.CanonicalSpecWrapper(env)
@@ -206,7 +205,6 @@ def main(config: DictConfig) -> None:
         "imitation_rodent": functools.partial(
             environment_factory_imitation_rodent,
             termination_error_threshold=config["termination_error_threshold"],
-            random_range=config["random_range"],
         ),
     }
 
@@ -242,7 +240,7 @@ def main(config: DictConfig) -> None:
         num_actors=test_num_actors or config["num_actors"],
         batch_size=config["batch_size"],
         prefetch_size=1024,  # aggresive prefetch param, because we have large amount of data
-        num_learner_steps=200,
+        num_learner_steps=1000,
         min_replay_size=test_min_replay_size or 50_000,
         max_replay_size=4_000_000,
         samples_per_insert=None,  # allow less sample per insert to allow more data in # None is only min limiter
@@ -262,7 +260,7 @@ def main(config: DictConfig) -> None:
         target_critic_update_period=107,
         target_policy_update_period=101,
         actor_update_period=5_000,
-        log_every=test_log_every or 60,
+        log_every=test_log_every or 30,
         logger=make_default_logger,
         logger_save_csv_data=False,
         checkpoint_max_to_keep=None,
@@ -273,10 +271,12 @@ def main(config: DictConfig) -> None:
         kickstart_teacher_cps_path=config[
             "kickstart_teacher_cps_path"
         ],  # specify the location of the kickstarter teacher policy's cps
-        kickstart_epsilon=config["kickstart_epsilon"],
+        kickstart_epsilon=config["kickstart_epsilon"] if "kickstart_epsilon" in config else 0,
         time_delta_minutes=30,
         eval_average_over=config["eval_average_over"],
-        KL_weights=(1e-4, 1e-4),  # specify the KL with intention & action output layer
+        KL_weights=(0, 0),
+        # specify the KL with intention & action output layer # do not penalize the output layer # disabled it for now.
+        load_decoder_only=config["load_decoder_only"] if "load_decoder_only" in config else False,
     )
 
     dmpo_dict_config = dataclasses.asdict(dmpo_config)
@@ -326,7 +326,7 @@ def main(config: DictConfig) -> None:
     ReplayServer = ray.remote(
         num_gpus=0,
         runtime_env=runtime_env_replay,
-        # scheduling_strategy=PlacementGroupSchedulingStrategy(placement_group=gpu_pg), # test out performance w/o
+        scheduling_strategy=PlacementGroupSchedulingStrategy(placement_group=gpu_pg),  # test out performance w/o
     )(ReplayServer)
 
     replay_servers = dict()  # {task_name: addr} # TODO: Probably could simplify this logic quite a bit
@@ -370,7 +370,7 @@ def main(config: DictConfig) -> None:
         if "num_replay_servers" in config and config["num_replay_servers"] != 0:
             dmpo_config.max_replay_size = (
                 dmpo_config.max_replay_size // config["num_replay_servers"]
-            )  # shink down the replay size correspondingly
+            )  # shrink down the replay size correspondingly
             for i in range(config["num_replay_servers"]):
                 name = f"{config['task_name']}-{i+1}"
                 # multiple replay server for load balancing
@@ -466,6 +466,7 @@ def main(config: DictConfig) -> None:
     evaluators = []
     if "actors_envs" in config:
         # if the config file specify diverse actor envs
+        # created for multi-task RL
         print(config.actors_envs)
         for name, num_actors in config.actors_envs.items():
             if num_actors != 0:
@@ -487,46 +488,36 @@ def main(config: DictConfig) -> None:
     else:
         # Get actors.
         print(f"ACTOR Creation: {n_actors}")
-        if "num_replay_servers" in config and config["num_replay_servers"] != 0:
-            for i in range(config["num_replay_servers"]):
-                name = f"{config['task_name']}-{i+1}"
-                # multiple replay servers, equally direct replay servers
-                num_actor_per_replay = n_actors // config["num_replay_servers"]
-                actors += create_actors(
-                    num_actor_per_replay,
-                    environment_factories[config["task_name"]],
-                    replay_servers[name],
-                )
-            evaluator = EnvironmentLoop.remote(
-                replay_server_address="",  # evaluator does not need replay server addr
-                variable_source=learner,
-                counter=counter,
-                network_factory=network_factory,
-                environment_factory=environment_factories[config["task_name"]],
-                dmpo_config=dmpo_config,
-                actor_or_evaluator="evaluator",
-                snapshotter_dir=snapshotter_dir,
-                task_name=config["task_name"],
-            )
-            evaluators.append(RemoteAsLocal(evaluator))
+        if "num_replay_servers" in config:
+            num_replay_server = config["num_replay_servers"]
         else:
-            # single replay server
-            actors = create_actors(
-                n_actors,
+            num_replay_server = 1
+        for i in range(num_replay_server):
+            name = f"{config['task_name']}-{i+1}"
+            num_actor_per_replay = n_actors // num_replay_server
+            actors += create_actors(
+                num_actor_per_replay,
                 environment_factories[config["task_name"]],
-                replay_servers[config["task_name"]],
+                replay_servers[name],
             )
-            evaluator = EnvironmentLoop.remote(
-                replay_server_address="",
-                variable_source=learner,
-                counter=counter,
-                network_factory=network_factory,
-                environment_factory=environment_factories[config["task_name"]],
-                dmpo_config=dmpo_config,
-                actor_or_evaluator="evaluator",
-                snapshotter_dir=snapshotter_dir,
-            )
-            evaluators.append(RemoteAsLocal(evaluator))
+        if config["task_name"] == "imitation_rodent":
+            env_fac = functools.partial(
+                environment_factories[config["task_name"]], always_init_at_clip_start=True
+            )  # for imitation's evaluator, force init at clip start
+        else:
+            env_fac = environment_factories[config["task_name"]]
+        evaluator = EnvironmentLoop.remote(
+            replay_server_address="",  # evaluator does not need replay server addr
+            variable_source=learner,
+            counter=counter,
+            network_factory=network_factory,
+            environment_factory=env_fac,
+            dmpo_config=dmpo_config,
+            actor_or_evaluator="evaluator",
+            snapshotter_dir=snapshotter_dir,
+            task_name=config["task_name"],
+        )
+        evaluators.append(RemoteAsLocal(evaluator))
 
     print("Waiting until actors are ready...")
     # Block until all actors and evaluator are ready and have called `get_variables`
