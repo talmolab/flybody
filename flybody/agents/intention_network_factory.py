@@ -27,7 +27,7 @@ def network_factory_dmpo(
     min_scale=1e-6,
     tanh_mean=False,
     init_scale=1.0,
-    action_dist_scale=0.01,
+    action_dist_scale=0.15,
     use_tfd_independent=True,
 ):
     """Networks for DMPO agent."""
