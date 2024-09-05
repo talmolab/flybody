@@ -2,10 +2,12 @@
 
 # ruff: noqa: F821
 
-from typing import Sequence, Callable, Any
+from typing import Sequence, Callable, Any, List
+from collections import OrderedDict
 import numpy as np
 
 from flybody.quaternions import rotate_vec_with_quat
+from flybody.agents.utils_intention import get_rodent_egocentric_obs_key
 
 
 def get_random_policy(
@@ -209,3 +211,20 @@ def com2root(com, quat, offset=None):
     offset_global = rotate_vec_with_quat(-offset, quat)
     root_pos = com + offset_global
     return root_pos
+
+
+# utils for the intention network:
+
+def get_task_obs_size(obs_spec: OrderedDict, walker_type: str) -> int:
+    """Calculate the shape of the task specific observation sizes, based on the walker type"""
+    if walker_type != "rodent":
+        raise ValueError(f"Walker type: {walker_type} did not implement yet. Currently supported rodent")
+    egocentric_obs_key = get_rodent_egocentric_obs_key()
+    obs_shape = 0
+    for i in set(obs_spec.keys()) - set(egocentric_obs_key):
+        shape = obs_spec[i].shape
+        if shape == (): # scalar
+            obs_shape += 1
+        else:
+            obs_shape += shape[0]
+    return obs_shape

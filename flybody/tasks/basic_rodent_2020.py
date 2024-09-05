@@ -35,7 +35,7 @@ from dm_control.locomotion.tasks.reference_pose import types
 import os
 import h5py
 
-from flybody import rodent_tasks_modified as T
+from flybody.tasks import rodent_tasks_modified as T
 
 # from flybody import rodent_walker as rodent
 from dm_control.locomotion.walkers import rodent
@@ -228,6 +228,7 @@ def rodent_walk_imitation(
     ref_path: str | None = None,
     random_state: np.random.RandomState | None = None,
     termination_error_threshold: float = 0.12,
+    always_init_at_clip_start: bool = False,
 ):
     """
     Rodent walking imitation, following similar calling with fruitfly imitation
@@ -235,7 +236,8 @@ def rodent_walk_imitation(
     ref_path: reference path to the imiation h5 file
     random_state: specify the random state for the environmen
     termination_error_threshold: threshold that controls the termination of the environment if the imitator deviates from the expert too much
-    skin_on bool: specify whether we want the skin of the rat
+    always_init_at_clip_start: bool, should be False in training but true in eval.
+
     """
     walker = functools.partial(
         rodent.Rat,
@@ -260,7 +262,7 @@ def rodent_walk_imitation(
         min_steps=1,
         dataset=dataset,
         reward_type="comic",
-        always_init_at_clip_start=True,
+        always_init_at_clip_start=always_init_at_clip_start,
         ghost_offset=GHOST_OFFSET,
         termination_error_threshold=termination_error_threshold,  # higher threshold are harder to terminate
     )

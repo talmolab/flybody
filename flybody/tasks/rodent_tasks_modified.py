@@ -22,6 +22,7 @@ from dm_control.locomotion.tasks.reach import (
 )
 
 import numpy as np
+from flybody.tasks.tracking_old import ReferencePosesTask
 
 
 # add dummy task_logic observations
@@ -100,6 +101,8 @@ class RunThroughCorridorSameObs(RunThroughCorridor):
     @property
     def task_observables(self):
         return self._task_observables
+    
+    
 
 
 # Aliveness in [-1., 0.].
