@@ -24,6 +24,7 @@ from absl import logging
 from dm_control import composer
 from dm_control.composer.observation import observable as base_observable
 from dm_control.locomotion.mocap import loader
+from dm_control.suite.utils.randomizers import randomize_limited_and_rotational_joints
 
 from dm_control.locomotion.tasks.reference_pose import datasets
 from dm_control.locomotion.tasks.reference_pose import types
@@ -39,6 +40,7 @@ from dm_env import specs
 
 import numpy as np
 import tree
+import copy
 
 if typing.TYPE_CHECKING:
     from dm_control.locomotion.walkers import legacy_base
@@ -388,6 +390,8 @@ class ReferencePosesTask(composer.Task, metaclass=abc.ABCMeta):
         for clip_number, (start, end, weight) in enumerate(
             zip(dataset.start_steps, dataset.end_steps, dataset.weights)
         ):
+            # # WARNING: Single Clip Modifications:
+            # if clip_number == 16:
             # length - required lookahead - minimum number of steps
             last_possible_start = end - self._max_ref_step - self._min_steps
 
@@ -406,7 +410,7 @@ class ReferencePosesTask(composer.Task, metaclass=abc.ABCMeta):
             self._arena.regenerate(random_state)
 
         # Get a new clip here to instantiate the right prop for this episode.
-        self._get_clip_to_track(random_state)
+        self._get_clip_to_track(random_state)  # can modify multi-clip API in this.
         # Set up props.
         # We call the prop factory here to ensure that props can change per episode.
         for prop in self._props:
@@ -468,11 +472,27 @@ class ReferencePosesTask(composer.Task, metaclass=abc.ABCMeta):
 
     def initialize_episode(self, physics: "mjcf.Physics", random_state: np.random.RandomState):
         """Randomly selects a starting point and set the walker."""
-
         # Set the walker at the beginning of the clip.
-        self._set_walker(physics)
+        contact_with_floor = True
+        z_offset = -0.001
+        while contact_with_floor:
+            z_offset += 0.001
+            self._set_walker(physics, offset=(0, 0, z_offset))
+            # Check for collisions.
+            physics.after_reset()
+            contact_with_floor = 0 in physics.data.contact.geom  # check contact with floor
+            # print(z_offset, physics.data.contact)
+
         self._walker_features = utils.get_features(physics, self._walker, props=self._props)
         self._walker_features_prev = self._walker_features.copy()
+        # print(f"DEBUG: walker lifted z: {z_offset}")
+        if not np.isclose(z_offset, 0):
+            # also lift the appropriate trajectory observations
+            pos_related = ["position", "center_of_mass", "end_effectors", "appendages", "body_positions"]
+            features = copy.deepcopy(self._clip_reference_features)
+            for pos_feat in pos_related:
+                features[pos_feat][:, 2] += z_offset  # also lift the ref traj by z lift
+            self._clip_reference_features = features
 
         self._walker_joints = np.array(physics.bind(self._walker.mocap_joints).qpos)  # pytype: disable=attribute-error
 
@@ -733,9 +753,9 @@ class ReferencePosesTask(composer.Task, metaclass=abc.ABCMeta):
             return reward, unused_debug_outputs
         return reward
 
-    def _set_walker(self, physics: "mjcf.Physics"):
+    def _set_walker(self, physics: "mjcf.Physics", offset=0):
         timestep_features = tree.map_structure(lambda x: x[self._time_step], self._clip_reference_features)
-        utils.set_walker_from_features(physics, self._walker, timestep_features, offset=(0, 0, 0.01))
+        utils.set_walker_from_features(physics, self._walker, timestep_features, offset=offset)
         if self._props:
             utils.set_props_from_features(physics, self._props, timestep_features)
         mjlib.mj_kinematics(physics.model.ptr, physics.data.ptr)
