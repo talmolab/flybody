@@ -83,7 +83,7 @@ def rodent_escape_bowl(random_state=None):
     )
 
 
-def rodent_run_gaps(random_state=None, contact_termination=False):  # enable contact termination
+def rodent_run_gaps(random_state=None, contact_termination=True):  # enable contact termination
     """Requires a rodent to run down a corridor with gaps."""
 
     # Build a position-controlled rodent walker.

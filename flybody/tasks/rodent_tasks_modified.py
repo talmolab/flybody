@@ -9,6 +9,7 @@ from dm_control.rl import control
 from dm_control.utils import rewards
 from dm_control.locomotion.tasks.escape import Escape
 from dm_control.locomotion.tasks.corridors import RunThroughCorridor
+from dm_control.locomotion.tasks.escape import _upright_reward
 from dm_control.locomotion.tasks.random_goal_maze import (
     DEFAULT_ALIVE_THRESHOLD,
     DEFAULT_CONTROL_TIMESTEP,
@@ -97,17 +98,37 @@ class RunThroughCorridorSameObs(RunThroughCorridor):
         list(self._task_observables.values())[0].enabled = True
         # add dummy origin observations
         self._walker.observables.add_observable("origin", base_observable.Generic(dummy_origin))
-        
-    # if we want to implement reward logging, overwrites the get reward function, and 
-    # assign the last_reward_channels to align with the API for the tracking.
-    # This is good for visual debugging.
 
     @property
     def task_observables(self):
         return self._task_observables
     
+    def _is_disallowed_contact(self, physics, contact):
+        # Geoms that should trigger termination if they contact the ground
+        specific_nonfoot_geom_names = {'pelvis', 'torso', 'vertebra_C1', 'vertebra_C3'}
+        
+        # Get geom ids for the specific non-foot geoms
+        specific_nonfoot_geoms = [
+            geom for geom in self._walker.mjcf_model.find_all('geom')
+            if geom.name in specific_nonfoot_geom_names
+        ]
+        specific_nonfoot_geomids = set(physics.bind(specific_nonfoot_geoms).element_id)
+        
+        # Set to check contact with the ground
+        set1, set2 = specific_nonfoot_geomids, self._ground_geomids
+        return ((contact.geom1 in set1 and contact.geom2 in set2) or
+                (contact.geom1 in set2 and contact.geom2 in set1))
     
-
+    def get_reward(self, physics):
+        walker_xvel = physics.bind(self._walker.root_body).subtree_linvel[0]
+        xvel_term = rewards.tolerance(
+            walker_xvel, (self._vel, self._vel),
+            margin=self._vel,
+            sigmoid='linear',
+            value_at_margin=0.0)
+        upright_reward = _upright_reward(physics, self._walker, deviation_angle=30)
+        return xvel_term * upright_reward
+    
 
 # Aliveness in [-1., 0.].
 DEFAULT_ALIVE_THRESHOLD = -0.5
