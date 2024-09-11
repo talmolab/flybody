@@ -97,6 +97,10 @@ class RunThroughCorridorSameObs(RunThroughCorridor):
         list(self._task_observables.values())[0].enabled = True
         # add dummy origin observations
         self._walker.observables.add_observable("origin", base_observable.Generic(dummy_origin))
+        
+    # if we want to implement reward logging, overwrites the get reward function, and 
+    # assign the last_reward_channels to align with the API for the tracking.
+    # This is good for visual debugging.
 
     @property
     def task_observables(self):

@@ -222,6 +222,7 @@ def get_task_obs_size(obs_spec: OrderedDict, walker_type: str) -> int:
     egocentric_obs_key = get_rodent_egocentric_obs_key()
     obs_shape = 0
     for i in set(obs_spec.keys()) - set(egocentric_obs_key):
+        # iterate through all non-egocentric obs key
         shape = obs_spec[i].shape
         if shape == (): # scalar
             obs_shape += 1

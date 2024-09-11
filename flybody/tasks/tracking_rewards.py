@@ -83,7 +83,7 @@ def termination_reward_fn(termination_error, termination_error_threshold, **unus
         "termination_error": termination_error,
         "termination_error_threshold": termination_error_threshold,
     }
-    termination_reward = 1 - termination_error / termination_error_threshold
+    termination_reward = 1 - termination_error / termination_error_threshold / 5 # scale down the termination reward
     return RewardFnOutput(
         reward=termination_reward,
         debug=debug_terms,
@@ -99,10 +99,15 @@ def debug(reference_features, walker_features, **unused_kwargs):
 def multi_term_pose_reward_fn(walker_features, reference_features, **unused_kwargs):
     """A reward based on com, body quaternions, joints velocities & appendages."""
     differences = compute_squared_differences(walker_features, reference_features)
-    com = 0.5 * np.exp(-10 * differences["center_of_mass"])
-    joints_velocity = 0.05 * np.exp(-0.1 * differences["joints_velocity"])
-    appendages = 0.1 * np.exp(-40.0 * differences["appendages"])
-    body_quaternions = 0.65 * np.exp(-2 * differences["body_quaternions"])
+    # from dm control:
+    # com = .1 * np.exp(-10 * differences['center_of_mass'])
+    # joints_velocity = 1.0 * np.exp(-0.1 * differences['joints_velocity'])
+    # appendages = 0.15 * np.exp(-40. * differences['appendages'])
+    # body_quaternions = 0.65 * np.exp(-2 * differences['body_quaternions'])
+    com = np.exp(-100 * differences['center_of_mass'])
+    joints_velocity = np.exp(-0.1 * differences['joints_velocity'])
+    appendages = np.exp(-400. * differences['appendages'])
+    body_quaternions = np.exp(-2 * differences['body_quaternions'])
     terms = {
         "center_of_mass": com,
         "joints_velocity": joints_velocity,
@@ -141,10 +146,10 @@ def comic_reward_fn(
     )
     mt_reward, mt_debug_terms, mt_reward_terms = multi_term_pose_reward_fn(walker_features, reference_features)
     debug_terms.update(mt_debug_terms)
-    reward_terms = {k: 0.5 * v for k, v in termination_reward_terms.items()}
+    reward_terms = {k: 0.5 * v / 5 for k, v in termination_reward_terms.items()} # scale down the termination reward
     reward_terms.update({k: 0.5 * v for k, v in mt_reward_terms.items()})
     return RewardFnOutput(
-        reward=0.5 * termination_reward + 0.5 * mt_reward,
+        reward=0.5 * termination_reward / 5 + 0.5 * mt_reward,
         debug=debug_terms,
         reward_terms=sort_dict(reward_terms),
     )

@@ -16,6 +16,7 @@
 
 import abc
 import collections
+import functools
 
 import typing
 from typing import Any, Callable, Mapping, Optional, Sequence, Set, Text, Union
@@ -31,7 +32,8 @@ from dm_control.locomotion.tasks.reference_pose import types
 from dm_control.locomotion.tasks.reference_pose import utils
 
 # from dm_control.locomotion.tasks.reference_pose import rewards
-from flybody.tasks import rewards
+from flybody.tasks import rewards # test the OG rewards
+# from dm_control.locomotion.tasks.reference_pose import rewards
 
 from dm_control.mujoco.wrapper import mjbindings
 from dm_control.utils import transformations as tr
@@ -116,6 +118,7 @@ class ReferencePosesTask(composer.Task, metaclass=abc.ABCMeta):
         prop_termination_error_threshold: float = 0.1,
         min_steps: int = 10,
         reward_type: Text = "termination_reward",
+        reward_term_weights: dict = None,
         physics_timestep: float = DEFAULT_PHYSICS_TIMESTEP,
         always_init_at_clip_start: bool = False,
         proto_modifier: Optional[Any] = None,
@@ -146,6 +149,7 @@ class ReferencePosesTask(composer.Task, metaclass=abc.ABCMeta):
             trajectory.
           reward_type: type of reward to use, must be a string that appears as a key
             in the REWARD_FN dict in rewards.py.
+          reward_term_weights: weights of each reward term
           physics_timestep: Physics timestep to use for simulation.
           always_init_at_clip_start: only initialize epsidodes at the start of a
             reference trajectory.
@@ -168,6 +172,9 @@ class ReferencePosesTask(composer.Task, metaclass=abc.ABCMeta):
         self._termination_error_threshold = termination_error_threshold
         self._prop_termination_error_threshold = prop_termination_error_threshold
         self._reward_fn = rewards.get_reward(reward_type)
+        if reward_term_weights is not None:
+            # apply the reward term weights to the reward function.
+            self._reward_fn = functools.partial(self._reward_fn, reward_term_weights=reward_term_weights)
         self._reward_keys = rewards.get_reward_channels(reward_type)
         self._min_steps = min_steps
         self._always_init_at_clip_start = always_init_at_clip_start
@@ -175,6 +182,7 @@ class ReferencePosesTask(composer.Task, metaclass=abc.ABCMeta):
         self._body_error_multiplier = body_error_multiplier
         self._actuator_force_coeff = actuator_force_coeff
         logging.info("Reward type %s", reward_type)
+    
 
         if isinstance(dataset, Text):
             try:
@@ -749,8 +757,6 @@ class ReferencePosesTask(composer.Task, metaclass=abc.ABCMeta):
             self._should_truncate = self._should_truncate or prop_termination
 
         self.last_reward_channels = reward_channels
-        if return_terms:
-            return reward, unused_debug_outputs
         return reward
 
     def _set_walker(self, physics: "mjcf.Physics", offset=0):
@@ -817,6 +823,7 @@ class MultiClipMocapTracking(ReferencePosesTask):
         prop_termination_error_threshold: float = 0.1,
         min_steps: int = 10,
         reward_type: Text = "termination_reward",
+        reward_term_weights: dict = None,
         physics_timestep: float = DEFAULT_PHYSICS_TIMESTEP,
         always_init_at_clip_start: bool = False,
         proto_modifier: Optional[Any] = None,
@@ -847,6 +854,8 @@ class MultiClipMocapTracking(ReferencePosesTask):
             trajectory.
           reward_type: type of reward to use, must be a string that appears as a key
             in the REWARD_FN dict in rewards.py.
+          reward_term_weights: controls the weights of each reward term. This argument is feed 
+            into that specific reward func in rewards.py
           physics_timestep: Physics timestep to use for simulation.
           always_init_at_clip_start: only initialize epsidodes at the start of a
             reference trajectory.
@@ -874,6 +883,7 @@ class MultiClipMocapTracking(ReferencePosesTask):
             min_steps=min_steps,
             dataset=dataset,
             reward_type=reward_type,
+            reward_term_weights=reward_term_weights,
             physics_timestep=physics_timestep,
             always_init_at_clip_start=always_init_at_clip_start,
             proto_modifier=proto_modifier,

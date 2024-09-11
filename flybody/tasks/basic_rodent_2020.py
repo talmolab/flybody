@@ -228,6 +228,7 @@ def rodent_walk_imitation(
     ref_path: str | None = None,
     random_state: np.random.RandomState | None = None,
     termination_error_threshold: float = 0.12,
+    reward_term_weights: dict = None,
     always_init_at_clip_start: bool = False,
 ):
     """
@@ -236,8 +237,8 @@ def rodent_walk_imitation(
     ref_path: reference path to the imiation h5 file
     random_state: specify the random state for the environmen
     termination_error_threshold: threshold that controls the termination of the environment if the imitator deviates from the expert too much
+    reward_term_weights: controls the weights of each reward term. This argument is feed into that specific reward func in rewards.py
     always_init_at_clip_start: bool, should be False in training but true in eval.
-
     """
     walker = functools.partial(
         rodent.Rat,
@@ -262,6 +263,7 @@ def rodent_walk_imitation(
         min_steps=1,
         dataset=dataset,
         reward_type="comic",
+        reward_term_weights=reward_term_weights,
         always_init_at_clip_start=always_init_at_clip_start,
         ghost_offset=GHOST_OFFSET,
         termination_error_threshold=termination_error_threshold,  # higher threshold are harder to terminate
@@ -279,7 +281,7 @@ def rodent_walk_imitation(
 def walk_humanoid(
     ref_path: str | None = None,
     random_state: np.random.RandomState | None = None,
-    terminal_com_dist: float = 0.3,
+    termination_error_threshold: float = 0.3,
 ):
     """
     Rodent walking imitation, following similar calling with fruitfly imitation
@@ -308,7 +310,7 @@ def walk_humanoid(
         reward_type="comic",
         always_init_at_clip_start=True,
         ghost_offset=GHOST_OFFSET,
-        termination_error_threshold=0.15,  # lower threshold are harder to terminate
+        termination_error_threshold=termination_error_threshold,  # lower threshold are harder to terminate
     )
     time_limit = 10.0
 
