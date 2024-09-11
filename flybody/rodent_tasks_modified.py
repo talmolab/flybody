@@ -102,6 +102,22 @@ class RunThroughCorridorSameObs(RunThroughCorridor):
     def task_observables(self):
         return self._task_observables
     
+    def _is_disallowed_contact(self, physics, contact):
+        # Geoms that should trigger termination if they contact the ground
+        specific_nonfoot_geom_names = {'pelvis', 'torso', 'vertebra_C1', 'vertebra_C3'}
+
+        # Get geom ids for the specific non-foot geoms
+        specific_nonfoot_geoms = [
+            geom for geom in self._walker.mjcf_model.find_all('geom')
+            if geom.name in specific_nonfoot_geom_names
+        ]
+        specific_nonfoot_geomids = set(physics.bind(specific_nonfoot_geoms).element_id)
+
+        # Set to check contact with the ground
+        set1, set2 = specific_nonfoot_geomids, self._ground_geomids
+        return ((contact.geom1 in set1 and contact.geom2 in set2) or
+                (contact.geom1 in set2 and contact.geom2 in set1))
+    
     def get_reward(self, physics):
         walker_xvel = physics.bind(self._walker.root_body).subtree_linvel[0]
         xvel_term = rewards.tolerance(
@@ -110,7 +126,7 @@ class RunThroughCorridorSameObs(RunThroughCorridor):
             sigmoid='linear',
             value_at_margin=0.0)
         upright_reward = _upright_reward(physics, self._walker, deviation_angle=30)
-        return xvel_term + 0.5 * upright_reward
+        return xvel_term * upright_reward
 
 
 # Aliveness in [-1., 0.].
