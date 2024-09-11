@@ -9,6 +9,7 @@ from dm_control.rl import control
 from dm_control.utils import rewards
 from dm_control.locomotion.tasks.escape import Escape
 from dm_control.locomotion.tasks.corridors import RunThroughCorridor
+from dm_control.locomotion.tasks.escape import _upright_reward
 from dm_control.locomotion.tasks.random_goal_maze import (
     DEFAULT_ALIVE_THRESHOLD,
     DEFAULT_CONTROL_TIMESTEP,
@@ -118,8 +119,16 @@ class RunThroughCorridorSameObs(RunThroughCorridor):
         return ((contact.geom1 in set1 and contact.geom2 in set2) or
                 (contact.geom1 in set2 and contact.geom2 in set1))
     
+    def get_reward(self, physics):
+        walker_xvel = physics.bind(self._walker.root_body).subtree_linvel[0]
+        xvel_term = rewards.tolerance(
+            walker_xvel, (self._vel, self._vel),
+            margin=self._vel,
+            sigmoid='linear',
+            value_at_margin=0.0)
+        upright_reward = _upright_reward(physics, self._walker, deviation_angle=30)
+        return xvel_term * upright_reward
     
-
 
 # Aliveness in [-1., 0.].
 DEFAULT_ALIVE_THRESHOLD = -0.5
