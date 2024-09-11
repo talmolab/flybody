@@ -33,7 +33,7 @@ from acme.adders import reverb as reverb_adders
 from flybody.agents.learning_dmpo import DistributionalMPOLearner
 from flybody.agents import agent_dmpo
 from flybody.agents.actors import DelayedFeedForwardActor
-from flybody.utils import vision_rollout_and_render, rollout_and_render
+from flybody.utils import vision_rollout_and_render, rollout_and_render, render_with_rewards
 from flybody.agents.utils_tf import TestPolicyWrapper
 
 # logging & plotting
@@ -53,7 +53,7 @@ class DMPOConfig:
     num_samples: int = 20
     num_learner_steps: int = 100
     clipping: bool = True
-    discount: float = 0.99
+    discount: float = 0.95 # modify to align with Diego's mimic
     policy_loss_module: snt.Module | None = None
     policy_optimizer: snt.Optimizer | None = None
     critic_optimizer: snt.Optimizer | None = None
@@ -457,7 +457,7 @@ class EnvironmentLoop(acme.EnvironmentLoop):
                 policy = tf.saved_model.load(str(self._latest_snapshot))
                 policy = TestPolicyWrapper(policy)
             except OSError as e:
-                # sometime, the snapshotter will take a while to store the object. If the evaluator is  
+                # sometime, the snapshotter will take a while to store the object. If the evaluator is
                 print(f"Policy Loading Error: {e}. Skipping rendering for this policy.")
                 self._highest_snap_num -= 1 # retry rendering the next iter.
                 return
@@ -467,14 +467,7 @@ class EnvironmentLoop(acme.EnvironmentLoop):
                 )  # does not terminate through the whole episode
                 env = wrappers.SinglePrecisionWrapper(env)
                 env = wrappers.CanonicalSpecWrapper(env, clip=False)
-                frames = rollout_and_render(
-                    env,
-                    policy,
-                    run_until_termination=False,
-                    n_steps=3000,
-                    camera_ids=1,
-                    **render_kwargs,
-                )
+                frames = render_with_rewards(env, policy, rollout_length=50 * 30)
             else:
                 env = self._environment_factory()
                 env = wrappers.SinglePrecisionWrapper(env)

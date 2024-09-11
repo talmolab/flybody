@@ -90,7 +90,7 @@ def _convert_value(nested_value: types.Nest) -> types.Nest:
 
 
 class RemoveVisionWrapper(base.EnvironmentWrapper):
-    """Wrapper taht removes the vision observables from the environment."""
+    """Wrapper that removes the vision observables from the environment."""
 
     def __init__(self, environment: dm_env.Environment):
         super().__init__(environment)

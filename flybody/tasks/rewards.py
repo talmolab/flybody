@@ -213,8 +213,13 @@ def debug(reference_features, walker_features, **unused_kwargs):
 def multi_term_pose_reward_fn(walker_features, reference_features, **unused_kwargs):
     """A reward based on com, body quaternions, joints velocities & appendages."""
     differences = compute_squared_differences(walker_features, reference_features)
-    com = 0.1 * np.exp(-10 * differences["center_of_mass"])  # * scaling the com reward ten times encourage com tracking
-    joints_velocity = 1.0 * np.exp(-0.1 * differences["joints_velocity"])
+    # Original:
+    # com = .1 * np.exp(-10 * differences['center_of_mass'])
+    # joints_velocity = 1.0 * np.exp(-0.1 * differences['joints_velocity'])
+    # appendages = 0.15 * np.exp(-40. * differences['appendages'])
+    # body_quaternions = 0.65 * np.exp(-2 * differences['body_quaternions'])
+    com = 1 * np.exp(-10 * differences["center_of_mass"])
+    joints_velocity = 0.1 * np.exp(-differences["joints_velocity"])
     appendages = 0.15 * np.exp(-40.0 * differences["appendages"])
     body_quaternions = 0.65 * np.exp(-2 * differences["body_quaternions"])
     terms = {
@@ -228,7 +233,18 @@ def multi_term_pose_reward_fn(walker_features, reference_features, **unused_kwar
 
 
 def comic_reward_fn(
-    termination_error, termination_error_threshold, walker_features, reference_features, **unused_kwargs
+    termination_error,
+    termination_error_threshold,
+    walker_features,
+    reference_features,
+    reward_term_weights: dict = {
+        "appendages": 1.0,
+        "body_quaternions": 1.0,
+        "center_of_mass": 1.0,
+        "termination": 1.0,
+        "joints_velocity": 1.0,
+    },
+    **unused_kwargs
 ):
     """A reward that mixes the termination_reward and multi_term_pose_reward.
 
@@ -245,6 +261,7 @@ def comic_reward_fn(
         based on the termination error.
       walker_features: Current features of the walker
       reference_features: features of the current reference pose
+      reward_term_weights:  controls the weights of each reward terms in the multi_term_pose_reward_fn.
       unused_kwargs: unused addtional keyword arguments.
 
     Returns:
@@ -255,10 +272,10 @@ def comic_reward_fn(
     )
     mt_reward, mt_debug_terms, mt_reward_terms = multi_term_pose_reward_fn(walker_features, reference_features)
     debug_terms.update(mt_debug_terms)
-    reward_terms = {k: 0.5 * v for k, v in termination_reward_terms.items()}
+    reward_terms = {k: 0.5 * v / 5 for k, v in termination_reward_terms.items()}
     reward_terms.update({k: 0.5 * v for k, v in mt_reward_terms.items()})
     return RewardFnOutput(
-        reward=0.5 * termination_reward + 0.5 * mt_reward,
+        reward=0.5 * termination_reward / 5 + 0.5 * mt_reward,
         debug=debug_terms,
         reward_terms=sort_dict(reward_terms),
     )

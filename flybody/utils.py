@@ -6,7 +6,10 @@ from IPython.display import HTML
 import matplotlib
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
+from matplotlib.backends.backend_agg import FigureCanvasAgg
+from collections import defaultdict
 import numpy as np
+from PIL import Image
 
 
 def rollout_and_render(env, policy, n_steps=100, run_until_termination=False, camera_ids=[-1], **render_kwargs):
@@ -130,3 +133,95 @@ def eye_pixels_from_cameras(physics, **render_kwargs):
 
 # Frame width and height for rendering.
 render_kwargs = {"width": 640, "height": 480}
+
+
+def render_with_rewards_info(env, policy, rollout_length=500):
+    """
+    Generate rollout with the reward related information.
+    """
+    reward_channels = []
+    frames = []
+    reset_idx = []
+    timestep = env.reset()
+
+    render_kwargs = {"width": 640, "height": 480}
+    for i in range(rollout_length):
+        frames.append(env.physics.render(camera_id=1, **render_kwargs))
+        action = policy(timestep.observation)
+        timestep = env.step(action)
+        reward_channels.append(env.task.last_reward_channels)
+        if timestep.step_type == 2:
+            reset_idx.append(i)
+    return frames, reset_idx, reward_channels
+
+
+def agg_backend_context(func):
+    def wrapper(*args, **kwargs):
+        orig_backend = matplotlib.get_backend()
+        matplotlib.use("Agg")  # Switch to headless 'Agg' to inhibit figure rendering.
+        # Code to execute BEFORE the original function
+        result = func(*args, **kwargs)
+        # Code to execute AFTER the original function
+        plt.close("all")  # Figure auto-closing upon backend switching is deprecated.
+        matplotlib.use(orig_backend)
+        return result
+    return wrapper 
+
+@agg_backend_context
+def plot_reward(idx, episode_start, rewards, ylim=(-0.05, 0.8), terminated=False):
+    """
+    visualization technics
+    returns the rgb array of the reward composition.
+    """
+    plt.figure(figsize=(6.4, 4.8))
+    for key, val in rewards.items():
+        plt.plot(val[episode_start:idx], label=key)
+        plt.scatter(idx-episode_start, val[idx])
+    if terminated:
+        plt.axvline(x=idx-episode_start, color='r', linestyle='-')
+        # Add the text label
+        plt.text(idx-episode_start-8,  # Adjust the x-offset as needed
+                min(ylim) + 0.1,  # Adjust the y-position as needed
+                'Episode Terminated',
+                color='r',
+                rotation=90)  # Rotate the text vertically
+    plt.xlim(0, 250)
+    plt.ylim(*ylim)
+    plt.legend(loc="upper right")
+    plt.xlabel("Timestep")
+    plt.title("Reward Composition")
+    # Get the current figure
+    fig = plt.gcf()
+    # Create a canvas for rendering
+    canvas = FigureCanvasAgg(fig)
+    # Render the canvas to a buffer
+    canvas.draw()
+    s, (width, height) = canvas.print_to_buffer()
+    # Convert the buffer to a PIL Image
+    image = Image.frombytes("RGBA", (width, height), s)
+    rgb_array = np.array(image.convert('RGB'))
+    return rgb_array
+
+
+def render_with_rewards(env, policy, rollout_length=500):
+    """
+    render with the rewards progression graph concat alongside with the rendering
+    """
+    frames, reset_idx, reward_channels = render_with_rewards_info(env, policy, rollout_length=rollout_length)
+    rewards = defaultdict(list)
+    reward_keys = env.task._reward_keys
+    for key in reward_keys:
+        rewards[key] += [rcs[key] for rcs in reward_channels]
+    concat_frames = []
+    episode_start = 0
+     # implement reset logics of the reward graph too.
+    for idx, frame in enumerate(frames):
+        if len(reset_idx) != 0 and idx == reset_idx[0]:
+            reward_plot = plot_reward(idx, episode_start, rewards, terminated=True)
+            for _ in range(50):
+                concat_frames.append(np.hstack([frame, reward_plot])) # create stoppage when episode terminates
+            reset_idx.pop(0)
+            episode_start=idx
+            continue
+        concat_frames.append(np.hstack([frame, plot_reward(idx, episode_start, rewards)]))
+    return concat_frames
