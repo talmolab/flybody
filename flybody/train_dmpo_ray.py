@@ -53,6 +53,7 @@ from acme import wrappers
 from acme.tf import utils as tf2_utils
 import sonnet as snt
 import tensorflow as tf
+from dm_control import composer
 
 import flybody
 from flybody.agents.remote_as_local_wrapper import RemoteAsLocal
@@ -68,8 +69,6 @@ from flybody.tasks.basic_rodent_2020 import (
     rodent_walk_imitation,
 )
 
-from flybody.wrapper import SinglePrecisionWrapperFloat, RemoveVisionWrapper
-
 from flybody.fly_envs import (
     walk_on_ball,
     vision_guided_flight,
@@ -77,16 +76,10 @@ from flybody.fly_envs import (
 )
 from flybody.default_logger import make_default_logger
 from flybody.single_precision import SinglePrecisionWrapper
-
-
-# fly body uses mlp + fly tracking
 from flybody.agents.network_factory import make_network_factory_dmpo
-
-# humanoid body use intention + comic tracking
 from flybody.agents.intention_network_factory import (
     make_network_factory_dmpo as make_network_factory_dmpo_intention,
 )
-
 from flybody.tasks.task_utils import get_task_obs_size
 
 PYHTONPATH = os.path.dirname(os.path.dirname(flybody.__file__))
@@ -100,18 +93,6 @@ parser.add_argument(
     help="Run job in test mode with one actor and output to current terminal.",
     action="store_true",
 )
-
-args = parser.parse_args()
-is_test = args.test
-if parser.parse_args().test:
-    print("\nRun job in test mode with one actor.")
-    test_num_actors = 1
-    test_log_every = 10
-    test_min_replay_size = 40
-else:
-    test_num_actors = None
-    test_log_every = None
-    test_min_replay_size = None
 
 tasks = {
     "run-gaps": rodent_run_gaps,
@@ -188,6 +169,7 @@ def main(config: DictConfig) -> None:
         """
         env = tasks["rodent_imitation"](
             config["ref_traj_path"],
+            reward_term_weights=config["reward_term_weights"] if "reward_term_weights" in config else None,
             termination_error_threshold=termination_error_threshold,
             always_init_at_clip_start=always_init_at_clip_start,
         )
@@ -207,14 +189,12 @@ def main(config: DictConfig) -> None:
             termination_error_threshold=config["termination_error_threshold"],
         ),
     }
-    
+
     # Dummy environment and network for quick use, deleted later. # create this earlier to access the obs
     dummy_env = environment_factories[config["task_name"]]()
 
-    # Create network factory for RL task.
-    if config["training_type"] == "imitation" and (config["agent_name"] == "humanoid") | (
-        config["agent_name"] == "rodent"
-    ):
+    # Create network factory for RL task. Config specify different ANN structures
+    if config["use_intention"]:
         network_factory = make_network_factory_dmpo_intention(
             task_obs_size=get_task_obs_size(dummy_env.observation_spec(), config["agent_name"]),
             encoder_layer_sizes=config["encoder_layer_sizes"],
@@ -229,7 +209,7 @@ def main(config: DictConfig) -> None:
             policy_layer_sizes=config["policy_layer_sizes"],
             critic_layer_sizes=config["critic_layer_sizes"],
         )
-    
+
     dummy_net = network_factory(dummy_env.action_spec())  # we should share this net for joint training
     # Get full environment specs.
     environment_spec = specs.make_environment_spec(dummy_env)
@@ -239,11 +219,11 @@ def main(config: DictConfig) -> None:
     penalization_cost = None  # PenalizationCostRealActions(dummy_env.environment.action_spec())
     # Distributed DMPO agent configuration.
     dmpo_config = DMPOConfig(
-        num_actors=test_num_actors or config["num_actors"],
+        num_actors=config["num_actors"],
         batch_size=config["batch_size"],
         prefetch_size=1024,  # aggresive prefetch param, because we have large amount of data
         num_learner_steps=1000,
-        min_replay_size=test_min_replay_size or 50_000,
+        min_replay_size=50_000,
         max_replay_size=4_000_000,
         samples_per_insert=None,  # allow less sample per insert to allow more data in # None is only min limiter
         n_step=50,
@@ -262,7 +242,7 @@ def main(config: DictConfig) -> None:
         target_critic_update_period=107,
         target_policy_update_period=101,
         actor_update_period=5_000,
-        log_every=test_log_every or 30,
+        log_every=30,
         logger=make_default_logger,
         logger_save_csv_data=False,
         checkpoint_max_to_keep=None,
@@ -270,9 +250,9 @@ def main(config: DictConfig) -> None:
         checkpoint_to_load=config["checkpoint_to_load"],
         print_fn=None,  # print # this causes issue pprint does not work
         userdata=dict(),
-        kickstart_teacher_cps_path=config[
-            "kickstart_teacher_cps_path"
-        ],  # specify the location of the kickstarter teacher policy's cps
+        kickstart_teacher_cps_path=(
+            config["kickstart_teacher_cps_path"] if "kickstart_teacher_cps_path" in config else None
+        ),  # specify the location of the kickstarter teacher policy's cps
         kickstart_epsilon=config["kickstart_epsilon"] if "kickstart_epsilon" in config else 0,
         time_delta_minutes=30,
         eval_average_over=config["eval_average_over"],
