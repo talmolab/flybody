@@ -1,29 +1,29 @@
 agent_name: rodent
 algo_name: dmpo
-training_type: imitation
 task_name: imitation_rodent
-run_name: rodent_imitation
-batch_size: 2048
+run_name: imitation_rodent
+
+# network factory params
+use_intention: true
 encoder_layer_sizes: [1024, 1024]
 decoder_layer_sizes: [1024, 1024]
 critic_layer_sizes: [1024, 1024, 1024]
-latent_layer_sizes: 60
-num_replay_servers: 4
-num_actors: 595
-group_name: rodent-imitation
+intention_size: 60
+num_replay_servers: 2
+num_actors: 270
 
 # env params
-termination_error_threshold: 0.15
-random_range: 0.00 # currently controls the scale gaussian of the termination threshold
+termination_error_threshold: 0.2 # see notebooks/env_testing 0.13 starting
 
 # learner parameters
-policy_optimizer_lr: 1e-5
-critic_optimizer_lr: 1e-5
-dual_optimizer_lr: 1e-4
-ref_traj_path: /root/vast/scott-yang/flybody/clips/walk_only_clips.h5
-checkpoint_to_load: /root/vast/scott-yang/flybody/training/ray-rodent-imitation_rodent-ckpts/t2s4-2/checkpoints/dmpo_learner/ckpt-18
-kickstart_teacher_cps_path:
-kickstart_epsilon:
+batch_size: 256
+policy_optimizer_lr: 1e-4
+critic_optimizer_lr: 1e-4
+dual_optimizer_lr: 1e-3
+ref_traj_path: /root/vast/scott-yang/flybody/clips/all_snippets.h5 #walk_only_clips.h5
+load_decoder_only: false
+checkpoint_to_load: /root/vast/scott-yang/flybody/training/ray-rodent-imitation_rodent-ckpts/mc-correct-2/checkpoints/dmpo_learner/ckpt-92
 
 # evaluator params
-eval_average_over: 850 # as we have 842 clips, in avg this should gives us a good est
+eval_average_over: 500 # walk only 
+# as we have 842 clips, in avg this should gives us a good est

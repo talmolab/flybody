@@ -97,7 +97,6 @@ def make_default_logger(
             rank_zero_only=False,
             trial_name=trail_name,
             trial_id=nanoid.generate(),
-            group=config["group_name"],
         )  # with unit uuid
         loggers.append(WandBLogger(wandb=wandb))
 

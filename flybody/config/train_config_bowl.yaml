@@ -7,7 +7,6 @@ policy_layer_sizes: [512,512,512]
 critic_layer_sizes: [512,512,512]
 num_actors: 280
 num_replay_servers: 3 # for load balancing, preferrably to be divisible w.r.t. num actors
-group_name: rodent-maze-forage-v1
 checkpoint_to_load:
 kickstart_teacher_cps_path:
 kickstart_epsilon:

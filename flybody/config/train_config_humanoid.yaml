@@ -8,7 +8,7 @@ encoder_layer_sizes: [1024, 1024]
 decoder_layer_sizes: [1024, 1024]
 critic_layer_sizes: [1024, 1024, 1024]
 num_replay_servers: 1
-latent_layer_sizes: 60
+intention_size: 60
 num_actors: 400
 group_name: basic-imitation
 

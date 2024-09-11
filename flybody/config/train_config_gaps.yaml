@@ -7,7 +7,6 @@ batch_size: 1024
 policy_layer_sizes: [256,256,256]
 critic_layer_sizes: [256,256,256]
 num_actors: 25
-group_name: rodent-maze-gaps-v1
 checkpoint_to_load: 
 kickstart_teacher_cps_path:
 kickstart_epsilon:
