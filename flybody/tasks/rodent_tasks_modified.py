@@ -129,6 +129,18 @@ class RunThroughCorridorSameObs(RunThroughCorridor):
         upright_reward = _upright_reward(physics, self._walker, deviation_angle=30)
         return xvel_term * upright_reward
     
+    def after_step(self, physics, random_state):
+        self._failure_termination = False
+        if self._contact_termination:
+            for c in physics.data.contact:
+                if self._is_disallowed_contact(physics, c):
+                    self._failure_termination = True
+                    break
+        if self._terminate_at_height is not None:
+            if any(physics.bind(self._walker.end_effectors).xpos[:, -1] <
+                self._terminate_at_height):
+                self._failure_termination = True
+    
 
 # Aliveness in [-1., 0.].
 DEFAULT_ALIVE_THRESHOLD = -0.5
