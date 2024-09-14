@@ -9,9 +9,9 @@ import numpy as np
 import sonnet as snt
 
 from flybody.agents import losses_mpo
-
 from flybody.agents.utils_intention import separate_observation
 from flybody.agents.intention_network_base import IntentionNetwork
+from flybody.agents.vis_net import VisNetRodent
 
 
 def network_factory_dmpo(
@@ -29,6 +29,8 @@ def network_factory_dmpo(
     init_scale=1.0,
     action_dist_scale=0.1,
     use_tfd_independent=True,
+    use_visual_network=False,
+    visual_feature_size:int=0,
 ):
     """Networks for DMPO agent."""
     action_size = np.prod(action_spec.shape, dtype=int)
@@ -57,13 +59,17 @@ def network_factory_dmpo(
             networks.DiscreteValuedHead(vmin=vmin, vmax=vmax, num_atoms=num_atoms),
         ]
     )
-
-    return {
+    networks_out = {
         "policy": policy_network,
         "critic": critic_network,
-        "observation": separate_observation,
-        # can possibly return more stats for calculating the KL loss for the intention network? Can I?
     }
+    if use_visual_network:
+        if visual_feature_size == 0:
+            raise ValueError("Use visual network but vis feature size is 0")
+        networks_out["observation"] = VisNetRodent(vis_output_dim=visual_feature_size)
+    else:
+        networks_out["observation"] = separate_observation
+    return networks_out 
 
 
 def make_network_factory_dmpo(
@@ -79,6 +85,8 @@ def make_network_factory_dmpo(
     tanh_mean=False,
     init_scale=0.7,
     use_tfd_independent=True,
+    use_visual_network:bool=False,
+    visual_feature_size:int=0,
 ):
     """Returns network factory for distributed DMPO agent."""
 
@@ -97,6 +105,8 @@ def make_network_factory_dmpo(
             tanh_mean=tanh_mean,
             init_scale=init_scale,
             use_tfd_independent=use_tfd_independent,
+            use_visual_network=use_visual_network,
+            visual_feature_size=visual_feature_size,
         )
 
     return network_factory

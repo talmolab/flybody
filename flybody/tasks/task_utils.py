@@ -215,7 +215,8 @@ def com2root(com, quat, offset=None):
 
 # utils for the intention network:
 
-def get_task_obs_size(obs_spec: OrderedDict, walker_type: str) -> int:
+
+def get_task_obs_size(obs_spec: OrderedDict, walker_type: str, visual_feature_size: int = 0) -> int:
     """Calculate the shape of the task specific observation sizes, based on the walker type"""
     if walker_type != "rodent":
         raise ValueError(f"Walker type: {walker_type} did not implement yet. Currently supported rodent")
@@ -226,6 +227,15 @@ def get_task_obs_size(obs_spec: OrderedDict, walker_type: str) -> int:
         shape = obs_spec[i].shape
         if shape == (): # scalar
             obs_shape += 1
+        elif i == "walker/egocentric_camera":
+            if visual_feature_size != 0:
+                # the intention network only observed the visual feature
+                # rather than the raw visual input
+                obs_shape += visual_feature_size
+            else:
+                raise ValueError(
+                    "walker/egocentric_camera obs detected, but received 0 as visual_feature_size. Is that expected?"
+                )
         else:
             obs_shape += shape[0]
     return obs_shape

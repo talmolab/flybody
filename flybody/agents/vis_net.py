@@ -1,7 +1,8 @@
 import tensorflow as tf
 import sonnet as snt
 from acme.tf import utils as tf2_utils
-
+from collections import OrderedDict
+from flybody.agents.utils_intention import separate_observation
 
 class VisNetFly(snt.Module):
     """Visual network for 'simple' eyes with no buffers."""
@@ -171,6 +172,8 @@ class VisNetRodent(snt.Module):
         # Copy to prevent modifying observation in-place.
         # (the modification is done with .pop() below.)
         observation = observation.copy()
+        # sort the observation space to make sure that the observation is consistent
+        observation = OrderedDict(sorted(observation.items()))
 
         if not hasattr(self, "_task_input"):
             # If task input is present in the observation, it will be popped
@@ -182,8 +185,8 @@ class VisNetRodent(snt.Module):
 
         # If RGB, transform from RGB to 1-channel gray scale.
         if egocentric_camera.shape[-1] == 3:  # Is RGB?
-            egocentric_camera = tf.reduce_mean(egocentric_camera, axis=-1)
-            # Normalize.
+            egocentric_camera = tf.reduce_mean(egocentric_camera, axis=-1) # to gray-scale image
+            # Normalize. # TODO: figure out the actual means and std
             egocentric_camera = (egocentric_camera - self._mean) / self._std
             # Stack the two eyes, shape (batch, height, width, channel=2).
             x = tf.expand_dims(egocentric_camera, axis=-1)
@@ -191,18 +194,9 @@ class VisNetRodent(snt.Module):
             # Forward pass.
             for layer in self._layers:
                 x = layer(x)
-            task_input = observation.pop("task_logic")
-            task_input = tf.cast(task_input, tf.float32)
+            observation["task_logic"] = tf.cast(observation["task_logic"], tf.float32)
             # Concatenate the visual network output with the rest of
             # observations and task input.
-            observation = tf2_utils.batch_concat(observation)
-            out = tf.concat((task_input, x, observation), axis=-1)  # (batch, -1)
-        else:
-            # Concatenate the visual network output with the rest of observation.
-            observation = tf2_utils.batch_concat(observation)
-            batch_size = 1 if x.shape[0] is None else x.shape[0]
-            out = tf.concat(
-                (tf.zeros([batch_size, 1]), x, observation), axis=-1
-            )  # (batch, -1), keep the consistency of observation space between task
-
-        return out
+            observation["walker/visual_features"] = x
+        return separate_observation(observation)
+    
