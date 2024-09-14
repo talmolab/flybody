@@ -66,6 +66,7 @@ class DMPOConfig:
     logger_save_csv_data: bool = False
     checkpoint_to_load: str | None = None  # Path to checkpoint.
     load_decoder_only: bool = False # whether only loads decoder
+    froze_decoder: bool = False # whether we froze the weight of the decoder
     checkpoint_max_to_keep: int | None = 1  # None: keep all checkpoints.
     checkpoint_directory: str | None = "~/ray-ckpts/"  # None: no checkpointing.
     time_delta_minutes: float = 30
@@ -222,7 +223,8 @@ class Learner(DistributionalMPOLearner):
             kickstart_epsilon=self._config.kickstart_epsilon,
             replay_server_addresses=replay_server_addresses,
             KL_weights=self._config.KL_weights,
-            load_decoder_only=self._config.load_decoder_only
+            load_decoder_only=self._config.load_decoder_only,
+            froze_decoder=self._config.froze_decoder,
         )
 
     def _step(self, iterator):
@@ -398,7 +400,11 @@ class EnvironmentLoop(acme.EnvironmentLoop):
 
     def run_episode(self) -> loggers.LoggingData:
         """Add rendering support for evaluator, and added aggregate stats"""
-        logging_data = super().run_episode()
+        try:
+            logging_data = super().run_episode()
+        except Exception as e:
+            print(f"Exception: {e} encountered in run_episode. Returned Null result for this episode.")
+            return {"episode_length":0, "episode_return":0, "steps_per_second":0} # TODO: This might causes error.
         if self._actor_or_evaluator == "evaluator":
             self._stats.append(logging_data)
             # self.stats is a [t1_data, t2_data, ...] array.
@@ -417,7 +423,7 @@ class EnvironmentLoop(acme.EnvironmentLoop):
         """
         agg = {}
         stats_key = ["episode_length", "episode_return"]
-        if len(self._stats) >= 200:  # only report summary statistic one a while
+        if len(self._stats) >= self._config.eval_average_over:  # only report summary statistic one a while
             avg = {
                 f"avg_{key}": np.mean([d[key] for d in self._stats])
                 for key in ["episode_length", "episode_return", "steps_per_second"]
@@ -461,18 +467,11 @@ class EnvironmentLoop(acme.EnvironmentLoop):
                 print(f"Policy Loading Error: {e}. Skipping rendering for this policy.")
                 self._highest_snap_num -= 1 # retry rendering the next iter.
                 return
-            if "imitation" in self._task_name:
-                env = self._environment_factory(
-                    termination_error_threshold=100
-                )  # does not terminate through the whole episode
-                env = wrappers.SinglePrecisionWrapper(env)
-                env = wrappers.CanonicalSpecWrapper(env, clip=False)
-                frames = render_with_rewards(env, policy, rollout_length=50 * 30)
-            else:
-                env = self._environment_factory()
-                env = wrappers.SinglePrecisionWrapper(env)
-                env = wrappers.CanonicalSpecWrapper(env, clip=False)
-                frames = vision_rollout_and_render(env, policy, camera_id=2, eye_blow_factor=3, **render_kwargs)
+            # TODO: adapt the reward plotting to each task. Currently adapted: imitation/run-gaps
+            env = self._environment_factory() 
+            env = wrappers.SinglePrecisionWrapper(env)
+            env = wrappers.CanonicalSpecWrapper(env, clip=False)
+            frames = render_with_rewards(env, policy, rollout_length=50 * 30)
             with imageio.get_writer(rendering_path, fps=1 / env.control_timestep()) as video:
                 for f in frames:
                     video.append_data(f)

@@ -53,6 +53,7 @@ class DistributionalMPOLearner(acme.Learner):
         directory: str | None = "~/acme/",
         checkpoint_to_load: Optional[str] = None,
         load_decoder_only: bool = False,  # whether we only load the decoder from the previous checkpoint, but not other network.
+        froze_decoder: bool = False, # whether we want to froze the weight of the decoder
         time_delta_minutes: float = 15.0,
         kickstart_teacher_cps_path: str = None,  # specify the location of the kickstarter teacher policy's cps
         kickstart_epsilon: float = 0.005,
@@ -174,6 +175,8 @@ class DistributionalMPOLearner(acme.Learner):
             if isinstance(self._target_policy_network, IntentionNetwork):
                 objects_to_save["policy_encoder"] = self._target_policy_network.encoder
                 objects_to_save["policy_decoder"] = self._target_policy_network.decoder
+                objects_to_save["online_policy_encoder"] = self._policy_network.encoder
+                objects_to_save["online_policy_decoder"] = self._policy_network.decoder
             self._checkpointer = tf2_savers.Checkpointer(
                 subdirectory="dmpo_learner",
                 objects_to_save=objects_to_save,
@@ -225,10 +228,13 @@ class DistributionalMPOLearner(acme.Learner):
             # status.assert_existing_objects_matched()  # Sanity check.
 
         if checkpoint_to_load is not None and load_decoder_only:
+            # Q: do we want to fix the online policy decoder too?
             _decoder_checkpoint = tf.train.Checkpoint(policy_decoder=self._target_policy_network.decoder)
             status = _decoder_checkpoint.restore(checkpoint_to_load)
             print(f"CKPTS: Decoder LOADED checkpoint from {checkpoint_to_load}")
+        if froze_decoder:
             self._target_policy_network.decoder.trainable=False # freeze the weights of decoder
+            print(f"CKPTS: Decoder weight frozen.")
 
         # Do not record timestamps until after the first learning step is done.
         # This is to avoid including the time it takes for actors to come online and
@@ -455,13 +461,16 @@ class DistributionalMPOLearner(acme.Learner):
                             )
                         # Redirect snapshot to new key and delete old key.
                         self._snapshotter._snapshots[new_path] = self._snapshotter._snapshots.pop(path)
-                    # frames = vision_rollout_and_render() # need to think about environment loading / rendering
-            fetches["actor_sps"] = fetches["actor_steps"] / (
-                fetches["learner_walltime"] + 1
-            )  # calculate and report the sps of the actor
-            fetches["learner_sps"] = fetches["learner_steps"] / (
-                fetches["learner_walltime"] + 1
-            )  # calculate and report the sps fo the learner
+            try:
+                fetches["actor_sps"] = fetches["actor_steps"] / (
+                    fetches["learner_walltime"] + 1
+                )  # calculate and report the sps of the actor
+                fetches["learner_sps"] = fetches["learner_steps"] / (
+                    fetches["learner_walltime"] + 1
+                )  # calculate and report the sps fo the learner
+            except KeyError:
+                # sometime the first few fetches do not have some key.
+                pass
             self._logger.write(fetches)
 
     def get_variables(self, names: List[str]) -> List[List[np.ndarray]]:
