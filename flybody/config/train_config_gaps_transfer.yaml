@@ -1,11 +1,11 @@
 agent_name: rodent
 algo_name: dmpo
-task_name: imitation_rodent
-run_name: imitation_rodent
+task_name: run-gaps
+run_name: gaps
 
 # observation network params
-use_visual_network: false
-visual_feature_size: 0
+use_visual_network: true
+visual_feature_size: 10
 
 # network factory params
 use_intention: true
@@ -13,23 +13,19 @@ encoder_layer_sizes: [1024, 1024]
 decoder_layer_sizes: [1024, 1024]
 critic_layer_sizes: [1024, 1024, 1024]
 intention_size: 60
-num_replay_servers: 2
+num_replay_servers: 1
 num_actors: 162
 
-
 # env params
-termination_error_threshold: 0.2 # see notebooks/env_testing 0.13 starting
-ref_traj_path: /root/vast/scott-yang/flybody/clips/all_snippets.h5 #walk_only_clips.h5
-
+termination_error_threshold:
 
 # learner parameters
 batch_size: 256
 policy_optimizer_lr: 1e-4
 critic_optimizer_lr: 1e-4
 dual_optimizer_lr: 1e-3
-# checkpoint system
-load_decoder_only: false
+load_decoder_only: true
 checkpoint_to_load: /root/vast/scott-yang/flybody/training/ray-rodent-imitation_rodent-ckpts/mc-correct-2/checkpoints/dmpo_learner/ckpt-92
 
 # evaluator params
-eval_average_over: 500
+eval_average_over: 10 # walk only 
