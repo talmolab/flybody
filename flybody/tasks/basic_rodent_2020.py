@@ -127,8 +127,6 @@ def rodent_maze_forage(random_state=None):
 
     # Build a position-controlled rodent walker.
     walker = rodent.Rat(observable_options={"egocentric_camera": dict(enabled=True)})
-    # Build a position-controlled rodent walker.
-    walker = rodent.Rat(observable_options={"egocentric_camera": dict(enabled=True)})
 
     # Build a maze with rooms and targets.
     wall_textures = labmaze_textures.WallTextures(style="style_01")
