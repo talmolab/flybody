@@ -95,6 +95,7 @@ def vision_rollout_and_render(env, policy, camera_id=1, eye_blow_factor=5, **ren
         i += 1
         # Render eyes and scene.
         pixels = env.physics.render(camera_id=camera_id, **render_kwargs)
+        # raw eye pixel is accessible in the timestep
         eyes = eye_pixels_from_observation(timestep, blow_factor=eye_blow_factor)
         # Add eye pixels to scene.
         pixels[0 : eyes.shape[0], 0 : eyes.shape[1], :] = eyes
@@ -135,7 +136,7 @@ def eye_pixels_from_cameras(physics, **render_kwargs):
 render_kwargs = {"width": 640, "height": 480}
 
 
-def render_with_rewards_info(env, policy, rollout_length=500):
+def render_with_rewards_info(env, policy, rollout_length=500, render_vision_if_available=True):
     """
     Generate rollout with the reward related information.
     """
@@ -146,7 +147,13 @@ def render_with_rewards_info(env, policy, rollout_length=500):
 
     render_kwargs = {"width": 640, "height": 480}
     for i in range(rollout_length):
-        frames.append(env.physics.render(camera_id=1, **render_kwargs))
+        pixels = env.physics.render(camera_id=1, **render_kwargs)
+        # optionally also render the vision.
+        if render_vision_if_available and "walker/egocentric_camera" in timestep.observation:
+            eyes = eye_pixels_from_observation(timestep, blow_factor=3)
+            # Add eye pixels to scene.
+            pixels[0 : eyes.shape[0], 0 : eyes.shape[1], :] = eyes
+        frames.append(pixels)
         action = policy(timestep.observation)
         timestep = env.step(action)
         reward_channels.append(env.task.last_reward_channels)
@@ -167,12 +174,16 @@ def agg_backend_context(func):
         return result
     return wrapper 
 
+
 @agg_backend_context
-def plot_reward(idx, episode_start, rewards, ylim=(-0.05, 0.8), terminated=False):
+def plot_reward(idx, episode_start, rewards:dict, ylim=(-0.05, 1.1), terminated=False):
     """
     visualization technics
     returns the rgb array of the reward composition.
     """
+    ylim = list(ylim) # to make it dynamic
+    window_size = 250
+    idx_in_this_episode = idx - episode_start
     plt.figure(figsize=(6.4, 4.8))
     for key, val in rewards.items():
         plt.plot(val[episode_start:idx], label=key)
@@ -181,11 +192,17 @@ def plot_reward(idx, episode_start, rewards, ylim=(-0.05, 0.8), terminated=False
         plt.axvline(x=idx-episode_start, color='r', linestyle='-')
         # Add the text label
         plt.text(idx-episode_start-8,  # Adjust the x-offset as needed
-                min(ylim) + 0.1,  # Adjust the y-position as needed
+                sum(ylim)/2,  # Adjust the y-position as needed
                 'Episode Terminated',
                 color='r',
                 rotation=90)  # Rotate the text vertically
-    plt.xlim(0, 250)
+    if idx_in_this_episode <= window_size:
+        plt.xlim(0, window_size)
+    else:
+        plt.xlim(idx_in_this_episode - window_size, idx_in_this_episode) # dynamically move xlim as time progress
+    max_reward = np.max(list(rewards.values()))
+    if max_reward > ylim[1]:
+        ylim[1] = max_reward + 0.1
     plt.ylim(*ylim)
     plt.legend(loc="upper right")
     plt.xlabel("Timestep")
