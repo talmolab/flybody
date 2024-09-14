@@ -108,7 +108,7 @@ tasks = {
 @hydra.main(
     version_base=None,
     config_path="./config",
-    config_name="train_config_rodent_imitation",
+    config_name="train_config_bowl_transfer",
 )
 def main(config: DictConfig) -> None:
     print("CONFIG:", config)
@@ -196,12 +196,16 @@ def main(config: DictConfig) -> None:
     # Create network factory for RL task. Config specify different ANN structures
     if config["use_intention"]:
         network_factory = make_network_factory_dmpo_intention(
-            task_obs_size=get_task_obs_size(dummy_env.observation_spec(), config["agent_name"]),
+            task_obs_size=get_task_obs_size(
+                dummy_env.observation_spec(), config["agent_name"], config["visual_feature_size"]
+            ),
             encoder_layer_sizes=config["encoder_layer_sizes"],
             decoder_layer_sizes=config["decoder_layer_sizes"],
             critic_layer_sizes=config["critic_layer_sizes"],
             intention_size=config["intention_size"],
-            use_tfd_independent=True, # for easier KL calculation
+            use_tfd_independent=True,  # for easier KL calculation
+            use_visual_network=config["use_visual_network"],
+            visual_feature_size=config["visual_feature_size"],
         )
     else:
         # online settings
@@ -259,6 +263,7 @@ def main(config: DictConfig) -> None:
         KL_weights=(0, 0),
         # specify the KL with intention & action output layer # do not penalize the output layer # disabled it for now.
         load_decoder_only=config["load_decoder_only"] if "load_decoder_only" in config else False,
+        froze_decoder=config["froze_decoder"] if "froze_decoder" in config else False,
     )
 
     dmpo_dict_config = dataclasses.asdict(dmpo_config)
@@ -317,10 +322,21 @@ def main(config: DictConfig) -> None:
         dmpo_config.max_replay_size = dmpo_config.max_replay_size // 4  # reduce each replay buffer size by 4.
         for name, num_actors in config.actors_envs.items():
             if num_actors != 0:
-                if "num_replay_servers" in config and config["num_replay_servers"] != 0:
+                if not config["separate_replay_servers"]:
+                    # mixed experience replay buffers
+                    replay_server = ReplayServer.remote(
+                        dmpo_config, environment_spec
+                    )  # each envs will share the same environment spec and dmpo_config
+                    addr = ray.get(replay_server.get_server_address.remote())
+                    replay_server = RemoteAsLocal(replay_server)
+                    servers.append(replay_server)
+                    replay_servers["general"] = addr
+                    print("SINGLE: Started Single replay server for this task.")
+                    break
+                elif "num_replay_servers" in config and config["num_replay_servers"] != 0:
                     dmpo_config.max_replay_size = (
                         dmpo_config.max_replay_size // config["num_replay_servers"]
-                    )  # shink down the replay size correspondingly
+                    )  # shrink down the replay size correspondingly
                     for i in range(config["num_replay_servers"]):
                         _name = f"{name}-{i+1}"
                         # multiple replay server for load balancing
@@ -452,7 +468,13 @@ def main(config: DictConfig) -> None:
         print(config.actors_envs)
         for name, num_actors in config.actors_envs.items():
             if num_actors != 0:
-                if "num_replay_servers" in config and config["num_replay_servers"] != 0:
+                if not config["separate_replay_servers"]:
+                    actors += create_actors(
+                        num_actors,
+                        environment_factories[name],
+                        replay_servers["general"], 
+                    ) # mixed experience replay buffer
+                elif "num_replay_servers" in config and config["num_replay_servers"] != 0:
                     for i in range(config["num_replay_servers"]):
                         _name = f"{name}-{i+1}"
                         # multiple replay servers, equally direct replay servers
