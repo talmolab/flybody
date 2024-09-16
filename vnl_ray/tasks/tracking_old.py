@@ -30,7 +30,7 @@ from dm_control.suite.utils.randomizers import randomize_limited_and_rotational_
 from dm_control.locomotion.tasks.reference_pose import datasets
 from dm_control.locomotion.tasks.reference_pose import types
 from dm_control.locomotion.tasks.reference_pose import utils
-from flybody.tasks import rewards
+from vnl_ray.tasks import rewards
 from dm_control.mujoco.wrapper import mjbindings
 from dm_control.utils import transformations as tr
 from dm_env import specs

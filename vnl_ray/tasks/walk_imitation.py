@@ -5,20 +5,20 @@
 from typing import Sequence
 import numpy as np
 
-from flybody.tasks.base import Walking
-from flybody.tasks.constants import _TERMINAL_ANGVEL, _TERMINAL_LINVEL
-from flybody.tasks.rewards import (
+from vnl_ray.tasks.base import Walking
+from vnl_ray.tasks.constants import _TERMINAL_ANGVEL, _TERMINAL_LINVEL
+from vnl_ray.tasks.rewards import (
     get_reference_features,
     get_walker_features,
     reward_factors_deep_mimic,
 )
-from flybody.tasks.trajectory_loaders import HDF5WalkingTrajectoryLoader
-from flybody.tasks.task_utils import (
+from vnl_ray.tasks.trajectory_loaders import HDF5WalkingTrajectoryLoader
+from vnl_ray.tasks.task_utils import (
     add_trajectory_sites,
     update_trajectory_sites,
     retract_wings,
 )
-from flybody.quaternions import rotate_vec_with_quat
+from vnl_ray.quaternions import rotate_vec_with_quat
 
 
 class WalkImitation(Walking):

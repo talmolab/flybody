@@ -3,7 +3,7 @@
 from typing import Optional
 import numpy as np
 
-from flybody.tasks.constants import _WING_PARAMS, _FLY_CONTROL_TIMESTEP
+from vnl_ray.tasks.constants import _WING_PARAMS, _FLY_CONTROL_TIMESTEP
 
 
 class WingBeatPatternGenerator:

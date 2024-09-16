@@ -24,7 +24,7 @@ from dm_control.locomotion.tasks.reach import (
 from dm_control.locomotion.tasks.random_goal_maze import RepeatSingleGoalMazeAugmentedWithTargets
 
 import numpy as np
-from flybody.tasks.tracking_old import ReferencePosesTask
+from vnl_ray.tasks.tracking_old import ReferencePosesTask
 
 
 # add dummy task_logic observations

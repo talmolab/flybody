@@ -3,7 +3,7 @@
 from typing import Dict
 import numpy as np
 
-from flybody import quaternions
+from vnl_ray import quaternions
 
 
 def compute_diffs(

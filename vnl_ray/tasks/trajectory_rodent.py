@@ -2,7 +2,7 @@
 
 import h5py
 import numpy as np
-from flybody import quaternions
+from vnl_ray import quaternions
 from dm_control import mjcf
 
 _RAT_MOCAP_JOINTS = [
@@ -174,7 +174,7 @@ def read_id(filename):
 def extract_feature(
     input_path,
     output_path,
-    xml_path="/root/talmolab-smb/kaiwen/flybody/flybody/fruitfly/assets_rodent/rodent.xml",
+    xml_path="/root/talmolab-smb/kaiwen/vnl_ray/vnl_ray/fruitfly/assets_rodent/rodent.xml",
 ):
     """Main function for data conversion from STAC to DMC format"""
 

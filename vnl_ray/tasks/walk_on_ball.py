@@ -9,8 +9,8 @@ from dm_control import composer
 from dm_control.composer.observation import observable
 from dm_control.utils import rewards
 
-from flybody.tasks.base import Walking
-from flybody.tasks.constants import _TERMINAL_ANGVEL, _TERMINAL_LINVEL
+from vnl_ray.tasks.base import Walking
+from vnl_ray.tasks.constants import _TERMINAL_ANGVEL, _TERMINAL_LINVEL
 
 
 class WalkOnBall(Walking):

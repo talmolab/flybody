@@ -7,7 +7,7 @@ from typing import Callable
 from dm_control import mujoco
 import numpy as np
 
-from flybody.tasks.base import Walking
+from vnl_ray.tasks.base import Walking
 
 
 class TemplateTask(Walking):

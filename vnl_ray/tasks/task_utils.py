@@ -6,8 +6,8 @@ from typing import Sequence, Callable, Any, List
 from collections import OrderedDict
 import numpy as np
 
-from flybody.quaternions import rotate_vec_with_quat
-from flybody.agents.utils_intention import get_rodent_egocentric_obs_key
+from vnl_ray.quaternions import rotate_vec_with_quat
+from vnl_ray.agents.utils_intention import get_rodent_egocentric_obs_key
 
 
 def get_random_policy(

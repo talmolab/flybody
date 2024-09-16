@@ -5,17 +5,17 @@
 import numpy as np
 from dm_control.utils import rewards
 
-from flybody.tasks.pattern_generators import WingBeatPatternGenerator
-from flybody.tasks.trajectory_loaders import HDF5FlightTrajectoryLoader
-from flybody.quaternions import quat_dist_short_arc
-from flybody.tasks.task_utils import (
+from vnl_ray.tasks.pattern_generators import WingBeatPatternGenerator
+from vnl_ray.tasks.trajectory_loaders import HDF5FlightTrajectoryLoader
+from vnl_ray.quaternions import quat_dist_short_arc
+from vnl_ray.tasks.task_utils import (
     com2root,
     root2com,
     add_trajectory_sites,
     update_trajectory_sites,
 )
-from flybody.tasks.constants import _TERMINAL_HEIGHT
-from flybody.tasks.base import Flying
+from vnl_ray.tasks.constants import _TERMINAL_HEIGHT
+from vnl_ray.tasks.base import Flying
 
 
 class FlightImitationWBPG(Flying):

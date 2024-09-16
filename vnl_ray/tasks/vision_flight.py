@@ -8,11 +8,11 @@ import numpy as np
 from dm_control.utils import rewards
 from dm_control.composer.observation import observable
 from dm_control import composer
-from flybody.tasks.arenas.hills import SineTrench
+from vnl_ray.tasks.arenas.hills import SineTrench
 
-from flybody.tasks.pattern_generators import WingBeatPatternGenerator
-from flybody.tasks.task_utils import neg_quat
-from flybody.tasks.base import Flying
+from vnl_ray.tasks.pattern_generators import WingBeatPatternGenerator
+from vnl_ray.tasks.task_utils import neg_quat
+from vnl_ray.tasks.base import Flying
 
 
 class VisionFlightImitationWBPG(Flying):
