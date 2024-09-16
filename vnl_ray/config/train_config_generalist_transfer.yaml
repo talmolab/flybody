@@ -1,11 +1,11 @@
 agent_name: rodent
 algo_name: dmpo
-task_name: escape-bowl
-run_name: rodent-bowl
+task_name: general
+run_name: four_tasks
 
 # observation network params
 use_visual_network: true
-visual_feature_size: 16
+visual_feature_size: 10 # eventually we want to do 16
 
 # network factory params
 use_intention: true
@@ -16,16 +16,20 @@ intention_size: 60
 
 # env params
 termination_error_threshold:
-num_replay_servers: 1
+num_replay_servers: 1 # in multi task, this indicate the number of replay server for each sub tasks.
 separate_replay_servers: false
 num_actors: 401
-
+actors_envs: # Calculation based on the disparity of sps in stepping.
+  run-gaps: 105
+  maze-forage: 128
+  escape-bowl: 128
+  two-taps: 40
 # learner parameters
 batch_size: 256
 policy_optimizer_lr: 1e-4
 critic_optimizer_lr: 1e-4
 dual_optimizer_lr: 1e-3
-checkpoint_to_load: /root/vast/scott-yang/flybody/training/ray-rodent-escape-bowl-ckpts/bowl_transfer_t1/checkpoints/dmpo_learner/ckpt-11
+checkpoint_to_load: /root/vast/scott-yang/vnl_ray/training/ray-rodent-run-gaps-ckpts/run-gaps-decoder-transfer/checkpoints/dmpo_learner/ckpt-35
 load_decoder_only: false
 froze_decoder: true # whether the decoder is trainable or not.
 

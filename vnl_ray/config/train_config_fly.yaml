@@ -9,5 +9,5 @@ num_actors: 90
 group_name: basic-imitation
 
 # for some reason only abs path works here
-ref_traj_path: "/root/talmolab-smb/kaiwen/flybody/demos/data/walking-dataset_female-only_snippets-16252_trk-files-0-9.hdf5"
+ref_traj_path: "/root/talmolab-smb/kaiwen/vnl_ray/demos/data/walking-dataset_female-only_snippets-16252_trk-files-0-9.hdf5"
 checkpoint_to_load:

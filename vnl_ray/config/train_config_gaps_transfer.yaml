@@ -25,7 +25,7 @@ policy_optimizer_lr: 1e-4
 critic_optimizer_lr: 1e-4
 dual_optimizer_lr: 1e-3
 load_decoder_only: true
-checkpoint_to_load: /root/vast/scott-yang/flybody/training/ray-rodent-imitation_rodent-ckpts/mc-correct-2/checkpoints/dmpo_learner/ckpt-92
+checkpoint_to_load: /root/vast/scott-yang/vnl_ray/training/ray-rodent-imitation_rodent-ckpts/mc-correct-2/checkpoints/dmpo_learner/ckpt-92
 
 # evaluator params
 eval_average_over: 10 # walk only 

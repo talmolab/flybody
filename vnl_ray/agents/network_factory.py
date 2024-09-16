@@ -8,8 +8,8 @@ from acme.tf import networks
 import numpy as np
 import sonnet as snt
 
-from flybody.agents import losses_mpo
-from flybody.agents.vis_net import VisNetRodent
+from vnl_ray.agents import losses_mpo
+from vnl_ray.agents.vis_net import VisNetRodent
 
 
 def network_factory_d4pg(

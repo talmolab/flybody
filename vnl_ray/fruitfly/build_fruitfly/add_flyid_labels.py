@@ -4,15 +4,15 @@ import os
 from lxml import etree
 
 from dm_control import mjcf
-import flybody
+import vnl_ray
 
 
 # The output XML of this script will be saved in this file.
 output_xml_file = "fruitfly-with-ids.xml"
 
 # Load the original fly model.
-flybody_path = os.path.dirname(flybody.__file__)
-input_xml_path = os.path.join(flybody_path, "fruitfly/assets/fruitfly.xml")
+vnl_ray_path = os.path.dirname(vnl_ray.__file__)
+input_xml_path = os.path.join(vnl_ray_path, "fruitfly/assets/fruitfly.xml")
 mjcf_model = mjcf.from_path(input_xml_path)
 mjcf_model.find("joint", "free").remove()
 

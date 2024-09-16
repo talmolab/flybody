@@ -13,7 +13,7 @@ num_actors: 400
 group_name: basic-imitation
 
 # use absolute path
-ref_traj_path: /root/vast/scott-yang/flybody/clips/cmu_2020_dfe3e9e0.h5
-checkpoint_to_load: #/root/vast/scott-yang/imitation/flybody/training/ray-humanoid-imitation-ckpts/ecd920b0-5379-11ef-b8ed-7e493fe14630/checkpoints/dmpo_learner/ckpt-104
+ref_traj_path: /root/vast/scott-yang/vnl_ray/clips/cmu_2020_dfe3e9e0.h5
+checkpoint_to_load: #/root/vast/scott-yang/imitation/vnl_ray/training/ray-humanoid-imitation-ckpts/ecd920b0-5379-11ef-b8ed-7e493fe14630/checkpoints/dmpo_learner/ckpt-104
 kickstart_teacher_cps_path:
 kickstart_epsilon:

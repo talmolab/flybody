@@ -21,9 +21,9 @@ import reverb
 import sonnet as snt
 import tensorflow as tf
 
-from flybody.agents import learning_dmpo
-from flybody.agents.actors import DelayedFeedForwardActor
-from flybody.agents.intention_network_base import IntentionNetwork
+from vnl_ray.agents import learning_dmpo
+from vnl_ray.agents.actors import DelayedFeedForwardActor
+from vnl_ray.agents.intention_network_base import IntentionNetwork
 
 
 @dataclasses.dataclass

@@ -2,7 +2,8 @@ import tensorflow as tf
 import sonnet as snt
 from acme.tf import utils as tf2_utils
 from collections import OrderedDict
-from flybody.agents.utils_intention import separate_observation
+from vnl_ray.agents.utils_intention import separate_observation
+
 
 class VisNetFly(snt.Module):
     """Visual network for 'simple' eyes with no buffers."""
@@ -185,7 +186,7 @@ class VisNetRodent(snt.Module):
 
         # If RGB, transform from RGB to 1-channel gray scale.
         if egocentric_camera.shape[-1] == 3:  # Is RGB?
-            egocentric_camera = tf.reduce_mean(egocentric_camera, axis=-1) # to gray-scale image
+            egocentric_camera = tf.reduce_mean(egocentric_camera, axis=-1)  # to gray-scale image
             # Normalize. # TODO: figure out the actual means and std
             egocentric_camera = (egocentric_camera - self._mean) / self._std
             # Stack the two eyes, shape (batch, height, width, channel=2).
@@ -199,4 +200,3 @@ class VisNetRodent(snt.Module):
             # observations and task input.
             observation["walker/visual_features"] = x
         return separate_observation(observation)
-    

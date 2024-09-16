@@ -19,7 +19,7 @@ num_actors: 162
 
 # env params
 termination_error_threshold: 0.2 # see notebooks/env_testing 0.13 starting
-ref_traj_path: /root/vast/scott-yang/flybody/clips/all_snippets.h5 #walk_only_clips.h5
+ref_traj_path: /root/vast/scott-yang/vnl_ray/clips/all_snippets.h5 #walk_only_clips.h5
 
 
 # learner parameters
@@ -29,7 +29,7 @@ critic_optimizer_lr: 1e-4
 dual_optimizer_lr: 1e-3
 # checkpoint system
 load_decoder_only: false
-checkpoint_to_load: /root/vast/scott-yang/flybody/training/ray-rodent-imitation_rodent-ckpts/mc-correct-2/checkpoints/dmpo_learner/ckpt-92
+checkpoint_to_load: /root/vast/scott-yang/vnl_ray/training/ray-rodent-imitation_rodent-ckpts/mc-correct-2/checkpoints/dmpo_learner/ckpt-92
 
 # evaluator params
 eval_average_over: 500

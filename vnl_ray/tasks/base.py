@@ -10,9 +10,9 @@ from dm_control import composer
 from dm_control import mjcf
 from dm_control.composer.observation import observable
 
-from flybody.quaternions import get_dquat_local
-from flybody.tasks.task_utils import make_ghost_fly
-from flybody.tasks.constants import (
+from vnl_ray.quaternions import get_dquat_local
+from vnl_ray.tasks.task_utils import make_ghost_fly
+from vnl_ray.tasks.constants import (
     _FLY_PHYSICS_TIMESTEP,
     _FLY_CONTROL_TIMESTEP,
     _BODY_PITCH_ANGLE,

@@ -19,8 +19,8 @@ import tensorflow_probability as tfp
 
 tfd = tfp.distributions
 
-from flybody.utils import vision_rollout_and_render
-from flybody.agents.intention_network_base import IntentionNetwork
+from vnl_ray.utils import vision_rollout_and_render
+from vnl_ray.agents.intention_network_base import IntentionNetwork
 
 # inject our wandb logger for learner only
 
@@ -53,7 +53,7 @@ class DistributionalMPOLearner(acme.Learner):
         directory: str | None = "~/acme/",
         checkpoint_to_load: Optional[str] = None,
         load_decoder_only: bool = False,  # whether we only load the decoder from the previous checkpoint, but not other network.
-        froze_decoder: bool = False, # whether we want to froze the weight of the decoder
+        froze_decoder: bool = False,  # whether we want to froze the weight of the decoder
         time_delta_minutes: float = 15.0,
         kickstart_teacher_cps_path: str = None,  # specify the location of the kickstarter teacher policy's cps
         kickstart_epsilon: float = 0.005,
@@ -233,7 +233,7 @@ class DistributionalMPOLearner(acme.Learner):
             status = _decoder_checkpoint.restore(checkpoint_to_load)
             print(f"CKPTS: Decoder LOADED checkpoint from {checkpoint_to_load}")
         if froze_decoder:
-            self._target_policy_network.decoder.trainable=False # freeze the weights of decoder
+            self._target_policy_network.decoder.trainable = False  # freeze the weights of decoder
             print(f"CKPTS: Decoder weight frozen.")
 
         # Do not record timestamps until after the first learning step is done.

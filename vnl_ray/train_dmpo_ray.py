@@ -55,12 +55,12 @@ import sonnet as snt
 import tensorflow as tf
 from dm_control import composer
 
-import flybody
-from flybody.agents.remote_as_local_wrapper import RemoteAsLocal
-from flybody.agents.counting import PicklableCounter
-from flybody.agents.network_factory import policy_loss_module_dmpo
-from flybody.agents.losses_mpo import PenalizationCostRealActions
-from flybody.tasks.basic_rodent_2020 import (
+import vnl_ray
+from vnl_ray.agents.remote_as_local_wrapper import RemoteAsLocal
+from vnl_ray.agents.counting import PicklableCounter
+from vnl_ray.agents.network_factory import policy_loss_module_dmpo
+from vnl_ray.agents.losses_mpo import PenalizationCostRealActions
+from vnl_ray.tasks.basic_rodent_2020 import (
     rodent_run_gaps,
     rodent_maze_forage,
     rodent_escape_bowl,
@@ -69,20 +69,20 @@ from flybody.tasks.basic_rodent_2020 import (
     rodent_walk_imitation,
 )
 
-from flybody.fly_envs import (
+from vnl_ray.fly_envs import (
     walk_on_ball,
     vision_guided_flight,
     walk_imitation as fly_walk_imitation,
 )
-from flybody.default_logger import make_default_logger
-from flybody.single_precision import SinglePrecisionWrapper
-from flybody.agents.network_factory import make_network_factory_dmpo
-from flybody.agents.intention_network_factory import (
+from vnl_ray.default_logger import make_default_logger
+from vnl_ray.single_precision import SinglePrecisionWrapper
+from vnl_ray.agents.network_factory import make_network_factory_dmpo
+from vnl_ray.agents.intention_network_factory import (
     make_network_factory_dmpo as make_network_factory_dmpo_intention,
 )
-from flybody.tasks.task_utils import get_task_obs_size
+from vnl_ray.tasks.task_utils import get_task_obs_size
 
-PYHTONPATH = os.path.dirname(os.path.dirname(flybody.__file__))
+PYHTONPATH = os.path.dirname(os.path.dirname(vnl_ray.__file__))
 LD_LIBRARY_PATH = os.environ["LD_LIBRARY_PATH"] if "LD_LIBRARY_PATH" in os.environ else ""
 
 # Defer specifying CUDA_VISIBLE_DEVICES to sub-processes.
@@ -113,7 +113,7 @@ tasks = {
 def main(config: DictConfig) -> None:
     print("CONFIG:", config)
 
-    from flybody.agents.ray_distributed_dmpo import (
+    from vnl_ray.agents.ray_distributed_dmpo import (
         DMPOConfig,
         ReplayServer,
         Learner,

@@ -30,11 +30,11 @@ from acme.tf import variable_utils
 from acme.tf import networks as network_utils
 from acme.adders import reverb as reverb_adders
 
-from flybody.agents.learning_dmpo import DistributionalMPOLearner
-from flybody.agents import agent_dmpo
-from flybody.agents.actors import DelayedFeedForwardActor
-from flybody.utils import vision_rollout_and_render, rollout_and_render, render_with_rewards
-from flybody.agents.utils_tf import TestPolicyWrapper
+from vnl_ray.agents.learning_dmpo import DistributionalMPOLearner
+from vnl_ray.agents import agent_dmpo
+from vnl_ray.agents.actors import DelayedFeedForwardActor
+from vnl_ray.utils import vision_rollout_and_render, rollout_and_render, render_with_rewards
+from vnl_ray.agents.utils_tf import TestPolicyWrapper
 
 # logging & plotting
 from matplotlib import pyplot as plt
@@ -53,7 +53,7 @@ class DMPOConfig:
     num_samples: int = 20
     num_learner_steps: int = 100
     clipping: bool = True
-    discount: float = 0.95 # modify to align with Diego's mimic
+    discount: float = 0.95  # modify to align with Diego's mimic
     policy_loss_module: snt.Module | None = None
     policy_optimizer: snt.Optimizer | None = None
     critic_optimizer: snt.Optimizer | None = None
@@ -65,8 +65,8 @@ class DMPOConfig:
     log_every: float = 60.0  # Seconds.
     logger_save_csv_data: bool = False
     checkpoint_to_load: str | None = None  # Path to checkpoint.
-    load_decoder_only: bool = False # whether only loads decoder
-    froze_decoder: bool = False # whether we froze the weight of the decoder
+    load_decoder_only: bool = False  # whether only loads decoder
+    froze_decoder: bool = False  # whether we froze the weight of the decoder
     checkpoint_max_to_keep: int | None = 1  # None: keep all checkpoints.
     checkpoint_directory: str | None = "~/ray-ckpts/"  # None: no checkpointing.
     time_delta_minutes: float = 30
@@ -404,7 +404,7 @@ class EnvironmentLoop(acme.EnvironmentLoop):
             logging_data = super().run_episode()
         except Exception as e:
             print(f"Exception: {e} encountered in run_episode. Returned Null result for this episode.")
-            return {"episode_length":0, "episode_return":0, "steps_per_second":0} # TODO: This might causes error.
+            return {"episode_length": 0, "episode_return": 0, "steps_per_second": 0}  # TODO: This might causes error.
         if self._actor_or_evaluator == "evaluator":
             self._stats.append(logging_data)
             # self.stats is a [t1_data, t2_data, ...] array.
@@ -465,10 +465,10 @@ class EnvironmentLoop(acme.EnvironmentLoop):
             except OSError as e:
                 # sometime, the snapshotter will take a while to store the object. If the evaluator is
                 print(f"Policy Loading Error: {e}. Skipping rendering for this policy.")
-                self._highest_snap_num -= 1 # retry rendering the next iter.
+                self._highest_snap_num -= 1  # retry rendering the next iter.
                 return
             # TODO: adapt the reward plotting to each task. Currently adapted: imitation/run-gaps
-            env = self._environment_factory() 
+            env = self._environment_factory()
             env = wrappers.SinglePrecisionWrapper(env)
             env = wrappers.CanonicalSpecWrapper(env, clip=False)
             frames = render_with_rewards(env, policy, rollout_length=50 * 30)

@@ -35,16 +35,16 @@ from dm_control.locomotion.tasks.reference_pose import types
 import os
 import h5py
 
-from flybody.tasks import rodent_tasks_modified as T
+from vnl_ray.tasks import rodent_tasks_modified as T
 
-# from flybody import rodent_walker as rodent
+# from vnl_ray import rodent_walker as rodent
 from dm_control.locomotion.walkers import rodent
 
-from flybody.tasks import (
+from vnl_ray.tasks import (
     tracking_old as tracking,
 )  # TODO hacky tape, new tracking did not work yet
 
-from flybody.tasks.trajectory_loaders import (
+from vnl_ray.tasks.trajectory_loaders import (
     HDF5WalkingTrajectoryLoader,
     InferenceWalkingTrajectoryLoader,
 )
@@ -287,7 +287,7 @@ def walk_humanoid(
     arena = floors.Floor()
     walker = walkers.CMUHumanoidPositionControlledV2020
 
-    TEST_FILE_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "../../flybody/clips"))
+    TEST_FILE_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "../../vnl_ray/clips"))
     TEST_FILE_PATH = os.path.join(TEST_FILE_DIR, ref_path)
     test_data = resources.GetResourceFilename(TEST_FILE_PATH)
 
@@ -331,7 +331,7 @@ def walk_rendering(
     arena = floors.Floor()
     walker = walkers.CMUHumanoidPositionControlledV2020
 
-    TEST_FILE_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "../../flybody/clips"))
+    TEST_FILE_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "../../vnl_ray/clips"))
     TEST_FILE_PATH = os.path.join(TEST_FILE_DIR, ref_path)
     test_data = resources.GetResourceFilename(TEST_FILE_PATH)
 

@@ -8,18 +8,18 @@ from dm_control import mujoco
 from dm_control import composer
 from dm_control.locomotion.arenas import floors
 
-from flybody.fruitfly import fruitfly
+from vnl_ray.fruitfly import fruitfly
 
-from flybody.tasks.flight_imitation import FlightImitationWBPG
-from flybody.tasks.walk_imitation import WalkImitation
-from flybody.tasks.walk_on_ball import WalkOnBall
-from flybody.tasks.vision_flight import VisionFlightImitationWBPG
-from flybody.tasks.template_task import TemplateTask
+from vnl_ray.tasks.flight_imitation import FlightImitationWBPG
+from vnl_ray.tasks.walk_imitation import WalkImitation
+from vnl_ray.tasks.walk_on_ball import WalkOnBall
+from vnl_ray.tasks.vision_flight import VisionFlightImitationWBPG
+from vnl_ray.tasks.template_task import TemplateTask
 
-from flybody.tasks.arenas.ball import BallFloor
-from flybody.tasks.arenas.hills import SineBumps, SineTrench
-from flybody.tasks.pattern_generators import WingBeatPatternGenerator
-from flybody.tasks.trajectory_loaders import (
+from vnl_ray.tasks.arenas.ball import BallFloor
+from vnl_ray.tasks.arenas.hills import SineBumps, SineTrench
+from vnl_ray.tasks.pattern_generators import WingBeatPatternGenerator
+from vnl_ray.tasks.trajectory_loaders import (
     HDF5FlightTrajectoryLoader,
     HDF5WalkingTrajectoryLoader,
     InferenceWalkingTrajectoryLoader,

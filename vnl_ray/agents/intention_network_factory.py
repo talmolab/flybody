@@ -8,10 +8,10 @@ from acme.tf import networks
 import numpy as np
 import sonnet as snt
 
-from flybody.agents import losses_mpo
-from flybody.agents.utils_intention import separate_observation
-from flybody.agents.intention_network_base import IntentionNetwork
-from flybody.agents.vis_net import VisNetRodent
+from vnl_ray.agents import losses_mpo
+from vnl_ray.agents.utils_intention import separate_observation
+from vnl_ray.agents.intention_network_base import IntentionNetwork
+from vnl_ray.agents.vis_net import VisNetRodent
 
 
 def network_factory_dmpo(
@@ -30,7 +30,7 @@ def network_factory_dmpo(
     action_dist_scale=0.1,
     use_tfd_independent=True,
     use_visual_network=False,
-    visual_feature_size:int=0,
+    visual_feature_size: int = 0,
 ):
     """Networks for DMPO agent."""
     action_size = np.prod(action_spec.shape, dtype=int)
@@ -69,11 +69,11 @@ def network_factory_dmpo(
         networks_out["observation"] = VisNetRodent(vis_output_dim=visual_feature_size)
     else:
         networks_out["observation"] = separate_observation
-    return networks_out 
+    return networks_out
 
 
 def make_network_factory_dmpo(
-    task_obs_size: int, # required for routing obs.
+    task_obs_size: int,  # required for routing obs.
     encoder_layer_sizes=(512, 512, 512),
     decoder_layer_sizes=(512, 512, 512),
     critic_layer_sizes=(512, 512, 256),
@@ -85,8 +85,8 @@ def make_network_factory_dmpo(
     tanh_mean=False,
     init_scale=0.7,
     use_tfd_independent=True,
-    use_visual_network:bool=False,
-    visual_feature_size:int=0,
+    use_visual_network: bool = False,
+    visual_feature_size: int = 0,
 ):
     """Returns network factory for distributed DMPO agent."""
 

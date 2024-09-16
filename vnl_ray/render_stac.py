@@ -13,7 +13,7 @@ import h5py
 
 from dm_control.locomotion.walkers import rodent
 
-from flybody.tasks import tracking_old as tracking
+from vnl_ray.tasks import tracking_old as tracking
 
 import imageio
 
@@ -53,7 +53,7 @@ def rodent_walk_rendering(
     )
 
 
-TEST_FILE_PATH = "/root/vast/scott-yang/flybody/clips/all_snippets.h5"
+TEST_FILE_PATH = "/root/vast/scott-yang/vnl_ray/clips/all_snippets.h5"
 
 env = rodent_walk_rendering(TEST_FILE_PATH)
 num_clips = len(env.task._all_clips)

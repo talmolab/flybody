@@ -45,11 +45,11 @@ dev_requirements = [
 ]
 
 setup(
-    name="flybody",
+    name="vnl_ray",
     version="0.1",
     packages=find_packages(),
     package_data={
-        "flybody": ["fruitfly/assets/*.obj", "fruitfly/assets/*.xml"],
+        "vnl-ray": ["vnl-ray/assets/*.obj", "vnl-ray/assets/*.xml"],
     },
     python_requires=">=3.10",
     install_requires=core_requirements,
@@ -58,7 +58,7 @@ setup(
         "ray": ray_requirements,
         "dev": dev_requirements,
     },
-    author="Roman Vaxenburg, Yuval Tassa, Zinovia Stefanidi",
-    description="MuJoCo fruit fly body model and reinforcement learning tasks",
-    url="https://github.com/TuragaLab/flybody",
+    author="Roman Vaxenburg, Yuval Tassa, Zinovia Stefanidi, Scott Yang, Eric Leonardis",
+    description="VNL training with ray backend, forked from the flybody repo from Turaga Lab",
+    url="https://github.com/talmolab/vnl-ray",
 )
