@@ -39,7 +39,7 @@ except:
     # Spin up new Ray cluster.
     ray_context = ray.init(include_dashboard=True, dashboard_host="0.0.0.0", logging_level=logging.INFO)
 
-import argparse
+
 import time
 import os
 import dataclasses
@@ -87,12 +87,6 @@ LD_LIBRARY_PATH = os.environ["LD_LIBRARY_PATH"] if "LD_LIBRARY_PATH" in os.envir
 
 # Defer specifying CUDA_VISIBLE_DEVICES to sub-processes.
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-parser = argparse.ArgumentParser()
-parser.add_argument(
-    "--test",
-    help="Run job in test mode with one actor and output to current terminal.",
-    action="store_true",
-)
 
 tasks = {
     "run-gaps": rodent_run_gaps,
@@ -108,7 +102,7 @@ tasks = {
 @hydra.main(
     version_base=None,
     config_path="./config",
-    config_name="train_config_bowl_transfer",
+    config_name="train_config_generalist_transfer",
 )
 def main(config: DictConfig) -> None:
     print("CONFIG:", config)
@@ -225,6 +219,7 @@ def main(config: DictConfig) -> None:
     dmpo_config = DMPOConfig(
         num_actors=config["num_actors"],
         batch_size=config["batch_size"],
+        discount=config["discount"],
         prefetch_size=1024,  # aggresive prefetch param, because we have large amount of data
         num_learner_steps=1000,
         min_replay_size=50_000,
