@@ -96,10 +96,21 @@ class DMPONetworks:
                     )
                 ],
             )
-            _ = utils.create_variables(
-                self.policy_network.encoder,
-                [tf.TensorSpec((self.policy_network.task_obs_size,), tf.float32)],
-            )
+            if self.policy_network.use_multi_encoder:
+                # create variables for those.
+                _ = utils.create_variables(
+                    self.policy_network.high_level_encoder,
+                    [tf.TensorSpec((self.policy_network.task_obs_size,), tf.float32)],
+                )
+                _ = utils.create_variables(
+                    self.policy_network.mid_level_encoder,
+                    [tf.TensorSpec((self.policy_network.high_level_intention_size,), tf.float32)],
+                )
+            else:
+                _ = utils.create_variables(
+                    self.policy_network.encoder,
+                    [tf.TensorSpec((self.policy_network.task_obs_size,), tf.float32)],
+                )
 
     def make_policy(self, stochastic: bool = False) -> snt.Module:
         """Create a single network which evaluates the policy."""

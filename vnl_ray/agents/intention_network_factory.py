@@ -26,11 +26,13 @@ def network_factory_dmpo(
     num_atoms=51,
     min_scale=1e-6,
     tanh_mean=False,
-    init_scale=1.0,
-    action_dist_scale=0.1,
+    init_scale=0.5,
+    action_dist_scale=0.15,
     use_tfd_independent=True,
     use_visual_network=False,
     visual_feature_size: int = 0,
+    mid_layer_sizes=None,
+    high_level_intention_size=None,
 ):
     """Networks for DMPO agent."""
     action_size = np.prod(action_spec.shape, dtype=int)
@@ -46,6 +48,8 @@ def network_factory_dmpo(
         use_tfd_independent=use_tfd_independent,
         encoder_layer_sizes=encoder_layer_sizes,
         decoder_layer_sizes=decoder_layer_sizes,
+        mid_layer_sizes=mid_layer_sizes,
+        high_level_intention_size=high_level_intention_size,
     )
 
     # The multiplexer concatenates the (maybe transformed) observations/actions.
@@ -87,6 +91,8 @@ def make_network_factory_dmpo(
     use_tfd_independent=True,
     use_visual_network: bool = False,
     visual_feature_size: int = 0,
+    mid_layer_sizes=None,
+    high_level_intention_size=None,
 ):
     """Returns network factory for distributed DMPO agent."""
 
@@ -107,6 +113,8 @@ def make_network_factory_dmpo(
             use_tfd_independent=use_tfd_independent,
             use_visual_network=use_visual_network,
             visual_feature_size=visual_feature_size,
+            mid_layer_sizes=mid_layer_sizes,
+            high_level_intention_size=high_level_intention_size,
         )
 
     return network_factory

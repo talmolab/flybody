@@ -200,6 +200,14 @@ def main(config: DictConfig) -> None:
             use_tfd_independent=True,  # for easier KL calculation
             use_visual_network=config.obs_network["use_visual_network"],
             visual_feature_size=config.obs_network["visual_feature_size"],
+            mid_layer_sizes=(
+                config.learner_network["mid_layer_sizes"] if config.learner_network["use_multi_decoder"] else None
+            ),
+            high_level_intention_size=(
+                config.learner_network["high_level_intention_size"]
+                if config.learner_network["use_multi_decoder"]
+                else None
+            ),
         )
     else:
         # online settings

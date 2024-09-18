@@ -173,10 +173,12 @@ class DistributionalMPOLearner(acme.Learner):
                 "num_steps": self._num_steps,
             }
             if isinstance(self._target_policy_network, IntentionNetwork):
-                objects_to_save["policy_encoder"] = self._target_policy_network.encoder
-                objects_to_save["policy_decoder"] = self._target_policy_network.decoder
-                objects_to_save["online_policy_encoder"] = self._policy_network.encoder
-                objects_to_save["online_policy_decoder"] = self._policy_network.decoder
+                objects_to_save["policy_decoder"] = self._target_policy_network.high_level_encoder
+                if self._target_policy_network.use_multi_encoder:
+                    objects_to_save["policy_high_level_encoder"] = self._target_policy_network.high_level_encoder
+                    objects_to_save["policy_mid_level_encoder"] = self._target_policy_network.mid_level_encoder
+                else:
+                    objects_to_save["policy_encoder"] = self._target_policy_network.encoder
             self._checkpointer = tf2_savers.Checkpointer(
                 subdirectory="dmpo_learner",
                 objects_to_save=objects_to_save,
@@ -193,7 +195,11 @@ class DistributionalMPOLearner(acme.Learner):
             # optionally save the decoder if we have one.
             if isinstance(self._target_policy_network, IntentionNetwork):
                 objects_to_save["policy-decoder-0"] = self._target_policy_network.decoder
-                objects_to_save["policy-encoder-0"] = self._target_policy_network.encoder
+                if self._target_policy_network.use_multi_encoder:
+                    objects_to_save["policy_high_level_encoder-0"] = self._target_policy_network.high_level_encoder
+                    objects_to_save["policy_mid_level_encoder-0"] = self._target_policy_network.mid_level_encoder
+                else:
+                    objects_to_save["policy_encoder-0"] = self._target_policy_network.encoder
 
             self._snapshotter = tf2_savers.Snapshotter(
                 objects_to_save=objects_to_save,

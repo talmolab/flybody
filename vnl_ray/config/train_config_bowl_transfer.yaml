@@ -12,10 +12,14 @@ obs_network:
 learner_network:
   # network factory params
   use_intention: true
-  encoder_layer_sizes: [1024, 1024]
+  encoder_layer_sizes: [512, 512, 512]
   decoder_layer_sizes: [1024, 1024]
-  critic_layer_sizes: [1024, 1024, 1024]
+  critic_layer_sizes: [1024,1024,512,512,512]
   intention_size: 60
+  # if specified, this is the mid_level_encoder size, and the encoder layer size is the high level size
+  use_multi_decoder: true
+  mid_layer_sizes: [512, 1024] 
+  high_level_intention_size: 45
 
 env_params:
   # env params
@@ -26,12 +30,12 @@ env_params:
 learner_params:
   # learner parameters
   batch_size: 256
-  discount: 0.99
+  discount: 0.97
   policy_optimizer_lr: 1e-4
   critic_optimizer_lr: 1e-4
   dual_optimizer_lr: 1e-3
-  checkpoint_to_load: /root/vast/scott-yang/flybody/training/ray-rodent-escape-bowl-ckpts/bowl_transfer_t2/checkpoints/dmpo_learner/ckpt-115
-  load_decoder_only: false
+  checkpoint_to_load: /root/vast/scott-yang/flybody/training/ray-rodent-imitation_rodent-ckpts/mc-correct-2/checkpoints/dmpo_learner/ckpt-92
+  load_decoder_only: true
   froze_decoder: true # whether the decoder is trainable or not.
 
 eval_params:
