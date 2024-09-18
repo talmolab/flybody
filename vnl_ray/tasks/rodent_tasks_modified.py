@@ -49,9 +49,12 @@ class EscapeSameObs(Escape):
         walker_spawn_rotation=None,
         physics_timestep=0.005,
         control_timestep=0.025,
-        reward_termination=False,  # controls whether we terminate the episode based on the history of the reward
-        reward_threshold=0.5,  # controls what considered as a valid. (inspiration from basketball shot timer)
-        reward_stale_timestep=150,  # controls the length of the timer
+        target_velocity=2,
+        aliveness_reward=0.1,
+        reward_termination=True,  # controls whether we terminate the episode based on the history of the reward
+        reward_threshold=0.1,  # controls what considered as a valid. (inspiration from basketball shot timer)
+        reward_margin=0.05,  # controls the differences of reward during timestep.
+        reward_stale_timestep=300,  # controls the length of the timer
     ):
         super().__init__(
             walker,
@@ -65,12 +68,24 @@ class EscapeSameObs(Escape):
         # add dummy task_logic observations
         self._task_observables["task_logic"] = dm_observable.Generic(dummy_task_logic)
         list(self._task_observables.values())[0].enabled = True
-        self._reward_keys = ["escape_reward", "upright_reward", "escape_reward * upright_reward"]
+        self._reward_keys = [
+            "escape_reward",
+            "upright_reward",
+            "escape_reward * upright_reward",
+            "velocity",
+            "velocity * upright_reward",
+            "aliveness_reward",
+            "total_reward",
+        ]
         self._reward_termination = reward_termination
         self._reward_threshold = reward_threshold
         self._reward_stale_timestep = reward_stale_timestep
         self._reward_timer = -1
         self._failure_termination = False
+        self._vel = target_velocity
+        self._aliveness_reward = aliveness_reward
+        self._reward_margin = reward_margin
+        self._prev_reward = 0
 
     @property
     def task_observables(self):
@@ -101,16 +116,28 @@ class EscapeSameObs(Escape):
             sigmoid="linear",
         )
         upright_reward = _upright_reward(physics, self._walker, deviation_angle=30)
+        walker_xvel = physics.bind(self._walker.root_body).subtree_linvel[0]
+        walker_yvel = physics.bind(self._walker.root_body).subtree_linvel[1]
+        walker_vel = np.sqrt(walker_xvel**2 + walker_yvel**2)
+        vel_term = rewards.tolerance(
+            walker_vel, (self._vel, self._vel), margin=self._vel, sigmoid="linear", value_at_margin=0.0
+        )
         reward_channels["escape_reward"] = float(escape_reward)
         reward_channels["upright_reward"] = float(upright_reward)
         reward_channels["escape_reward * upright_reward"] = float(upright_reward * escape_reward)
+        reward_channels["velocity"] = float(vel_term)
+        reward_channels["velocity * upright_reward"] = float(vel_term * upright_reward)
+        reward_channels["aliveness_reward"] = float(self._aliveness_reward)
+        timestep_reward = float(upright_reward * (escape_reward / 2 + vel_term / 2) + self._aliveness_reward)
+        reward_channels["total_reward"] = timestep_reward
         self.last_reward_channels = reward_channels
-        timestep_reward = float(upright_reward * escape_reward)
+        reward_diff = abs(timestep_reward - self._prev_reward)
         if self._reward_termination:
-            if timestep_reward < self._reward_threshold:
+            if timestep_reward < self._reward_threshold or reward_diff < self._reward_margin:
                 self._reward_timer += 1  # increment the timer
             else:
                 self._reward_timer = 0  # reset the timer
+        self._prev_reward = timestep_reward
         return timestep_reward
 
     def after_step(self, physics, random_state):
@@ -248,14 +275,14 @@ class ManyGoalsMazeSameObs(ManyGoalsMaze):
         randomize_spawn_position=True,
         randomize_spawn_rotation=True,
         rotation_bias_factor=0.0,
-        aliveness_reward=0.0,
+        aliveness_reward=0.1,
         aliveness_threshold=DEFAULT_ALIVE_THRESHOLD,
         contact_termination=True,
         physics_timestep=DEFAULT_PHYSICS_TIMESTEP,
         control_timestep=DEFAULT_CONTROL_TIMESTEP,
-        reward_termination=False,  # controls whether we terminate the episode based on the history of the reward
+        reward_termination=True,  # controls whether we terminate the episode based on the history of the reward
         reward_threshold=1,  # controls what considered as a valid. (inspiration from basketball shot timer)
-        reward_stale_timestep=300,  # controls the length of the timer
+        reward_stale_timestep=400,  # controls the length of the timer
     ):
         super().__init__(
             walker,
@@ -300,7 +327,7 @@ class ManyGoalsMazeSameObs(ManyGoalsMaze):
         self._reset_reward_channels()
         self._reward_timer = -1
         self._failure_termination = False
-        
+
     def get_reward(self, physics):
         del physics
         reward_channels = {}
@@ -341,7 +368,7 @@ class TwoTouchSamObs(TwoTouch):
         randomize_spawn_position=False,
         randomize_spawn_rotation=True,
         rotation_bias_factor=0,
-        aliveness_reward=0,
+        aliveness_reward=0.1,
         touch_interval=0.8,
         interval_tolerance=0.1,
         failure_timeout=1.2,
