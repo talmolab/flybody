@@ -88,7 +88,7 @@ def make_default_logger(
 
     if wandb_project:
         # initialize wandb logging
-        trail_name = f"{config['run_name']}-{identity}"
+        trail_name = f"{config['run_config']['run_name']}-{identity}"
         if task_name != "":
             trail_name += f"-{task_name}"
         wandb = setup_wandb(
@@ -97,7 +97,7 @@ def make_default_logger(
             rank_zero_only=False,
             trial_name=trail_name,
             trial_id=nanoid.generate(),
-        )  # with unit uuid
+        )  # with unique uuid
         loggers.append(WandBLogger(wandb=wandb))
 
     # Dispatch to all writers and filter Nones and by time.

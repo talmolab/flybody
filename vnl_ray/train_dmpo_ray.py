@@ -102,7 +102,7 @@ tasks = {
 @hydra.main(
     version_base=None,
     config_path="./config",
-    config_name="train_config_generalist_transfer",
+    config_name="train_config_bowl_transfer",
 )
 def main(config: DictConfig) -> None:
     print("CONFIG:", config)
@@ -180,32 +180,32 @@ def main(config: DictConfig) -> None:
         "imitation_humanoid": environment_factory_imitation_humanoid,
         "imitation_rodent": functools.partial(
             environment_factory_imitation_rodent,
-            termination_error_threshold=config["termination_error_threshold"],
+            # termination_error_threshold=config["termination_error_threshold"], # TODO modify the config yaml for the imitation learning too.
         ),
     }
 
     # Dummy environment and network for quick use, deleted later. # create this earlier to access the obs
-    dummy_env = environment_factories[config["task_name"]]()
+    dummy_env = environment_factories[config.run_config["task_name"]]()
 
     # Create network factory for RL task. Config specify different ANN structures
-    if config["use_intention"]:
+    if config.learner_network["use_intention"]:
         network_factory = make_network_factory_dmpo_intention(
             task_obs_size=get_task_obs_size(
-                dummy_env.observation_spec(), config["agent_name"], config["visual_feature_size"]
+                dummy_env.observation_spec(), config.run_config["agent_name"], config.obs_network["visual_feature_size"]
             ),
-            encoder_layer_sizes=config["encoder_layer_sizes"],
-            decoder_layer_sizes=config["decoder_layer_sizes"],
-            critic_layer_sizes=config["critic_layer_sizes"],
-            intention_size=config["intention_size"],
+            encoder_layer_sizes=config.learner_network["encoder_layer_sizes"],
+            decoder_layer_sizes=config.learner_network["decoder_layer_sizes"],
+            critic_layer_sizes=config.learner_network["critic_layer_sizes"],
+            intention_size=config.learner_network["intention_size"],
             use_tfd_independent=True,  # for easier KL calculation
-            use_visual_network=config["use_visual_network"],
-            visual_feature_size=config["visual_feature_size"],
+            use_visual_network=config.obs_network["use_visual_network"],
+            visual_feature_size=config.obs_network["visual_feature_size"],
         )
     else:
         # online settings
         network_factory = make_network_factory_dmpo(
-            policy_layer_sizes=config["policy_layer_sizes"],
-            critic_layer_sizes=config["critic_layer_sizes"],
+            policy_layer_sizes=config.learner_network["policy_layer_sizes"],
+            critic_layer_sizes=config.learner_network["critic_layer_sizes"],
         )
 
     dummy_net = network_factory(dummy_env.action_spec())  # we should share this net for joint training
@@ -217,9 +217,9 @@ def main(config: DictConfig) -> None:
     penalization_cost = None  # PenalizationCostRealActions(dummy_env.environment.action_spec())
     # Distributed DMPO agent configuration.
     dmpo_config = DMPOConfig(
-        num_actors=config["num_actors"],
-        batch_size=config["batch_size"],
-        discount=config["discount"],
+        num_actors=config.env_params["num_actors"],
+        batch_size=config.learner_params["batch_size"],
+        discount=config.learner_params["discount"],
         prefetch_size=1024,  # aggresive prefetch param, because we have large amount of data
         num_learner_steps=1000,
         min_replay_size=50_000,
@@ -235,9 +235,9 @@ def main(config: DictConfig) -> None:
             epsilon_penalty=0.1,
             penalization_cost=penalization_cost,
         ),
-        policy_optimizer=snt.optimizers.Adam(config["policy_optimizer_lr"]),  # reduce the lr
-        critic_optimizer=snt.optimizers.Adam(config["critic_optimizer_lr"]),
-        dual_optimizer=snt.optimizers.Adam(config["dual_optimizer_lr"]),
+        policy_optimizer=snt.optimizers.Adam(config.learner_params["policy_optimizer_lr"]),  # reduce the lr
+        critic_optimizer=snt.optimizers.Adam(config.learner_params["critic_optimizer_lr"]),
+        dual_optimizer=snt.optimizers.Adam(config.learner_params["dual_optimizer_lr"]),
         target_critic_update_period=107,
         target_policy_update_period=101,
         actor_update_period=5_000,
@@ -245,20 +245,26 @@ def main(config: DictConfig) -> None:
         logger=make_default_logger,
         logger_save_csv_data=False,
         checkpoint_max_to_keep=None,
-        checkpoint_directory=f"./training/ray-{config['agent_name']}-{config['task_name']}-ckpts/",
-        checkpoint_to_load=config["checkpoint_to_load"],
+        checkpoint_directory=f"./training/ray-{config.run_config['agent_name']}-{config.run_config['task_name']}-ckpts/",
+        checkpoint_to_load=config.learner_params["checkpoint_to_load"],
         print_fn=None,  # print # this causes issue pprint does not work
         userdata=dict(),
         kickstart_teacher_cps_path=(
-            config["kickstart_teacher_cps_path"] if "kickstart_teacher_cps_path" in config else None
+            config.learner_params["kickstart_teacher_cps_path"]
+            if "kickstart_teacher_cps_path" in config.learner_params
+            else None
         ),  # specify the location of the kickstarter teacher policy's cps
-        kickstart_epsilon=config["kickstart_epsilon"] if "kickstart_epsilon" in config else 0,
+        kickstart_epsilon=(
+            config.learner_params["kickstart_epsilon"] if "kickstart_epsilon" in config.learner_params else 0
+        ),
         time_delta_minutes=30,
-        eval_average_over=config["eval_average_over"],
+        eval_average_over=config.eval_params["eval_average_over"],
         KL_weights=(0, 0),
         # specify the KL with intention & action output layer # do not penalize the output layer # disabled it for now.
-        load_decoder_only=config["load_decoder_only"] if "load_decoder_only" in config else False,
-        froze_decoder=config["froze_decoder"] if "froze_decoder" in config else False,
+        load_decoder_only=(
+            config.learner_params["load_decoder_only"] if "load_decoder_only" in config.learner_params else False
+        ),
+        froze_decoder=config.learner_params["froze_decoder"] if "froze_decoder" in config.learner_params else False,
     )
 
     dmpo_dict_config = dataclasses.asdict(dmpo_config)
@@ -360,12 +366,12 @@ def main(config: DictConfig) -> None:
                     servers.append(replay_server)
                     time.sleep(0.1)
     else:
-        if "num_replay_servers" in config and config["num_replay_servers"] != 0:
+        if "num_replay_servers" in config.env_params and config.env_params["num_replay_servers"] != 0:
             dmpo_config.max_replay_size = (
-                dmpo_config.max_replay_size // config["num_replay_servers"]
+                dmpo_config.max_replay_size // config.env_params["num_replay_servers"]
             )  # shrink down the replay size correspondingly
-            for i in range(config["num_replay_servers"]):
-                name = f"{config['task_name']}-{i+1}"
+            for i in range(config.env_params["num_replay_servers"]):
+                name = f"{config.run_config['task_name']}-{i+1}"
                 # multiple replay server for load balancing
                 replay_server = ReplayServer.remote(
                     dmpo_config, environment_spec
@@ -383,7 +389,7 @@ def main(config: DictConfig) -> None:
             replay_server = ReplayServer.remote(dmpo_config, environment_spec)
             addr = ray.get(replay_server.get_server_address.remote())
             print(f"Started Replay Server on {addr}")
-            replay_servers[config["task_name"]] = addr
+            replay_servers[config.run_config["task_name"]] = addr
 
     # === Create Counter.
     counter = ray.remote(PicklableCounter)  # This is class (direct call to ray.remote decorator).
@@ -463,7 +469,7 @@ def main(config: DictConfig) -> None:
         print(config.actors_envs)
         for name, num_actors in config.actors_envs.items():
             if num_actors != 0:
-                if not config["separate_replay_servers"]:
+                if not config.env_params["separate_replay_servers"]:
                     actors += create_actors(
                         num_actors,
                         environment_factories[name],
@@ -487,24 +493,24 @@ def main(config: DictConfig) -> None:
     else:
         # Get actors.
         print(f"ACTOR Creation: {n_actors}")
-        if "num_replay_servers" in config:
-            num_replay_server = config["num_replay_servers"]
+        if "num_replay_servers" in config.env_params:
+            num_replay_server = config.env_params["num_replay_servers"]
         else:
             num_replay_server = 1
         for i in range(num_replay_server):
-            name = f"{config['task_name']}-{i+1}"
+            name = f"{config.run_config['task_name']}-{i+1}"
             num_actor_per_replay = n_actors // num_replay_server
             actors += create_actors(
                 num_actor_per_replay,
-                environment_factories[config["task_name"]],
+                environment_factories[config.run_config["task_name"]],
                 replay_servers[name],
             )
-        if config["task_name"] == "imitation_rodent":
+        if config.run_config["task_name"] == "imitation_rodent":
             env_fac = functools.partial(
-                environment_factories[config["task_name"]], always_init_at_clip_start=True
+                environment_factories[config.run_config["task_name"]], always_init_at_clip_start=True
             )  # for imitation's evaluator, force init at clip start
         else:
-            env_fac = environment_factories[config["task_name"]]
+            env_fac = environment_factories[config.run_config["task_name"]]
         evaluator = EnvironmentLoop.remote(
             replay_server_address="",  # evaluator does not need replay server addr
             variable_source=learner,
@@ -514,7 +520,7 @@ def main(config: DictConfig) -> None:
             dmpo_config=dmpo_config,
             actor_or_evaluator="evaluator",
             snapshotter_dir=snapshotter_dir,
-            task_name=config["task_name"],
+            task_name=config.run_config["task_name"],
         )
         evaluators.append(RemoteAsLocal(evaluator))
 
