@@ -1,0 +1,24 @@
+agent_name: mouse
+algo_name: dmpo
+task_name: mouse_reach
+run_name:  mouse-forelimb-reach
+# need to be consistent with the rest of the task if we want to task swichting
+training_type:
+batch_size: 1024
+policy_layer_sizes: [256,256,256]
+critic_layer_sizes: [256,256,256]
+num_actors: 40
+group_name: mouse-reach
+checkpoint_to_load: 
+kickstart_teacher_cps_path:
+kickstart_epsilon:
+termination_error_threshold:
+random_range: 
+
+# learner parameters
+policy_optimizer_lr: 1e-5
+critic_optimizer_lr: 1e-5
+dual_optimizer_lr: 1e-4
+
+# evaluator params
+eval_average_over: 850
