@@ -68,6 +68,8 @@ from flybody.basic_rodent_2020 import (
     rodent_walk_imitation,
 )
 
+from flybody.mouse_reach import mouse_reach
+
 from flybody.wrapper import SinglePrecisionWrapperFloat, RemoveVisionWrapper
 
 from flybody.fly_envs import (
@@ -121,13 +123,14 @@ tasks = {
     "rodent_imitation": rodent_walk_imitation,
     "fly_imitation": fly_walk_imitation,
     "humanoid_imitation": walk_humanoid,
+    "mouse_reach": mouse_reach,
 }
 
 
 @hydra.main(
     version_base=None,
     config_path="./config",
-    config_name="train_config_gaps", #change task here
+    config_name="train_config_mouse_reach", #change task here
 )
 def main(config: DictConfig) -> None:
     print("CONFIG:", config)
@@ -148,6 +151,12 @@ def main(config: DictConfig) -> None:
 
     # Create environment factory RL task.
     # Cannot parametrize it because it failed to serialize functions
+    def environment_factory_mouse_reach() -> "composer.Environment":
+        env = tasks["mouse_reach"]()
+        env = wrappers.SinglePrecisionWrapper(env)
+        env = wrappers.CanonicalSpecWrapper(env)
+        return env
+
     def environment_factory_run_gaps() -> "composer.Environment":
         env = tasks["run-gaps"]()
         env = wrappers.SinglePrecisionWrapper(env)
@@ -208,6 +217,7 @@ def main(config: DictConfig) -> None:
             termination_error_threshold=config["termination_error_threshold"],
             random_range=config["random_range"],
         ),
+        "mouse_reach": environment_factory_mouse_reach,
     }
 
     # Create network factory for RL task.
