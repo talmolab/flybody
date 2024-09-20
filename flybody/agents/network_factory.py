@@ -115,8 +115,8 @@ def network_factory_dmpo(
     return {
         "policy": policy_network,
         "critic": critic_network,
-        "observation": VisNetRodent(),
-        # 'observation': tf2_utils.batch_concat # need to adapt this to imitation learning
+        #"observation": VisNetRodent(),
+        'observation': tf2_utils.batch_concat # need to adapt this to imitation learning
     }
 
 
