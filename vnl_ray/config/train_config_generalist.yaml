@@ -1,0 +1,18 @@
+agent_name: rodent
+training_type: online_rl
+algo_name: dmpo
+task_name: general
+run_name: rodent
+batch_size: 2048
+policy_layer_sizes: [512,512,512,512]
+critic_layer_sizes: [512,512,512,512]
+num_actors: 0 # total number of actors
+actors_envs:
+  run-gaps: 0
+  maze-forage: 20
+  escape-bowl: 20
+  two-taps: 20
+checkpoint_to_load: /root/vast/scott-yang/vnl_ray/training/ray-rodent-general-ckpts/48e2bc62-5484-11ef-82ec-2ae1cc4cdff5/checkpoints/dmpo_learner/ckpt-46
+num_replay_servers: 1 # in multi task, this indicate the number of replay server for each sub tasks.
+kickstart_teacher_cps_path: # /root/vast/scott-yang/vnl_ray/training/ray-rodent-escape-bowl-ckpts/25422bcc-5389-11ef-93c8-2ae1cc4cdff5/snapshots/policy-only-no-obs-network-33
+kickstart_epsilon: #0.5

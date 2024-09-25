@@ -1,0 +1,13 @@
+agent_name: fly
+algo_name: dmpo
+task_name: imitation
+run_name: fly_imitation
+batch_size: 512
+policy_layer_sizes: [512, 512, 512, 512]
+critic_layer_sizes: [512, 512, 512]
+num_actors: 90
+group_name: basic-imitation
+
+# for some reason only abs path works here
+ref_traj_path: "/root/talmolab-smb/kaiwen/vnl_ray/demos/data/walking-dataset_female-only_snippets-16252_trk-files-0-9.hdf5"
+checkpoint_to_load:

@@ -1,0 +1,12 @@
+agent_name: rodent
+algo_name: dmpo
+task_name: run-gaps
+run_name: rodent-run-gaps
+# need to be consistent with the rest of the task if we want to task swichting
+batch_size: 1024
+policy_layer_sizes: [256,256,256]
+critic_layer_sizes: [256,256,256]
+num_actors: 25
+checkpoint_to_load: 
+kickstart_teacher_cps_path:
+kickstart_epsilon:

@@ -1,0 +1,16 @@
+agent_name: rodent
+algo_name: dmpo
+task_name: general
+run_name: rodent
+batch_size: 512
+policy_layer_sizes: [512,512,512]
+critic_layer_sizes: [512,512,512]
+num_actors: 0 # total number of actors
+actors_envs:
+  run-gaps: 145
+  maze-forage: 0
+  escape-bowl: 145
+  two-taps: 0
+checkpoint_to_load: /root/vast/scott-yang/vnl_ray/training/ray-rodent-escape-bowl-ckpts/1c0f2602-4df5-11ef-a59a-2ae1cc4cdff5/checkpoints/dmpo_learner/ckpt-87
+kickstart_teacher_cps_path: #/root/vast/scott-yang/vnl_ray/training/ray-rodent-escape-bowl-ckpts/80fd0fae-4f83-11ef-8a2c-2ae1cc4cdff5/snapshots/policy-only-no-obs-network-0
+kickstart_epsilon: #0.0

@@ -1,0 +1,15 @@
+matplotlib
+ipykernel
+mujoco
+wandb
+mediapy
+dm_control
+tqdm
+numba
+hydra-core
+imageio
+h5py
+pickle5 # ray needs it
+nanoid
+imageio[pyav]
+imageio[ffmpeg]
