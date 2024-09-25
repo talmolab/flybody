@@ -53,7 +53,7 @@ class EscapeSameObs(Escape):
         aliveness_reward=0.1,
         reward_termination=True,  # controls whether we terminate the episode based on the history of the reward
         reward_threshold=0.1,  # controls what considered as a valid. (inspiration from basketball shot timer)
-        reward_margin=0.05,  # controls the differences of reward during timestep.
+        reward_margin=0.01,  # controls the differences of reward during timestep.
         reward_stale_timestep=300,  # controls the length of the timer
     ):
         super().__init__(
@@ -75,6 +75,7 @@ class EscapeSameObs(Escape):
             "velocity",
             "velocity * upright_reward",
             "aliveness_reward",
+            "escape_vel",
             "total_reward",
         ]
         self._reward_termination = reward_termination
@@ -100,9 +101,12 @@ class EscapeSameObs(Escape):
 
     def initialize_episode(self, physics, random_state):
         super().initialize_episode(physics, random_state)
+        physics.model.opt.iterations = 8
+        physics.model.opt.ls_iterations = 16  # see whether this is will speed up
         self._reset_reward_channels()
         self._reward_timer = -1
         self._failure_termination = False
+        self._prev_escape_reward = 0
 
     def get_reward(self, physics):
         # Escape reward term.
@@ -128,7 +132,12 @@ class EscapeSameObs(Escape):
         reward_channels["velocity"] = float(vel_term)
         reward_channels["velocity * upright_reward"] = float(vel_term * upright_reward)
         reward_channels["aliveness_reward"] = float(self._aliveness_reward)
-        timestep_reward = float(upright_reward * (escape_reward / 2 + vel_term / 2) + self._aliveness_reward)
+        escape_vel = float((escape_reward - self._prev_escape_reward) / self._control_timestep) / 5
+        reward_channels["escape_vel"] = escape_vel
+        timestep_reward = float(
+            upright_reward * (escape_reward / 2 + vel_term / 2 / 6) + self._aliveness_reward + escape_vel
+        )
+        self._prev_escape_reward = escape_reward
         reward_channels["total_reward"] = timestep_reward
         self.last_reward_channels = reward_channels
         reward_diff = abs(timestep_reward - self._prev_reward)
@@ -281,8 +290,9 @@ class ManyGoalsMazeSameObs(ManyGoalsMaze):
         physics_timestep=DEFAULT_PHYSICS_TIMESTEP,
         control_timestep=DEFAULT_CONTROL_TIMESTEP,
         reward_termination=True,  # controls whether we terminate the episode based on the history of the reward
-        reward_threshold=1,  # controls what considered as a valid. (inspiration from basketball shot timer)
-        reward_stale_timestep=400,  # controls the length of the timer
+        reward_threshold=0,  # controls what considered as a valid. (inspiration from basketball shot timer)
+        reward_margin=0.01,  # controls the differences of reward during timestep.
+        reward_stale_timestep=300,  # controls the length of the timer
     ):
         super().__init__(
             walker,
@@ -304,12 +314,15 @@ class ManyGoalsMazeSameObs(ManyGoalsMaze):
         # add dummy origin observations
         self._walker.observables.add_observable("origin", base_observable.Generic(dummy_origin))
         list(self._task_observables.values())[0].enabled = True
-        self._reward_keys = ["aliveness_reward", "target_reward"]
+        self._reward_keys = ["aliveness_reward", "target_reward", "total_reward"]
         self._reward_termination = reward_termination
         self._reward_threshold = reward_threshold
         self._reward_stale_timestep = reward_stale_timestep
         self._reward_timer = -1
         self._failure_termination = False
+        self._prev_reward = 0
+        self._aliveness_reward = aliveness_reward
+        self._reward_margin = reward_margin
 
     @property
     def task_observables(self):
@@ -339,13 +352,16 @@ class ManyGoalsMazeSameObs(ManyGoalsMaze):
                     reward += self._target_type_rewards[target_type]
                     self._target_rewarded[target_type][i] = True
         reward_channels["target_reward"] = float(reward - self._aliveness_reward)
-        self.last_reward_channels = reward_channels
         timestep_reward = float(reward)
+        reward_channels["total_reward"] = timestep_reward
+        self.last_reward_channels = reward_channels
+        reward_diff = abs(timestep_reward - self._prev_reward)
         if self._reward_termination:
-            if timestep_reward < self._reward_threshold:
+            if timestep_reward < self._reward_threshold or reward_diff < self._reward_margin:
                 self._reward_timer += 1  # increment the timer
             else:
                 self._reward_timer = 0  # reset the timer
+        self._prev_reward = timestep_reward
         return timestep_reward
 
     def after_step(self, physics, random_state):
@@ -403,7 +419,7 @@ class TwoTouchSamObs(TwoTouch):
 
         # add dummy origin observations
         self._walker.observables.add_observable("origin", base_observable.Generic(dummy_origin))
-        self._reward_keys = ["aliveness_reward", "target_reward"]
+        self._reward_keys = ["aliveness_reward", "target_reward", "total_reward"]
         self._reward_termination = reward_termination
         self._reward_threshold = reward_threshold
         self._reward_stale_timestep = reward_stale_timestep
@@ -426,6 +442,7 @@ class TwoTouchSamObs(TwoTouch):
         reward_channels["aliveness_reward"] = float(self._aliveness_reward)
         reward = super().get_reward(physics)
         reward_channels["target_reward"] = float(reward - self._aliveness_reward)
+        reward_channels["total_reward"] = reward
         self.last_reward_channels = reward_channels
         if self._reward_termination:
             if float(reward) < self._reward_threshold:
