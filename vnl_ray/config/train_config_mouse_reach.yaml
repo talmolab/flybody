@@ -1,29 +1,40 @@
-agent_name: mouse
-algo_name: dmpo
-task_name: mouse_reach
-run_name:  mouse-forelimb-reach
 
-# observation network params
-use_visual_network: false
-visual_feature_size: 0
+run_config:
+  agent_name: mouse
+  algo_name: dmpo
+  task_name: mouse_reach
+  run_name:  mouse-forelimb-reach
 
-# need to be consistent with the rest of the task if we want to task swichting
-training_type:
-batch_size: 1024
-policy_layer_sizes: [256,256,256]
-critic_layer_sizes: [256,256,256]
-num_actors: 40
-group_name: mouse-reach
-checkpoint_to_load: 
-kickstart_teacher_cps_path:
-kickstart_epsilon:
-termination_error_threshold:
-random_range: 
+obs_network:
+  # observation network params
+  use_visual_network: false
+  visual_feature_size: 0
 
-# learner parameters
-policy_optimizer_lr: 1e-5
-critic_optimizer_lr: 1e-5
-dual_optimizer_lr: 1e-4
+learner_network:
+  # need to be consistent with the rest of the task if we want to task swichting
+  use_intention: true
+  encoder_layer_sizes: [1024, 1024]
+  decoder_layer_sizes: [1024, 1024]
+  critic_layer_sizes: [1024, 1024, 1024]
+  intention_size: 60
+  use_multi_decoder: False
 
-# evaluator params
-eval_average_over: 850
+learner_params:
+  # learner parameters
+  batch_size: 256
+  policy_optimizer_lr: 1e-4
+  critic_optimizer_lr: 1e-4
+  dual_optimizer_lr: 1e-3
+  # checkpoint system
+  load_decoder_only: false
+  checkpoint_to_load:
+  # evaluator params
+  eval_average_over: 500
+  discount: .95
+
+env_params:
+  num_actors: 25
+  num_replay_servers: 2
+
+eval_params:
+  eval_average_over: 500
