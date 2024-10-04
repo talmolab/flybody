@@ -276,48 +276,7 @@ def rodent_walk_imitation(
     )
 
 
-def walk_humanoid(
-    ref_path: str | None = None,
-    random_state: np.random.RandomState | None = None,
-    termination_error_threshold: float = 0.3,
-):
-    """
-    Rodent walking imitation, following similar calling with fruitfly imitation
-    """
-    arena = floors.Floor()
-    walker = walkers.CMUHumanoidPositionControlledV2020
 
-    TEST_FILE_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "../../vnl_ray/clips"))
-    TEST_FILE_PATH = os.path.join(TEST_FILE_DIR, ref_path)
-    test_data = resources.GetResourceFilename(TEST_FILE_PATH)
-
-    with h5py.File(TEST_FILE_PATH, "r") as f:
-        dataset_keys = tuple(f.keys())
-        dataset = types.ClipCollection(
-            ids=dataset_keys,
-        )
-
-    # Set up the mocap tracking task
-    task = tracking.MultiClipMocapTracking(
-        walker=walker,
-        arena=arena,
-        ref_path=test_data,
-        dataset=dataset,
-        ref_steps=(1, 2, 3, 4, 5),
-        min_steps=1,
-        reward_type="comic",
-        always_init_at_clip_start=True,
-        ghost_offset=GHOST_OFFSET,
-        termination_error_threshold=termination_error_threshold,  # lower threshold are harder to terminate
-    )
-    time_limit = 10.0
-
-    return composer.Environment(
-        time_limit=time_limit,
-        task=task,
-        random_state=random_state,
-        strip_singleton_obs_buffer_dim=True,
-    )
 
 
 def walk_rendering(
