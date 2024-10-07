@@ -1,4 +1,4 @@
-<mujoco model="template">
+<mujoco model="mouse">
   <compiler angle="radian">
     <lengthrange mode="muscle"/>
   </compiler>
@@ -19,16 +19,17 @@
     <material name="target" rgba="0.59999999999999998 0.29999999999999999 0.29999999999999999 0.29999999999999999"/>
     <texture name="grid_texture" type="2d" builtin="checker" rgb1="0.10000000000000001 0.20000000000000001 0.29999999999999999" rgb2="0.20000000000000001 0.29999999999999999 0.40000000000000002" mark="edge" markrgb="0.20000000000000001 0.29999999999999999 0.40000000000000002" width="300" height="300"/>
     <material name="grid_material" texture="grid_texture" texrepeat="1 1" texuniform="true" reflectance="0.20000000000000001"/>
-    <mesh file="/root/vast/eric/flybody/flybody/flybody/mouse_forelimb/assets_mousereach/mesh/Bones_Scapula.stl" scale="100 100 100"/>
-		<mesh file="/root/vast/eric/flybody/flybody/flybody/mouse_forelimb/assets_mousereach/mesh/Bone_Segmentation_Humerus.stl" scale="100 100 100"/>
-		<mesh file="/root/vast/eric/flybody/flybody/flybody/mouse_forelimb/assets_mousereach/mesh/Bone_Segmentation_Segment_8.stl" scale="100 100 100"/>
-		<mesh file="/root/vast/eric/flybody/flybody/flybody/mouse_forelimb/assets_mousereach/mesh/Bone_Segments_Hand.stl" scale="100 100 100"/>
-		<mesh file="/root/vast/eric/flybody/flybody/flybody/mouse_forelimb/assets_mousereach/mesh/Bone_Segments_Radius.stl" scale="100 100 100"/>
-		<mesh file="/root/vast/eric/flybody/flybody/flybody/mouse_forelimb/assets_mousereach/mesh/Bone_Segments_Ulna.stl" scale="100 100 100"/>
+    <mesh file="/root/vast/eric/vnl-ray/vnl_ray/mouse_forelimb/assets_mousereach/mesh/Bones_Scapula.stl" scale="100 100 100"/>
+		<mesh file="/root/vast/eric/vnl-ray/vnl_ray/mouse_forelimb/assets_mousereach/mesh/Bone_Segmentation_Humerus.stl" scale="100 100 100"/>
+		<mesh file="/root/vast/eric/vnl-ray/vnl_ray/mouse_forelimb/assets_mousereach/mesh/Bone_Segmentation_Segment_8.stl" scale="100 100 100"/>
+		<mesh file="/root/vast/eric/vnl-ray/vnl_ray/mouse_forelimb/assets_mousereach/mesh/Bone_Segments_Hand.stl" scale="100 100 100"/>
+		<mesh file="/root/vast/eric/vnl-ray/vnl_ray/mouse_forelimb/assets_mousereach/mesh/Bone_Segments_Radius.stl" scale="100 100 100"/>
+		<mesh file="/root/vast/eric/vnl-ray/vnl_ray/mouse_forelimb/assets_mousereach/mesh/Bone_Segments_Ulna.stl" scale="100 100 100"/>
   </asset>
   <worldbody>
     <light name="light" pos="0 0 10"/>
-    <camera name="fixed" fovy="12" pos="-0.081000000000000003 0.14999999999999999 0.021999999999999999" xyaxes="-0.80000000000000004 -0.45000000000000001 0 0.065000000000000002 -0.11 0.99099999999999999"/>
+    <camera name="fixed" mode="fixed" pos=".2 -.2 5"/>
+    <camera name="fixed2" mode="fixed" pos=".2 -.2 5"/>
     <geom name="target" type="sphere" size="0.0030000000000000001" material="target" pos="0.002 0.017000000000000001 0.0050000000000000001"/>
     <geom name="floor" type="plane" contype="0" conaffinity="1" size="3 3 0.20000000000000001" material="grid_material" pos="0 0 -0.02"/>
     <body name="ground" euler="1.5708 3.1415999999999999 1.5708">
