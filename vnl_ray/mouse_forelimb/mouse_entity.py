@@ -24,24 +24,26 @@ class MouseEntity(composer.Entity):
 
     def _build_observables(self):
         """Defines the observables for the MouseEntity."""
-        observables = composer.Observables(self)
+        self._observables = composer.Observables(self)
+        #print("Available geoms:", self._mjcf_model.find_all('geom'))
+        #print("Available sites:", self._mjcf_model.find_all('site'))
 
         # Add joint observables
-        observables.add_observable(
+        self._observables.add_observable(
             "joint_angles", 
-            observable.MJCFFeature(kind='qpos', mjcf_element=self._mjcf_model)
+            observable.MJCFFeature(kind='qpos', mjcf_element=self._mjcf_model.find_all('joint'))
         )
-        observables.add_observable(
+        self._observables.add_observable(
             "joint_velocities", 
-            observable.MJCFFeature(kind='qvel', mjcf_element=self._mjcf_model)
-        )
+            observable.MJCFFeature(kind='qvel', mjcf_element=self._mjcf_model.find_all('joint'))
+)
 
         # Add custom observables using the methods directly
-        observables.add_observable(
+        self._observables.add_observable(
             "to_target", 
             observable.Generic(self._to_target_observable)
         )
-        observables.add_observable(
+        self._observables.add_observable(
             "target_size", 
             observable.Generic(self._target_size_observable)
         )
@@ -54,8 +56,9 @@ class MouseEntity(composer.Entity):
         """Returns the normalized distance from the mouse's finger to the target."""
         # Check if 'target' exists in the current physics model
         try:
-            target_pos = physics.named.data.geom_xpos['target']
-            finger_pos = physics.named.data.geom_xpos['finger_tip']
+            #print(f"GEOM_XPOS: {physics.named.data.geom_xpos}")
+            target_pos = physics.named.data.geom_xpos['mouse/target']
+            finger_pos = physics.named.data.geom_xpos['mouse/finger_tip']
         except KeyError as e:
             raise ValueError(f"Error accessing geom position: {e}. Ensure that 'target' and 'finger_tip' geoms are correctly defined in the MJCF model.")
 
