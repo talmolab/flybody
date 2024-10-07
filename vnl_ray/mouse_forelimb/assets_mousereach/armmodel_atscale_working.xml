@@ -1,0 +1,299 @@
+<!-- Notes from Jesse:
+- Didn't bother to include the wrist and radioulnar joints, since they're missing muscles.
+- This doesn't work with the default muscle properties in mujoco. Any thoughts?
+- I **THINK** everything should be correctly aligned, in a physics sense, but the meshes are offset from the origin...
+so it can be hard to tell.
+- Mujoco's joints aren't sequential like they are in Opensim, so the shoulder behavior really strange. Any thoughts?
+- - You could potentially have three sequential massless bodies that own each individual joint, maybe?
+- I had to do some fine corrections of the body and joint placements, so expect minor differences from the opensim model.
+- - I did my best to mark joints and c.o.m.s with sites that you can visualize.
+-->
+
+<mujoco model="mouse">
+	<!--This stuff can all be left alone-->
+	<compiler angle="radian">
+		<lengthrange mode="muscle"/>
+	</compiler>
+	<default>
+	<joint limited="true" damping="0.1" armature=".1" ></joint>
+	<tendon width="0.005" rgba=".95 .3 .3 1" limited="false"></tendon>
+	</default>
+	<option timestep="0.002"/>
+	<size njmax="1000" nconmax="400" nkey="1" nuser_jnt="1"/>
+	<visual>
+		<scale framelength="0.5" framewidth="0.01"/>
+	</visual>
+	<asset>
+		<texture type="skybox" builtin="gradient" rgb1="1 1 1" rgb2="0.6 0.8 1" width="256" height="1536"/>
+		<texture name="grid" type="2d" builtin="checker" width="512" height="512" rgb1=".1 .2 .3" rgb2=".2 .3 .4"/>
+		<material name="grid" texture="grid" texrepeat="1 1" texuniform="true" reflectance=".2"/>
+		<mesh file="/root/vast/eric/vnl-ray/vnl_ray/mouse_forelimb/assets_mousereach/mesh/Bones_Scapula.stl"/>
+		<mesh file="/root/vast/eric/vnl-ray/vnl_ray/mouse_forelimb/assets_mousereach/mesh/Bone_Segmentation_Humerus.stl"/>
+		<mesh file="/root/vast/eric/vnl-ray/vnl_ray/mouse_forelimb/assets_mousereach/mesh/Bone_Segmentation_Segment_8.stl"/>
+		<mesh file="/root/vast/eric/vnl-ray/vnl_ray/mouse_forelimb/assets_mousereach/mesh/Bone_Segments_Hand.stl"/>
+		<mesh file="/root/vast/eric/vnl-ray/vnl_ray/mouse_forelimb/assets_mousereach/mesh/Bone_Segments_Radius.stl"/>
+		<mesh file="/root/vast/eric/vnl-ray/vnl_ray/mouse_forelimb/assets_mousereach/mesh/Bone_Segments_Ulna.stl"/>
+	</asset>
+	<!--This stuff can all be left alone-->
+	<worldbody>
+	<light directional="true"/>
+	<body name="ground" euler="1.5707 3.14 0">
+		<geom type="ellipsoid" size=".0005" rgba="1 0 0 .1" fromto="0 0 0 .01 0 0"/>
+		<geom type="ellipsoid" size=".0005" rgba="0 1 0 .1" fromto="0 0 0 0 .01 0"/>
+		<geom type="ellipsoid" size=".0005" rgba="0 0 1 .1" fromto="0 0 0 0 0 .01"/>
+		<!--EOB Clavicle-->
+		
+		<!--SOB Scapula-->
+		
+		<body name="scapula" pos="-.012 0 .008" euler="0 1.5707 0">
+			<joint name="ground_scapula" pos="0 0 0" axis="0 1 0" range="-0.000001 0" limited="true"/>
+			<!--Mesh Geom-->
+			
+			<geom type="mesh" mesh="Bones_Scapula" pos="0 0 0"/>
+			<!--Inertia Values-->
+			<inertial pos="0.0106 0.0013 0.0115" mass="0.0003" diaginertia="0.003 0.003 0.003"/>
+			<site name="interial_center_scapula" pos="0.0106 0.0013 0.0115" rgba=".6 .6 .6 .1" size="0.001"/>
+
+			<!--Attatchment Sites-->
+			<site name="Biceps_Long_Head-P3" pos="0.00849576 0.00228906 0.01221302" rgba=".1 .2 .6 .5" size="0.0002"/>
+			<site name="Triceps_Long_Head_Origin" pos="0.00976038 0.0011741157 0.01157652" rgba=".1 .2 .6 .5" size="0.0002"/>
+			<site name="Deltoid_M_Origin" pos="0.008692938 0.001175186431 0.011578824" rgba=".1 .2 .6 .5" size="0.0002"/>
+			<site name="Subscapularis_SuperiorHead_Origin" pos="0.0133000006 0.000399999 0.012899997" rgba=".1 .2 .6 .5" size="0.0002"/>
+			<site name="Infraspinatus_P1" pos="0.008999998681247234 0.0018000002019107342 0.011800001375377178" rgba=".1 .2 .6 .5" size="0.0002"/>
+			<site name="Infraspinatus_Origin" pos="0.010599999688565731 0.0013000000035390258 0.011599999852478504" rgba=".1 .2 .6 .5" size="0.0002"/>
+			<site name="Latissimus_Dorsi-P1" pos="0.015354085180824845 -0.000711068046827175 0.012869914043387326" rgba=".1 .2 .6 .5" size="0.0002"/>
+			<site name="Latissimus_Dorsi-P2" pos="0.01290415530596433 0.0010275014401610262 0.010721486942517478" rgba=".1 .2 .6 .5" size="0.0002"/>
+			<site name="Latissimus_Dorsi_Caudal1-P2" pos="0.012865897215296856 0.0005347583686900808 0.00906724582362393" rgba=".1 .2 .6 .5" size="0.0002"/>
+			<site name="Latissimus_Dorsi_Caudal-P3" pos="0.018541318450470013 -0.002960151615581659 0.010381887523270792" rgba=".1 .2 .6 .5" size="0.0002"/>
+			<site name="Pectoralis_Major-P1" pos="0.009110993164991227 -0.001588479272576734 0.017209259523298364" rgba=".1 .2 .6 .5" size="0.0002"/>
+			<site name="Pectoralis_Major_Posterior-P1" pos="0.009987452388676828 -0.0031334550146689504 0.014596141558244659" rgba=".1 .2 .6 .5" size="0.0002"/>
+		
+		
+			<body name="humerus" pos="0 0 0" euler="0 0 0">
+				<!--it might be smart to replace this with a balljoint-->
+				<!-- Replacing shoulder joints with a ball joint -->
+				<!-- <joint name="shoulder_ball_joint" type="ball" pos="0.0084 0.0014 0.0123" damping=".1" range="0 1.5" stiffness=".05"/> -->
+				<joint name="sh_elv_angle" pos="0.0084 0.0014 0.0123" axis=".001 .001 .5" range="-.8 2.2" ref="-.8" limited="true"/>
+				<joint name="sh_extension_angle" pos="0.0084 0.0014 0.0123" axis=".001 .5 .001" range="-.6 3" ref="2.5" limited="true"/>
+				<joint name="sh_rotation_angle"  pos="0.0084 0.0014 0.0123" axis=".5 .001 .001" range="-2 -1.9" ref="-2" limited="true"/>
+				<!-- <joint name="sh_elv_angle" pos="0.0084 0.0014 0.0123" axis=".001 .001 .5" damping="0.001" range="-1.745 0" ref="-.8" limited="true"/>
+				<joint name="sh_extension_angle" pos="0.0084 0.0014 0.0123" axis=".001 .5 .001" damping="0.001" range="-0.524 3" ref="2.5"  limited="true"/>
+				<joint name="sh_rotation_angle" pos="0.0084 0.0014 0.0123" axis=".5 .001 .001" damping="0.001" range="-0.524 0.524" ref="-2" limited="true"/> -->
+
+				<site name="shoulder_joint_viz_large" pos="0.0084 0.0014 0.0123" rgba="1 .2 .6 .2" size="0.0010"/>
+				<site name="shoulder_joint_viz_small" pos="0.0084 0.0014 0.0123" rgba="1 .2 .6 .6" size="0.0005"/>
+				<inertial pos="0.0067 0.0005 0.01111" mass="0.0001258" diaginertia="0.00003 0.00003 0.00003"/>
+				<site name="interial_center_humerus" pos="0.0067 0.0005 0.01111" rgba=".6 .6 .6 .1" size="0.001"/>
+				<geom type="mesh" mesh="Bone_Segmentation_Humerus" pos="0 0 0"/>
+				
+					<!--Attatchment Sites-->
+					<site name="Pec_Insertion" pos="0.00561727136476425 0.001217306443744107 0.011801347380847517" rgba=".1 .2 .6 .5" size="0.0002"/>
+					<site name="Biceps_Short_Head-P2" pos="0.005457445188443044 0.0010026753845241115 0.011513268213634631" rgba=".1 .2 .6 .5" size="0.0002"/>
+					<site name="Biceps_Short_Head-P3" pos="0.008543091337906053 0.0017365774677492347 0.01275593949959777" rgba=".1 .2 .6 .5" size="0.0002"/>
+					<site name="Biceps_Short_Head-P4" pos="0.009123790016965644 0.0014539673238508494 0.012237457904057045" rgba=".1 .2 .6 .5" size="0.0002"/>
+					<site name="Biceps_Long_Head-P2" pos="0.006544022925768731 0.0011131667877239196 0.012102954121479437" rgba=".1 .2 .6 .5" size="0.0002"/>
+					<site name="Deltoid_A_Insertion" pos="0.005499999038875103 0.0012000000569969416 0.011500000022351742" rgba=".1 .2 .6 .5" size="0.0002"/>
+					<site name="Triceps_Short_Head_Origin" pos="0.00847404321673863 0.0016215078770896688 0.01162284825956432" rgba=".1 .2 .6 .5" size="0.0002"/>
+					<site name="Triceps_Long_Head-P2" pos="0.006760856413387129 0.00071579430721963 0.009198208841793537" rgba=".1 .2 .6 .5" size="0.0002"/>
+					<site name="MaybeBrachialis_InnerHead-P2" pos="0.0050000012852251 0.000699999975040555 0.009800001047551632" rgba=".1 .2 .6 .5" size="0.0002"/>
+					<site name="MaybeBrachialis_InnerHead-P3" pos="0.005800004117190838 0.000200000499026 0.010500005446374416" rgba=".1 .2 .6 .5" size="0.0002"/>
+					<site name="MaybeBrachialis_InnerHead-P4" pos="0.0083177142660228 0.0004515395866104832 0.0120205531656216" rgba=".1 .2 .6 .5" size="0.0002"/>
+					<site name="MaybeBrachialis_OuterrHead-P2" pos="0.004999999888241291 0.000699999975040555 0.009800000116229057" rgba=".1 .2 .6 .5" size="0.0002"/>
+					<site name="MaybeBrachialis_OuterrHead-P3" pos="0.008237797749953146 0.001392518913278212 0.011701324054897" rgba=".1 .2 .6 .5" size="0.0002"/>
+					<site name="Anconeus_Origin" pos="0.005199999548494816 0.0005000000237487257 0.010699999518692493" rgba=".1 .2 .6 .5" size="0.0002"/>
+					<site name="Deltoid_M_Insertion" pos="0.005877213031888123 0.00149081944152008 0.01138991191467427" rgba=".1 .2 .6 .5" size="0.0002"/>
+					<site name="Short_Anconeus_Origin" pos="0.0036000004038214684 -0.0008999999845400453 0.009099998511373997" rgba=".1 .2 .6 .5" size="0.0002"/>
+					<site name="Subscapularis_SuperiorHead_Insertion" pos="0.00815858583811968 0.0006186340862514017 0.012345906015916785" rgba=".1 .2 .6 .5" size="0.0002"/>
+					<site name="Infraspinatus_Insertion" pos="0.008299999870359898 0.0016000003088265657 0.01190000120550394" rgba=".1 .2 .6 .5" size="0.0002"/>
+					<site name="PronatorTeres-P2" pos="0.003569194769806286 -0.0006697321755868291 0.009269772394358975" rgba=".1 .2 .6 .5" size="0.0002"/>
+					<site name="FlexorCarpiRadialis-P3" pos="0.003424910947835591 -0.0009275106517860898 0.009228797150415774" rgba=".1 .2 .6 .5" size="0.0002"/>
+					<site name="Brachioradialis-P2" pos="0.004030140856132736 0.0006478051835343344 0.009059890273788729" rgba=".1 .2 .6 .5" size="0.0002"/>
+					<site name="Triceps_Lateral_Head_Origin" pos="0.00652066298448895 0.0002498557758622723 0.010981274063174208" rgba=".1 .2 .6 .5" size="0.0002"/>
+					<site name="Triceps_Lateral_Head-P2" pos="0.004877396636357773 -2.0990597736210165e-05 0.00953787417542352" rgba=".1 .2 .6 .5" size="0.0002"/>
+					<site name="Latissimus_Dorsi_Rostral-P3" pos="0.005898000206798315 0.0014979999978095293 0.011264000087976456" rgba=".1 .2 .6 .5" size="0.0002"/>
+					<site name="Latissimus_Dorsi_Caudal1-P1" pos="0.005530273564883156 0.0016819697092966763 0.01149872552021617" rgba=".1 .2 .6 .5" size="0.0002"/>
+					<site name="Pectoralis_Major-P2" pos="0.00530226763976073 0.0014110375999547425 0.011624181595743514" rgba=".1 .2 .6 .5" size="0.0002"/>
+					<site name="Pectoralis_Major_Posterior-P2" pos="0.0055313255098350875 0.0010215392755078267 0.011759959498415538" rgba=".1 .2 .6 .5" size="0.0002"/>
+		
+				
+					<body name="ulna" pos=".0001 0 .0002">
+						<geom type="mesh" mesh="Bone_Segments_Ulna" pos="0 0 0"/>
+						
+						<inertial pos="-0.0003 0.001 0.0099" mass=" 0.00071" diaginertia="7.1e-06 7.1e-06 7.1e-06"/>
+						<site name="interial_center_ulna" pos="-0.0003 .001 0.0099" rgba=".6 .6 .6 .1" size="0.001"/>
+
+						<joint name="elbow" pos="0.0031 -.0001 0.0087" axis=".09 .34 -0.51822258" range="-.7 1.55" limited="true" damping="0.1"/>
+						<site name="elbow_joint_viz_large" pos="0.0031 -.0001 0.0087" rgba="1 .2 .6 .2" size="0.0004"/>
+						<site name="elbow_joint_viz_small" pos="0.0031 -.0001 0.0087" rgba="1 .2 .6 .6" size="0.0002"/>
+						<!--Attatchment Sites-->
+						<site name="Biceps_Short_Head_Insertion" pos="0.002061821016384958 9.7561118761497e-05 0.0088274838632424" rgba=".1 .2 .6 .5" size="0.0002"/>
+						<site name="Biceps_Long_Head-P1" pos="0.00205791103630157 4.8790457865474646e-05 0.008773969929530771" rgba=".1 .2 .6 .5" size="0.0002"/>
+						<site name="Triceps_Short_Head_Insertion" pos="0.004079452036488156 -0.0004475283451367 0.008348666849508" rgba=".1 .2 .6 .5" size="0.0002"/>
+						<site name="Triceps_Long_Head_Insertion" pos="0.004194978794163139 -0.0005704097863427328 0.00797751410992" rgba=".1 .2 .6 .5" size="0.0002"/>
+						<site name="MaybeBrachialis_InnerHead-P1" pos="0.0022711976820488228 5.86679600253e-05 0.00879040774739899" rgba=".1 .2 .6 .5" size="0.0002"/>
+						<site name="Anconeus-Insertion" pos="0.002399999648332596 -0.0001999999803956598 0.008800002746284008" rgba=".1 .2 .6 .5" size="0.0002"/>
+						<site name="Short_Anconeus_Insertion" pos="0.003800000064074993 -0.000599999912083149 0.008299999870359898" rgba=".1 .2 .6 .5" size="0.0002"/>
+		
+					<body name="radius" pos="0 0 0">
+						<geom type="mesh" mesh="Bone_Segments_Radius" pos="0 0 0"/>
+						
+						<inertial pos="-0.0003 0.0014 0.0103" mass=" 0.00071" diaginertia="5.3e-06 5.3e-06 5.3e-06"/>
+						<site name="interial_center_radius" pos="-0.0003 .001 0.0099" rgba=".6 .6 .6 .1" size="0.0008"/>
+
+
+						<!--Attatchment Sites-->
+						<site name="MaybeBrachialis_OuterrHead-P1" pos="0.002499999944 0.00030000001424924 0.008899999782443047" rgba=".1 .2 .6 .5" size="0.0002"/>
+						<site name="PronatorTeres-P1" pos="0.00087550107568 0.0011853275020137226 0.010050151513765163" rgba=".1 .2 .6 .5" size="0.0002"/>
+						<site name="FlexorCarpiRadialis-P2" pos="0.0003950029599006921 0.00137263 0.01020844161142256" rgba=".1 .2 .6 .5" size="0.0002"/>
+						<site name="Brachioradialis-P1" pos="-0.0029278056764625027 0.00126620712543319 0.011637220667654609" rgba=".1 .2 .6 .5" size="0.0002"/>
+						<site name="Triceps_Lateral_Head_Insertion" pos="0.003819476250 -0.00023364176770 0.00839947706293405" rgba=".1 .2 .6 .5" size="0.0002"/>
+						
+						<body name="hand" pos="0 0 0">
+							<geom type="mesh" mesh="Bone_Segments_Hand" pos="0 0 0"/>
+							<site name="FlexorCarpiRadialis-P1" pos="-0.004015558277169498 0.001582127229932083 0.011737779242925817" rgba=".1 .2 .6 .5" size="0.0002"/>
+							
+							<inertial pos="-0.0048 0.0019 0.012" mass=" 0.00071" diaginertia="7e-07 7e-07 7e-07"/>
+							<site name="interial_center_hand" pos="-0.0048 0.0019 0.012" rgba=".6 .6 .6 .1" size="0.0008"/>
+						<!--EOB Hand-->
+					</body>
+					<!--EOB Radius-->
+				</body>
+				<!--EOB Ulna-->
+			</body>
+			<!--EOB Humerus-->
+		</body>
+		<!--EOB Scapula-->
+	</body>
+	<!--EOB Ground-->
+	</body>
+</worldbody>
+<tendon>
+	<!-- <spatial width=".0001" rgba=".9 0 0 .5" name="Pectoralis_Clavicle_Head">
+		<site site="Pec_Insertion"/>
+		<site site="Pec_Midpoint_01"/>
+		<site site="Pec_Origin_Clav"/>
+	</spatial> -->
+	<spatial width=".0001" rgba=".9 0 0 .5" name="Biceps_Long_Head" springlength="-1">
+		<site site="Biceps_Long_Head-P1"/>
+		<site site="Biceps_Long_Head-P2"/>
+		<site site="Biceps_Long_Head-P3"/>
+	</spatial>
+	<spatial width=".0001" rgba=".9 0 0 .5" name="Biceps_Short_Head" springlength="-1">
+		<site site="Biceps_Short_Head_Insertion"/>
+		<site site="Biceps_Short_Head-P2"/>
+		<site site="Biceps_Short_Head-P3"/>
+		<site site="Biceps_Short_Head-P4"/>
+	</spatial>
+	<!-- <spatial width=".0001" rgba=".9 0 0 .5" name="Deltoid_Medial_CHK_MMTARM">
+		<site site="Deltoid_A_Insertion"/>
+		<site site="Deltoid_A-P2"/>
+		<site site="Deltoid_A_Origin"/>
+	</spatial> -->
+	<spatial width=".0001" rgba=".9 0 0 .5" name="Triceps_Lat_Head" springlength="-1">
+	    <site site="Triceps_Lateral_Head_Origin"/>
+        <site site="Triceps_Lateral_Head-P2"/>
+        <site site="Triceps_Lateral_Head_Insertion"/>
+	</spatial>
+	<spatial width=".0001" rgba=".9 0 0 .5" name="Triceps_Long_Head" springlength="-1">
+		<site site="Triceps_Long_Head_Insertion"/>
+		<site site="Triceps_Long_Head-P2"/>
+		<site site="Triceps_Long_Head_Origin"/>
+	</spatial>
+	<spatial width=".0001" rgba=".9 0 0 .5" name="Brachialis_Proximal_Head" springlength="-1">
+		<site site="MaybeBrachialis_InnerHead-P1"/>
+		<site site="MaybeBrachialis_InnerHead-P2"/>
+		<site site="MaybeBrachialis_InnerHead-P3"/>
+		<site site="MaybeBrachialis_InnerHead-P4"/>
+	</spatial>
+	<spatial width=".0001" rgba=".9 0 0 .5" name="Brachialis_Distal_Head" springlength="-1">
+		<site site="MaybeBrachialis_OuterrHead-P1"/>
+		<site site="MaybeBrachialis_OuterrHead-P2"/>
+		<site site="MaybeBrachialis_OuterrHead-P3"/>
+	</spatial>
+	<spatial width=".0001" rgba=".9 0 0 .5" name="Anconeus" springlength="-1">
+		<site site="Anconeus_Origin"/>
+		<site site="Anconeus-Insertion"/>
+	</spatial>
+	<spatial width=".0001" rgba=".9 0 0 .5" name="Deltoid_Posterior" springlength="-1">
+		<site site="Deltoid_M_Insertion"/>
+		<site site="Deltoid_M_Origin"/>
+	</spatial>
+	<spatial width=".0001" rgba=".9 0 0 .5" name="Short_Anconeus" springlength="-1">
+		<site site="Short_Anconeus_Insertion"/>
+		<site site="Short_Anconeus_Origin"/>
+	</spatial>
+	<spatial width=".0001" rgba=".9 0 0 .5" name="Subscapularis_SuperiorHead" springlength="-1">
+		<site site="Subscapularis_SuperiorHead_Insertion"/>
+		<site site="Subscapularis_SuperiorHead_Origin"/>
+	</spatial>
+	<spatial width=".0001" rgba=".9 0 0 .5" name="Infraspinatus" springlength="-1">
+		<site site="Infraspinatus_Insertion"/>
+		<site site="Infraspinatus_P1"/>
+		<site site="Infraspinatus_Origin"/>
+	</spatial>
+	<spatial width=".0001" rgba=".9 0 0 .5" name="PronatorTeres" springlength="-1">
+		<site site="PronatorTeres-P1"/>
+		<site site="PronatorTeres-P2"/>
+	</spatial>
+	<spatial width=".0001" rgba=".9 0 0 .5" name="FlexorCarpiRadialis" springlength="-1">
+		<site site="FlexorCarpiRadialis-P1"/>
+		<site site="FlexorCarpiRadialis-P2"/>
+		<site site="FlexorCarpiRadialis-P3"/>
+	</spatial>
+	<spatial width=".0001" rgba=".9 0 0 .5" name="Brachioradialis" springlength="-1">
+		<site site="Brachioradialis-P1"/>
+		<site site="Brachioradialis-P2"/>
+	</spatial>
+	<spatial width=".0001" rgba=".9 0 0 .5" name="Triceps_Medial_Head" springlength="-1">
+		<site site="Triceps_Short_Head_Insertion"/>
+      	<site site="Triceps_Short_Head_Origin"/>
+	</spatial>
+	<spatial width=".0001" rgba=".9 0 0 .5" name="Latissimus_Dorsi_Rostral" springlength="-1">
+		<site site="Latissimus_Dorsi-P1"/>
+		<site site="Latissimus_Dorsi-P2"/>
+		<site site="Latissimus_Dorsi_Rostral-P3"/>
+	</spatial>
+	<spatial width=".0001" rgba=".9 0 0 .5" name="Latissimus_Dorsi_Caudal" springlength="-1">
+		<site site="Latissimus_Dorsi_Caudal1-P1"/>
+		<site site="Latissimus_Dorsi_Caudal1-P2"/>
+		<site site="Latissimus_Dorsi_Caudal-P3"/>
+	</spatial>
+	<spatial width=".0001" rgba=".9 0 0 .5" name="Pectoralis_Major_Anterior" springlength="-1">
+		<site site="Pectoralis_Major-P1"/>
+		<site site="Pectoralis_Major-P2"/>
+	</spatial>
+	<spatial width=".0001" rgba=".9 0 0 .5" name="Pectoralis_Major_Posterior" springlength="-1">
+		<site site="Pectoralis_Major_Posterior-P1"/>
+		<site site="Pectoralis_Major_Posterior-P2"/>
+	</spatial>
+</tendon>
+<actuator>
+	<!-- <position name="sh1" joint="sh_elv_angle"/>
+	<position name="sh2" joint="sh_extension_angle"/>
+	<position name="sh3" joint="sh_rotation_angle"/>
+	<position name="el1" joint="elbow"/> -->
+   <!-- <motor joint="shoulder_ball_joint" ctrllimited="true" ctrlrange="-1 1"/> -->
+	<!-- <muscle name="Pectoralis_Clavicle_Head_act" tendon="Pectoralis_Clavicle_Head" lengthrange="0.001 0.01" fpmax=".001"/> -->
+	<muscle name="Biceps_Long_Head_act" tendon="Biceps_Long_Head" lengthrange="0.001 0.02" fpmax=".001"/>
+	<muscle name="Biceps_Short_Head_act" tendon="Biceps_Short_Head" lengthrange="0.001 0.02" fpmax=".001"/>
+	<!-- <muscle name="Deltoid_Medial_CHK_MMTARM_act" tendon="Deltoid_Medial_CHK_MMTARM" lengthrange="0.001 0.01" fpmax=".001"/> -->
+	<muscle name="Triceps_Lat_Head_act" tendon="Triceps_Lat_Head" lengthrange="0.001 0.02" fpmax=".001"/>
+	<muscle name="Triceps_Long_Head_act" tendon="Triceps_Long_Head" lengthrange="0.001 0.02" fpmax=".001"/>
+	<muscle name="Brachialis_Proximal_Head_act" tendon="Brachialis_Proximal_Head" lengthrange="0.001 0.01" fpmax=".001"/>
+	<muscle name="Brachialis_Distal_Head_act" tendon="Brachialis_Distal_Head" lengthrange="0.001 0.01" fpmax=".001"/>
+	<muscle name="Anconeus_act" tendon="Anconeus" lengthrange="0.00 0.005" fpmax=".001"/>
+	<muscle name="Deltoid_Posterior_act" tendon="Deltoid_Posterior" lengthrange="0.001 0.005" fpmax=".001"/>
+	<muscle name="Short_Anconeus_act" tendon="Short_Anconeus" lengthrange="0.001 0.01" fpmax=".001"/>
+	<muscle name="Subscapularis_SuperiorHead_act" tendon="Subscapularis_SuperiorHead" lengthrange="0.001 0.01" fpmax=".001"/>
+	<muscle name="Infraspinatus_act" tendon="Infraspinatus" lengthrange="0.001 0.01" fpmax=".001"/>
+	<muscle name="PronatorTeres_act" tendon="PronatorTeres" lengthrange="0.001 0.05" fpmax=".001"/>
+	<muscle name="FlexorCarpiRadialis_act" tendon="FlexorCarpiRadialis" lengthrange="0.001 0.01" fpmax=".001"/>
+	<muscle name="Brachioradialis_act" tendon="Brachioradialis" lengthrange="0.001 0.01" fpmax=".001"/>
+	<muscle name="Triceps_Medial_Head_act" tendon="Triceps_Medial_Head" lengthrange="0.003 0.005" fpmax=".001"/>
+	<muscle name="Latissimus_Dorsi_Rostral_act" tendon="Latissimus_Dorsi_Rostral" lengthrange="0.001 0.02" fpmax=".001"/>
+	<muscle name="Latissimus_Dorsi_Caudal_act" tendon="Latissimus_Dorsi_Caudal" lengthrange="0.001 0.03" fpmax=".001"/>
+	<muscle name="Pectoralis_Major_Anterior_act" tendon="Pectoralis_Major_Anterior" lengthrange="0.001 0.01" fpmax=".001"/>
+	<muscle name="Pectoralis_Major_Posterior_act" tendon="Pectoralis_Major_Posterior" lengthrange="0.001 0.01" fpmax=".001"/>
+</actuator>
+
+</mujoco>
