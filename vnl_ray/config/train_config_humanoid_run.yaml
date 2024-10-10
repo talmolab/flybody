@@ -1,8 +1,8 @@
 run_config:
-  agent_name: rodent
+  agent_name: humanoid 
   algo_name: dmpo 
-  task_name: imitation_rodent # for selecting tasks dictionary (Most Important)
-  run_name: mc-imitation # for wandb
+  task_name: humanoid_walk # for selecting tasks dictionary (Most Important)
+  run_name: adam_walk # for wandb
 
 obs_network:
   # observation network params
@@ -11,11 +11,10 @@ obs_network:
 
 learner_network:
   # network factory params
-  use_intention: true
-  encoder_layer_sizes: [512,512,1024,1024]
-  decoder_layer_sizes: [1024,1024,512,512] # larger network
-  critic_layer_sizes: [1024,1024,1024]
-  intention_size: 60
+  use_intention: false
+  policy_layer_sizes: [1024, 1024, 1024]
+  critic_layer_sizes: [512,1024,1024,1024]
+  intention_size: 0
   # if specified, this is the mid_level_encoder size, and the encoder layer size is the high level size
   use_multi_encoder: false
   mid_layer_sizes: 
@@ -25,18 +24,16 @@ env_params:
   # env params
   num_replay_servers: 1
   separate_replay_servers: false
-  num_actors: 100
-  termination_error_threshold: 0.2
-  ref_traj_path: /root/vast/scott-yang/flybody/clips/all_snippets.h5 #walk_only_clips.h5
+  num_actors: 40
 
 learner_params:
   # learner parameters
   batch_size: 256
-  discount: 0.98
+  discount: 0.97
   policy_optimizer_lr: 1e-4
   critic_optimizer_lr: 1e-4
   dual_optimizer_lr: 1e-3
-  checkpoint_to_load: 
+  checkpoint_to_load:
   load_decoder_only: false
   froze_decoder: false # whether the decoder is trainable or not.
   froze_mid_level_encoder: false

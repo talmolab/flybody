@@ -65,9 +65,9 @@ from vnl_ray.tasks.basic_rodent_2020 import (
     rodent_maze_forage,
     rodent_escape_bowl,
     rodent_two_touch,
-    walk_humanoid,
     rodent_walk_imitation,
 )
+from vnl_ray.tasks.humanoid import walk_humanoid, walk_humanoid_imitation
 
 from vnl_ray.fly_envs import (
     walk_on_ball,
@@ -89,20 +89,26 @@ LD_LIBRARY_PATH = os.environ["LD_LIBRARY_PATH"] if "LD_LIBRARY_PATH" in os.envir
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 tasks = {
+    # rodent
     "run-gaps": rodent_run_gaps,
     "maze-forage": rodent_maze_forage,
     "escape-bowl": rodent_escape_bowl,
     "two-taps": rodent_two_touch,
     "rodent_imitation": rodent_walk_imitation,
+    # fly
     "fly_imitation": fly_walk_imitation,
-    "humanoid_imitation": walk_humanoid,
+    "fly_walk_on_ball": walk_on_ball,
+    "fly_vision_guided_flight": vision_guided_flight,
+    # humanoid
+    "humanoid_imitation": walk_humanoid_imitation,
+    "humanoid_walk": walk_humanoid,
 }
 
 
 @hydra.main(
     version_base=None,
     config_path="./config",
-    config_name="train_config_bowl_transfer",
+    config_name="train_config_rodent_imitation",
 )
 def main(config: DictConfig) -> None:
     print("CONFIG:", config)
@@ -147,13 +153,6 @@ def main(config: DictConfig) -> None:
         env = wrappers.CanonicalSpecWrapper(env)
         return env
 
-    def environment_factory_imitation_humanoid() -> "composer.Environment":
-        """Creates replicas of environment for the agent."""
-        env = tasks["humanoid_imitation"](config["ref_traj_path"])
-        env = wrappers.SinglePrecisionWrapper(env)
-        env = wrappers.CanonicalSpecWrapper(env)
-        return env
-
     def environment_factory_imitation_rodent(
         termination_error_threshold=0.12, always_init_at_clip_start=False
     ) -> "composer.Environment":
@@ -162,11 +161,28 @@ def main(config: DictConfig) -> None:
         range of the uniformed distributed termination logics
         """
         env = tasks["rodent_imitation"](
-            config["ref_traj_path"],
+            config.env_params["ref_traj_path"],
             reward_term_weights=config["reward_term_weights"] if "reward_term_weights" in config else None,
             termination_error_threshold=termination_error_threshold,
             always_init_at_clip_start=always_init_at_clip_start,
         )
+        env = wrappers.SinglePrecisionWrapper(env)
+        env = wrappers.CanonicalSpecWrapper(env)
+        return env
+
+    def environment_factory_imitation_humanoid() -> "composer.Environment":
+        """Creates replicas of environment for the agent."""
+        env = tasks["humanoid_imitation"](config["ref_traj_path"])
+        env = wrappers.SinglePrecisionWrapper(env)
+        env = wrappers.CanonicalSpecWrapper(env)
+        return env
+
+    def environment_factory_humanoid_walk() -> "composer.Environment":
+        """
+        Creates replicas of environment for the agent. random range controls the
+        range of the uniformed distributed termination logics
+        """
+        env = tasks["humanoid_walk"]()
         env = wrappers.SinglePrecisionWrapper(env)
         env = wrappers.CanonicalSpecWrapper(env)
         return env
@@ -182,39 +198,38 @@ def main(config: DictConfig) -> None:
             environment_factory_imitation_rodent,
             # termination_error_threshold=config["termination_error_threshold"], # TODO modify the config yaml for the imitation learning too.
         ),
+        "humanoid_walk": environment_factory_humanoid_walk,
     }
 
     # Dummy environment and network for quick use, deleted later. # create this earlier to access the obs
     dummy_env = environment_factories[config.run_config["task_name"]]()
 
     # Create network factory for RL task. Config specify different ANN structures
-    if config.learner_network["use_intention"]:
-        network_factory = make_network_factory_dmpo_intention(
-            task_obs_size=get_task_obs_size(
+    use_intention = config.learner_network["use_intention"]
+    network_factory = make_network_factory_dmpo_intention(
+        task_obs_size=(
+            get_task_obs_size(
                 dummy_env.observation_spec(), config.run_config["agent_name"], config.obs_network["visual_feature_size"]
-            ),
-            encoder_layer_sizes=config.learner_network["encoder_layer_sizes"],
-            decoder_layer_sizes=config.learner_network["decoder_layer_sizes"],
-            critic_layer_sizes=config.learner_network["critic_layer_sizes"],
-            intention_size=config.learner_network["intention_size"],
-            use_tfd_independent=True,  # for easier KL calculation
-            use_visual_network=config.obs_network["use_visual_network"],
-            visual_feature_size=config.obs_network["visual_feature_size"],
-            mid_layer_sizes=(
-                config.learner_network["mid_layer_sizes"] if config.learner_network["use_multi_decoder"] else None
-            ),
-            high_level_intention_size=(
-                config.learner_network["high_level_intention_size"]
-                if config.learner_network["use_multi_decoder"]
-                else None
-            ),
-        )
-    else:
-        # online settings
-        network_factory = make_network_factory_dmpo(
-            policy_layer_sizes=config.learner_network["policy_layer_sizes"],
-            critic_layer_sizes=config.learner_network["critic_layer_sizes"],
-        )
+            )
+            if use_intention
+            else 0
+        ),
+        encoder_layer_sizes=config.learner_network["encoder_layer_sizes"] if use_intention else None,
+        decoder_layer_sizes=config.learner_network["decoder_layer_sizes"] if use_intention else None,
+        policy_layer_sizes=config.learner_network["policy_layer_sizes"] if not use_intention else None,
+        critic_layer_sizes=config.learner_network["critic_layer_sizes"],
+        intention_size=config.learner_network["intention_size"] if use_intention else 0,
+        use_tfd_independent=True,  # for easier KL calculation
+        use_visual_network=config.obs_network["use_visual_network"],
+        use_intention_policy=config.learner_network["use_intention"],
+        visual_feature_size=config.obs_network["visual_feature_size"],
+        mid_layer_sizes=(
+            config.learner_network["mid_layer_sizes"] if config.learner_network["use_multi_encoder"] else None
+        ),
+        high_level_intention_size=(
+            config.learner_network["high_level_intention_size"] if config.learner_network["use_multi_encoder"] else None
+        ),
+    )
 
     dummy_net = network_factory(dummy_env.action_spec())  # we should share this net for joint training
     # Get full environment specs.
@@ -273,6 +288,11 @@ def main(config: DictConfig) -> None:
             config.learner_params["load_decoder_only"] if "load_decoder_only" in config.learner_params else False
         ),
         froze_decoder=config.learner_params["froze_decoder"] if "froze_decoder" in config.learner_params else False,
+        froze_mid_level_encoder=(
+            config.learner_params["froze_mid_level_encoder"]
+            if "froze_mid_level_encoder" in config.learner_params
+            else False
+        ),
     )
 
     dmpo_dict_config = dataclasses.asdict(dmpo_config)
@@ -327,11 +347,12 @@ def main(config: DictConfig) -> None:
 
     replay_servers = dict()  # {task_name: addr} # TODO: Probably could simplify this logic quite a bit
     servers = []
-    if "actors_envs" in config:
+    env_params = config.env_params
+    if "actors_envs" in env_params:
         dmpo_config.max_replay_size = dmpo_config.max_replay_size // 4  # reduce each replay buffer size by 4.
-        for name, num_actors in config.actors_envs.items():
+        for name, num_actors in env_params.actors_envs.items():
             if num_actors != 0:
-                if not config["separate_replay_servers"]:
+                if not env_params["separate_replay_servers"]:
                     # mixed experience replay buffers
                     replay_server = ReplayServer.remote(
                         dmpo_config, environment_spec
@@ -342,11 +363,11 @@ def main(config: DictConfig) -> None:
                     replay_servers["general"] = addr
                     print("SINGLE: Started Single replay server for this task.")
                     break
-                elif "num_replay_servers" in config and config["num_replay_servers"] != 0:
+                elif "num_replay_servers" in env_params and env_params["num_replay_servers"] != 0:
                     dmpo_config.max_replay_size = (
-                        dmpo_config.max_replay_size // config["num_replay_servers"]
+                        dmpo_config.max_replay_size // env_params["num_replay_servers"]
                     )  # shrink down the replay size correspondingly
-                    for i in range(config["num_replay_servers"]):
+                    for i in range(env_params["num_replay_servers"]):
                         _name = f"{name}-{i+1}"
                         # multiple replay server for load balancing
                         replay_server = ReplayServer.remote(
@@ -374,11 +395,11 @@ def main(config: DictConfig) -> None:
                     servers.append(replay_server)
                     time.sleep(0.1)
     else:
-        if "num_replay_servers" in config.env_params and config.env_params["num_replay_servers"] != 0:
+        if "num_replay_servers" in env_params and env_params["num_replay_servers"] != 0:
             dmpo_config.max_replay_size = (
-                dmpo_config.max_replay_size // config.env_params["num_replay_servers"]
+                dmpo_config.max_replay_size // env_params["num_replay_servers"]
             )  # shrink down the replay size correspondingly
-            for i in range(config.env_params["num_replay_servers"]):
+            for i in range(env_params["num_replay_servers"]):
                 name = f"{config.run_config['task_name']}-{i+1}"
                 # multiple replay server for load balancing
                 replay_server = ReplayServer.remote(
@@ -471,23 +492,24 @@ def main(config: DictConfig) -> None:
 
     actors = []
     evaluators = []
-    if "actors_envs" in config:
+    env_params = config.env_params
+    if "actors_envs" in env_params:
         # if the config file specify diverse actor envs
         # created for multi-task RL
-        print(config.actors_envs)
-        for name, num_actors in config.actors_envs.items():
+        print(env_params.actors_envs)
+        for name, num_actors in env_params.actors_envs.items():
             if num_actors != 0:
-                if not config.env_params["separate_replay_servers"]:
+                if not env_params["separate_replay_servers"]:
                     actors += create_actors(
                         num_actors,
                         environment_factories[name],
                         replay_servers["general"], 
                     ) # mixed experience replay buffer
-                elif "num_replay_servers" in config and config["num_replay_servers"] != 0:
-                    for i in range(config["num_replay_servers"]):
+                elif "num_replay_servers" in env_params and env_params["num_replay_servers"] != 0:
+                    for i in range(env_params["num_replay_servers"]):
                         _name = f"{name}-{i+1}"
                         # multiple replay servers, equally direct replay servers
-                        num_actor_per_replay = num_actors // config["num_replay_servers"]
+                        num_actor_per_replay = num_actors // env_params["num_replay_servers"]
                         actors += create_actors(
                             num_actor_per_replay,
                             environment_factories[name],
@@ -501,8 +523,8 @@ def main(config: DictConfig) -> None:
     else:
         # Get actors.
         print(f"ACTOR Creation: {n_actors}")
-        if "num_replay_servers" in config.env_params:
-            num_replay_server = config.env_params["num_replay_servers"]
+        if "num_replay_servers" in env_params:
+            num_replay_server = env_params["num_replay_servers"]
         else:
             num_replay_server = 1
         for i in range(num_replay_server):
@@ -513,6 +535,8 @@ def main(config: DictConfig) -> None:
                 environment_factories[config.run_config["task_name"]],
                 replay_servers[name],
             )
+
+        # === Create Evaluators
         if config.run_config["task_name"] == "imitation_rodent":
             env_fac = functools.partial(
                 environment_factories[config.run_config["task_name"]], always_init_at_clip_start=True

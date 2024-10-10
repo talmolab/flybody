@@ -1,19 +1,43 @@
-agent_name: humanoid
-training_type: imitation
-algo_name: dmpo
-task_name: imitation_humanoid
-run_name: humanoid_imitation
-batch_size: 1024
-encoder_layer_sizes: [1024, 1024]
-decoder_layer_sizes: [1024, 1024]
-critic_layer_sizes: [1024, 1024, 1024]
-num_replay_servers: 1
-intention_size: 60
-num_actors: 400
-group_name: basic-imitation
+run_config:
+  agent_name: humanoid 
+  algo_name: dmpo 
+  task_name: humanoid_imitation # for selecting tasks dictionary (Most Important)
+  run_name: multi-clip_imitation # for wandb
 
-# use absolute path
-ref_traj_path: /root/vast/scott-yang/vnl_ray/clips/cmu_2020_dfe3e9e0.h5
-checkpoint_to_load: #/root/vast/scott-yang/imitation/vnl_ray/training/ray-humanoid-imitation-ckpts/ecd920b0-5379-11ef-b8ed-7e493fe14630/checkpoints/dmpo_learner/ckpt-104
-kickstart_teacher_cps_path:
-kickstart_epsilon:
+obs_network:
+  # observation network params
+  use_visual_network: false
+  visual_feature_size: 0
+
+learner_network:
+  # network factory params
+  use_intention: false
+  policy_layer_sizes: [1024, 1024, 1024]
+  critic_layer_sizes: [512,1024,1024,1024]
+  intention_size: 0
+  # if specified, this is the mid_level_encoder size, and the encoder layer size is the high level size
+  use_multi_encoder: false
+  mid_layer_sizes: 
+  high_level_intention_size: 
+
+env_params:
+  # env params
+  num_replay_servers: 1
+  separate_replay_servers: false
+  num_actors: 40
+
+learner_params:
+  # learner parameters
+  batch_size: 256
+  discount: 0.97
+  policy_optimizer_lr: 1e-4
+  critic_optimizer_lr: 1e-4
+  dual_optimizer_lr: 1e-3
+  checkpoint_to_load:
+  load_decoder_only: false
+  froze_decoder: false # whether the decoder is trainable or not.
+  froze_mid_level_encoder: false
+
+eval_params:
+  # evaluator params
+  eval_average_over: 10
