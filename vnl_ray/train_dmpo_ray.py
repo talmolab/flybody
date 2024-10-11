@@ -69,6 +69,8 @@ from vnl_ray.tasks.basic_rodent_2020 import (
     rodent_walk_imitation,
 )
 
+from vnl_ray.tasks.mouse_reach import mouse_reach
+
 from vnl_ray.fly_envs import (
     walk_on_ball,
     vision_guided_flight,
@@ -96,13 +98,14 @@ tasks = {
     "rodent_imitation": rodent_walk_imitation,
     "fly_imitation": fly_walk_imitation,
     "humanoid_imitation": walk_humanoid,
+    "mouse_reach": mouse_reach,
 }
 
 
 @hydra.main(
     version_base=None,
     config_path="./config",
-    config_name="train_config_bowl_transfer",
+    config_name="train_config_mouse_reach",
 )
 def main(config: DictConfig) -> None:
     print("CONFIG:", config)
@@ -123,6 +126,12 @@ def main(config: DictConfig) -> None:
 
     # Create environment factory RL task.
     # Cannot parametrize it because it failed to serialize functions
+    def environment_factory_mouse_reach() -> "composer.Environment":
+            env = tasks["mouse_reach"]()
+            env = wrappers.SinglePrecisionWrapper(env)
+            env = wrappers.CanonicalSpecWrapper(env)
+            return env
+
     def environment_factory_run_gaps() -> "composer.Environment":
         env = tasks["run-gaps"]()
         env = wrappers.SinglePrecisionWrapper(env)
@@ -182,6 +191,7 @@ def main(config: DictConfig) -> None:
             environment_factory_imitation_rodent,
             # termination_error_threshold=config["termination_error_threshold"], # TODO modify the config yaml for the imitation learning too.
         ),
+        "mouse_reach": environment_factory_mouse_reach,
     }
 
     # Dummy environment and network for quick use, deleted later. # create this earlier to access the obs
