@@ -23,7 +23,16 @@ class MouseEntity(composer.Entity):
         self._target_size = target_size
 
     def _build_observables(self):
-        """Defines the observables for the MouseEntity."""
+        """
+        Defines the observables for the MouseEntity.
+
+        This method sets up observables for joint angles, joint velocities, 
+        the distance to the target, and the target size. These observables 
+        are then enabled for use in tasks.
+
+        Returns:
+            composer.Observables: A collection of observables for the mouse.
+        """
         self._observables = composer.Observables(self)
         #print("Available geoms:", self._mjcf_model.find_all('geom'))
         #print("Available sites:", self._mjcf_model.find_all('site'))
@@ -53,7 +62,18 @@ class MouseEntity(composer.Entity):
         return self._observables
 
     def _to_target_observable(self, physics):
-        """Returns the normalized distance from the mouse's finger to the target."""
+        """
+        Returns the normalized distance from the mouse's finger to the target.
+
+        Args:
+            physics (mjcf.Physics): The physics simulation object.
+
+        Returns:
+            np.ndarray: The normalized distance between the finger and the target.
+
+        Raises:
+            ValueError: If the 'target' or 'finger_tip' geoms are not defined in the MJCF model.
+        """
         # Check if 'target' exists in the current physics model
         try:
             #print(f"GEOM_XPOS: {physics.named.data.geom_xpos}")
@@ -65,29 +85,68 @@ class MouseEntity(composer.Entity):
         return (target_pos - finger_pos) / 0.02
 
     def _target_size_observable(self, physics):
-        """Returns the normalized target size."""
+        """
+        Returns the normalized size of the target.
+
+        Args:
+            physics (mjcf.Physics): The physics simulation object.
+
+        Returns:
+            np.ndarray: The normalized target size.
+        """
         return np.array([self._target_size / 0.008])
 
     @property
     def mjcf_model(self):
-        """Returns the MJCF model for the mouse."""
+        """
+        Returns the MJCF model for the mouse.
+
+        Returns:
+            mjcf.RootElement: The MJCF model of the mouse.
+        """
         return self._mjcf_model
 
     @property
     def actuators(self):
-        """Returns the actuators for the mouse."""
+        """
+        Returns the actuators for the mouse.
+
+        Returns:
+            list: A list of actuator elements from the MJCF model.
+        """
         return self._mjcf_model.find_all('actuator')
 
     @property
     def observables(self):
-        """Returns the collection of observables for the mouse."""
+        """
+        Returns the collection of observables for the mouse.
+
+        This property triggers the `_build_observables()` method 
+        to define the necessary observables.
+
+        Returns:
+            composer.Observables: A collection of observables.
+        """
         return self._build_observables()
 
     def reinitialize_pose(self, physics, random_state):
-        """Reinitialize the mouse's pose at the start of each episode."""
+        """
+        Reinitializes the mouse's pose at the start of each episode.
+
+        Args:
+            physics (mjcf.Physics): The physics simulation object.
+            random_state (np.random.RandomState): A random state for initializing the pose.
+        """
         pass
 
     def apply_action(self, physics, action, random_state):
-        """Applies control actions to the mouse in the physics simulation."""
+        """
+        Applies control actions to the mouse in the physics simulation.
+
+        Args:
+            physics (mjcf.Physics): The physics simulation object.
+            action (np.ndarray): The control actions to apply to the mouse actuators.
+            random_state (np.random.RandomState): A random state for adding stochasticity to the actions.
+        """
         # Bind the actuator controls to the action.
         physics.bind(self._mjcf_model.find_all('actuator')).ctrl[:] = action
