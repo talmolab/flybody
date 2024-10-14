@@ -173,7 +173,7 @@ class DistributionalMPOLearner(acme.Learner):
                 "num_steps": self._num_steps,
             }
             if isinstance(self._target_policy_network, IntentionNetwork):
-                objects_to_save["policy_decoder"] = self._target_policy_network.high_level_encoder
+                #objects_to_save["policy_decoder"] = self._target_policy_network.high_level_encoder
                 if self._target_policy_network.use_multi_encoder:
                     objects_to_save["policy_high_level_encoder"] = self._target_policy_network.high_level_encoder
                     objects_to_save["policy_mid_level_encoder"] = self._target_policy_network.mid_level_encoder
