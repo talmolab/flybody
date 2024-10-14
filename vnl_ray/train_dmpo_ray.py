@@ -127,7 +127,7 @@ def main(config: DictConfig) -> None:
     # Create environment factory RL task.
     # Cannot parametrize it because it failed to serialize functions
     def environment_factory_mouse_reach() -> "composer.Environment":
-            env = tasks["mouse_reach"]()
+            env = tasks["mouse_reach"](actuator_type=config.run_config.actuator_type)
             env = wrappers.SinglePrecisionWrapper(env)
             env = wrappers.CanonicalSpecWrapper(env)
             return env
