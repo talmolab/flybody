@@ -11,6 +11,8 @@ import sonnet as snt
 from vnl_ray.agents import losses_mpo
 from vnl_ray.agents.vis_net import VisNetRodent
 
+from vnl_ray.agents.policy_network_activations import IntermediateActivationsPolicyNetwork
+
 
 def network_factory_d4pg(
     action_spec,
@@ -81,25 +83,15 @@ def network_factory_dmpo(
     tanh_mean=False,
     init_scale=0.7,
     fixed_scale=False,
-    use_tfd_independent=True,
+    use_tfd_independent=False,
+    init_sigma: float = 0.69,
+    fixed_sigma: bool = False,
 ):
     """Networks for DMPO agent."""
     action_size = np.prod(action_spec.shape, dtype=int)
 
-    policy_network = snt.Sequential(
-        [
-            tf2_utils.batch_concat,
-            networks.LayerNormMLP(layer_sizes=policy_layer_sizes, activate_final=True),
-            networks.MultivariateNormalDiagHead(
-                action_size,
-                min_scale=min_scale,
-                tanh_mean=tanh_mean,
-                init_scale=init_scale,
-                fixed_scale=fixed_scale,
-                use_tfd_independent=use_tfd_independent,
-            ),
-        ]
-    )
+    policy_network = IntermediateActivationsPolicyNetwork(policy_layer_sizes, action_size, tanh_mean, init_sigma, fixed_sigma, use_tfd_independent) # record activations
+
     # The multiplexer concatenates the (maybe transformed) observations/actions.
     critic_network = networks.CriticMultiplexer(
         action_network=networks.ClipToSpec(action_spec),
@@ -115,7 +107,7 @@ def network_factory_dmpo(
     return {
         "policy": policy_network,
         "critic": critic_network,
-        "observation": VisNetRodent(),
+        "observation": tf2_utils.batch_concat,
         # 'observation': tf2_utils.batch_concat # need to adapt this to imitation learning
     }
 
