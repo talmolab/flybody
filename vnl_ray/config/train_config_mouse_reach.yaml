@@ -1,14 +1,9 @@
-defaults:
-  - hydra:
-      searchpath:
-        - file:///root/vast/eric/vnl-ray/config
-
 run_config:
   agent_name: mouse
   algo_name: dmpo
   task_name: mouse_reach
   run_name:  mouse-forelimb-reach
-  actuator_type: None
+  actuator_type: muscle
 
 obs_network:
   # observation network params
