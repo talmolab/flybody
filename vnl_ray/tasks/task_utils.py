@@ -7,7 +7,7 @@ from collections import OrderedDict
 import numpy as np
 
 from vnl_ray.quaternions import rotate_vec_with_quat
-from vnl_ray.agents.utils_intention import get_rodent_egocentric_obs_key
+from vnl_ray.agents.utils_intention import get_rodent_egocentric_obs_key, get_mouse_egocentric_obs_key
 
 
 def get_random_policy(
@@ -218,9 +218,14 @@ def com2root(com, quat, offset=None):
 
 def get_task_obs_size(obs_spec: OrderedDict, walker_type: str, visual_feature_size: int = 0) -> int:
     """Calculate the shape of the task specific observation sizes, based on the walker type"""
-    if walker_type != "rodent":
-        raise ValueError(f"Walker type: {walker_type} did not implement yet. Currently supported rodent")
-    egocentric_obs_key = get_rodent_egocentric_obs_key()
+    if walker_type != "rodent" and walker_type != "mouse":
+        raise ValueError(f"Walker type: {walker_type} did not implement yet. Currently supported rodent and mouse")
+    
+    if walker_type == "rodent":
+        egocentric_obs_key = get_rodent_egocentric_obs_key()
+    elif walker_type == "mouse":
+        egocentric_obs_key = get_mouse_task_obs_key()
+
     obs_shape = 0
     for i in set(obs_spec.keys()) - set(egocentric_obs_key):
         # iterate through all non-egocentric obs key
@@ -239,3 +244,12 @@ def get_task_obs_size(obs_spec: OrderedDict, walker_type: str, visual_feature_si
         else:
             obs_shape += shape[0]
     return obs_shape
+
+def get_mouse_task_obs_key()-> List[str]:
+    """
+    Returns the task observation keys for the mouse.
+    """
+    return [
+        "template/to_target",
+        "template/target_size",
+    ]
