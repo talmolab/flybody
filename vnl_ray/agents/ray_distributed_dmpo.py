@@ -400,11 +400,12 @@ class EnvironmentLoop(acme.EnvironmentLoop):
 
     def run_episode(self) -> loggers.LoggingData:
         """Add rendering support for evaluator, and added aggregate stats"""
-        try:
-            logging_data = super().run_episode()
-        except Exception as e:
-            print(f"Exception: {e} encountered in run_episode. Returned Null result for this episode.")
-            return {"episode_length": 0, "episode_return": 0, "steps_per_second": 0}  # TODO: This might causes error.
+        logging_data = super().run_episode()
+        # try:
+        #     logging_data = super().run_episode()
+        # except Exception as e:
+        #     print(f"Exception: {e} encountered in run_episode. Returned Null result for this episode.")
+        #     return {"episode_length": 0, "episode_return": 0, "steps_per_second": 0}  # TODO: This might causes error.
         if self._actor_or_evaluator == "evaluator":
             self._stats.append(logging_data)
             # self.stats is a [t1_data, t2_data, ...] array.
