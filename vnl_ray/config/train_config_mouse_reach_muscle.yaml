@@ -9,10 +9,18 @@ obs_network:
   # observation network params
   use_visual_network: false
   visual_feature_size: 0
+  
+policy_network_params:
+  num_dimensions: 10  # Example value
+  tanh_mean: true
+  init_scale: 0.01
+  fixed_scale: false
+  use_tfd_independent: false
 
 learner_network:
   # need to be consistent with the rest of the task if we want to task swichting
-  use_intention: true
+  policy_layer_sizes: [512,512,512,512]
+  use_intention: false
   encoder_layer_sizes: [1024, 1024]
   decoder_layer_sizes: [1024, 1024]
   critic_layer_sizes: [1024, 1024, 1024]
