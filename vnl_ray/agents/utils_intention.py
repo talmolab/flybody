@@ -19,14 +19,19 @@ def separate_observation(observation: types.NestedTensor) -> tf.Tensor:
 
     observation = observation.copy()
     # separate reference and non-reference observations
-    egocentric_obs_keys = get_rodent_egocentric_obs_key() # sequence matters. Currently sorted in alphabetical order.
+    #egocentric_obs_keys = get_rodent_egocentric_obs_key() # sequence matters. Currently sorted in alphabetical order.
+    egocentric_obs_keys = get_mouse_egocentric_obs_key() # sequence matters. Currently sorted in alphabetical order.
 
     task_obs_keys = [k for k in observation.keys() if k not in egocentric_obs_keys]
 
     egocentric_obs = {k: observation.pop(k) for k in egocentric_obs_keys}
     task_obs = {k: observation.pop(k) for k in task_obs_keys}
 
+    print(f"DEBUG: egocentric_obs{egocentric_obs}")
+    print(f"DEBUG: tasks_obs{task_obs}")
+
     # concatenate the observations
+
     task_obs_tensor = tf2_utils.batch_concat(task_obs)  # 1520 # this should be 1558
     egocentric_obs_tensor = tf2_utils.batch_concat(egocentric_obs)  # 196 # Scott: this should be 158
 
@@ -53,4 +58,13 @@ def get_rodent_egocentric_obs_key() -> List[str]:
         "walker/tendons_pos",
         "walker/tendons_vel",
         "walker/world_zaxis",
+    ]
+
+def get_mouse_egocentric_obs_key() -> List[str]:
+    """
+    Returns the observation keys for the mouse template.
+    """
+    return [
+        "mouse/joint_angles",
+        "mouse/joint_velocities",
     ]
