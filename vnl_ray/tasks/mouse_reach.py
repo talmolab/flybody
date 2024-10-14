@@ -9,11 +9,18 @@ from dm_control import mjcf
 _CONTROL_TIMESTEP = 0.02
 _PHYSICS_TIMESTEP = 0.001
 
-mouse_xml_path = "/root/vast/eric/vnl-ray/vnl_ray/mouse_forelimb/assets_mousereach/modified_working.xml"
+def mouse_reach(random_state=None, actuator_type=None):
+    if actuator_type == "muscle":
+        mouse_xml_path = "/root/vast/eric/vnl-ray/vnl_ray/mouse_forelimb/assets_mousereach/armmodel_atscale_working_balljoint_muscle.xml"
+    elif actuator_type == "torque":
+        mouse_xml_path = "/root/vast/eric/vnl-ray/vnl_ray/mouse_forelimb/assets_mousereach/armmodel_atscale_working_balljoint_torque.xml"
+    elif actuator_type == "position":
+        mouse_xml_path = "/root/vast/eric/vnl-ray/vnl_ray/mouse_forelimb/assets_mousereach/armmodel_atscale_working_balljoint_position.xml"
+    else:
+        raise ValueError(f"Input Error: Input actuator type")
 
-def mouse_reach(random_state=None):
     # Initialize the MouseEntity without passing the physics object directly
-    mouse = MouseEntity(mouse_xml_path, 0.01)
+    mouse = MouseEntity(mouse_xml_path, 0.001)
 
     # Create the arena
     arena = MouseReachArena()
