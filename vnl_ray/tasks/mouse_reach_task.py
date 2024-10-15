@@ -26,7 +26,6 @@ class MouseReachTask(composer.Task):
     def __init__(self,
                  mouse,
                  arena,
-                 target_size=0.001,
                  target_positions=None,
                  randomize_pose=False,
                  randomize_target=False,
@@ -49,20 +48,18 @@ class MouseReachTask(composer.Task):
         """
         self._arena = arena
         self._mouse = mouse
-        self._target_size = target_size
         self._randomize_pose = randomize_pose
         self._randomize_target = randomize_target
         self._contact_termination = contact_termination
         self._target_pos = target_positions or [
-                                                [0.001, -0.001, 0.003],
-                                                [-0.0007573593128807135, 0.0032426406871192857, 0.003],
-                                                [-0.005, 0.005, 0.003],
-                                                [-0.009242640687119285, 0.0032426406871192866, 0.003],
-                                                [-0.011, -0.0009999999999999994, 0.003],
-                                                [-0.009242640687119287, -0.005242640687119285, 0.003],
-                                                [-0.005000000000000001, -0.007, 0.003],
-                                                [-0.0007573593128807161, -0.005242640687119287, 0.003]
-                                               ]
+                                                [-0.0045,     -0.00740453,  0.01371433],
+                                                [-0.00598663, -0.00475719,  0.01332173],
+                                                [-0.00660241, -0.00295503,  0.01092473],
+                                                [-0.00598663, -0.00305373,  0.00792745],
+                                                [-0.0045,     -0.00499547,  0.00608567],
+                                                [-0.00301337, -0.00764281,  0.00647827],
+                                                [-0.00239759, -0.00944497,  0.00887527],
+                                                [-0.00301337, -0.00934627,  0.01187255]]
 
         self._reward_keys = ['distance_reward']
 
@@ -107,15 +104,32 @@ class MouseReachTask(composer.Task):
             physics: A Physics object used for simulating the environment.
             random_state: A NumPy random state instance for consistent randomization.
         """
-        # Randomize the pose of the mouse if required
-        #if self._randomize_pose:
-        #    randomizers.randomize_limited_and_rotational_joints(physics, random_state)
+        self._target_sizes = [0.001, 0.002, 0.003]
+
+        self._target_size = random.choice([self._target_sizes])[0]
+
+        physics.named.model.geom_size['mouse/target',0] = self._target_size
 
         # Randomize the target position
+        shoulder_to_fingertip = np.array([-0.0129, -0.0076, -0.0024])
+
+        # Normalize the vector so it has a length of 1
+        shoulder_to_fingertip = shoulder_to_fingertip / np.linalg.norm(shoulder_to_fingertip)
+
         selected_target = random.choice(self._target_pos)
-        physics.named.model.geom_pos['mouse/target', 'x'] = selected_target[0]
-        physics.named.model.geom_pos['mouse/target', 'y'] = selected_target[1]
-        physics.named.model.geom_pos['mouse/target', 'z'] = selected_target[2]
+
+        # Convert selected_target to a numpy array for easier manipulation
+        selected_target = np.array(selected_target)
+
+        shift_distance = self._target_size - .001
+
+        shift_vector = shift_distance * shoulder_to_fingertip
+
+        adjusted_target = selected_target + shift_vector
+
+        physics.named.model.geom_pos['mouse/target', 'x'] = adjusted_target[0]
+        physics.named.model.geom_pos['mouse/target', 'y'] = adjusted_target[1]
+        physics.named.model.geom_pos['mouse/target', 'z'] = adjusted_target[2]
 
         # Reinitialize the mouse's pose
         self._mouse.reinitialize_pose(physics, random_state)
