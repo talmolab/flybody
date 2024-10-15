@@ -12,7 +12,7 @@ from vnl_ray.agents import losses_mpo
 from vnl_ray.agents.vis_net import VisNetRodent
 
 from vnl_ray.agents.policy_network_activations import IntermediateActivationsPolicyNetwork
-
+from vnl_ray.agents.utils_intention import separate_observation
 
 def network_factory_d4pg(
     action_spec,
@@ -79,13 +79,10 @@ def network_factory_dmpo(
     vmin=-150.0,
     vmax=150.0,
     num_atoms=51,
-    min_scale=1e-6,
     tanh_mean=False,
-    init_scale=0.7,
-    fixed_scale=False,
     use_tfd_independent=False,
-    init_sigma: float = 0.69,
-    fixed_sigma: bool = False,
+    init_sigma: float = 0.2,
+    fixed_sigma: bool = True,
 ):
     """Networks for DMPO agent."""
     action_size = np.prod(action_spec.shape, dtype=int)
@@ -107,12 +104,13 @@ def network_factory_dmpo(
     return {
         "policy": policy_network,
         "critic": critic_network,
-        "observation": tf2_utils.batch_concat,
+        "observation": separate_observation,
         # 'observation': tf2_utils.batch_concat # need to adapt this to imitation learning
     }
 
 
 def make_network_factory_dmpo(
+    action_spec=None,
     policy_layer_sizes=(256, 256, 256),
     critic_layer_sizes=(512, 512, 256),
     vmin=-150.0,
@@ -120,29 +118,28 @@ def make_network_factory_dmpo(
     num_atoms=51,
     min_scale=1e-6,
     tanh_mean=False,
-    init_scale=0.7,
-    fixed_scale=False,
+    init_scale=0.2,
+    fixed_scale=True,
     use_tfd_independent=True,
 ):
     """Returns network factory for distributed DMPO agent."""
 
     def network_factory(action_spec):
+        print(f"### ALERT ### action_spec = {action_spec}")
         return network_factory_dmpo(
-            action_spec,
-            policy_layer_sizes=policy_layer_sizes,
+            action_spec=action_spec,
+            policy_layer_sizes=policy_layer_sizes,  # Only pass once
             critic_layer_sizes=critic_layer_sizes,
             vmin=vmin,
             vmax=vmax,
             num_atoms=num_atoms,
-            min_scale=min_scale,
             tanh_mean=tanh_mean,
-            init_scale=init_scale,
-            fixed_scale=fixed_scale,
+            init_sigma=init_scale,
+            fixed_sigma=fixed_scale,
             use_tfd_independent=use_tfd_independent,
         )
 
     return network_factory
-
 
 def policy_loss_module_dmpo(
     epsilon: float = 0.1,
