@@ -222,6 +222,7 @@ def main(config: DictConfig) -> None:
     else:
         # online settings
         network_factory = make_network_factory_dmpo(
+            action_spec = dummy_env.action_spec(),
             policy_layer_sizes=config.learner_network["policy_layer_sizes"],
             critic_layer_sizes=config.learner_network["critic_layer_sizes"],
         )
