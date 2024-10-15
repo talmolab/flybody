@@ -3,41 +3,38 @@ import sonnet as snt
 from acme.tf import utils as tf2_utils
 from acme import types
 from typing import List
+import numpy as np
 
 
 def separate_observation(observation: types.NestedTensor) -> tf.Tensor:
     """
-    function similar to tf2_utils.batch_concat, but returns a 2D tensor
+    Function similar to tf2_utils.batch_concat, but returns a 2D tensor
     specifically for the intention network to take input into the encoder
-    and decoder differently
+    and decoder differently.
 
-    Observations are separated by egocentric observation (Walker's sensors, actuator activations etc,
-    see the list for details) and tasks specific observations (for imitation, it is reference trajectory,
-    for online RL, it is the vision inputs.) This function separate and sequence egocentric observation,
-    to support routing to the intention network.
+    It separates egocentric observation (e.g., joint angles, velocities) from
+    task-specific observations (e.g., target positions) while respecting batch size.
     """
-
     observation = observation.copy()
-    # separate reference and non-reference observations
-    #egocentric_obs_keys = get_rodent_egocentric_obs_key() # sequence matters. Currently sorted in alphabetical order.
-    egocentric_obs_keys = get_mouse_egocentric_obs_key() # sequence matters. Currently sorted in alphabetical order.
 
+    # Separate reference and non-reference observations
+    egocentric_obs_keys = get_mouse_egocentric_obs_key()  # Use specific keys for mouse
     task_obs_keys = [k for k in observation.keys() if k not in egocentric_obs_keys]
 
     egocentric_obs = {k: observation.pop(k) for k in egocentric_obs_keys}
     task_obs = {k: observation.pop(k) for k in task_obs_keys}
 
-    print(f"DEBUG: egocentric_obs{egocentric_obs}")
-    print(f"DEBUG: tasks_obs{task_obs}")
+    # Flatten each observation tensor while keeping the batch dimension intact
+    task_obs_tensors = [tf.reshape(v, [tf.shape(v)[0], -1]) for v in task_obs.values()]  # Preserve batch size
+    egocentric_obs_tensors = [tf.reshape(v, [tf.shape(v)[0], -1]) for v in egocentric_obs.values()]  # Preserve batch size
 
-    # concatenate the observations
+    # Concatenate task and egocentric observations along the last axis
+    task_obs_tensor = tf.concat(task_obs_tensors, axis=-1) if task_obs_tensors else tf.constant([])
+    egocentric_obs_tensor = tf.concat(egocentric_obs_tensors, axis=-1) if egocentric_obs_tensors else tf.constant([])
 
-    task_obs_tensor = tf2_utils.batch_concat(task_obs)  # 1520 # this should be 1558
-    egocentric_obs_tensor = tf2_utils.batch_concat(egocentric_obs)  # 196 # Scott: this should be 158
-
-    return tf.concat([task_obs_tensor, egocentric_obs_tensor], axis=-1)  # hard coded for now
-
-
+    concatenated_obs = tf.concat([task_obs_tensor, egocentric_obs_tensor], axis=-1)
+    return concatenated_obs
+    
 def get_rodent_egocentric_obs_key() -> List[str]:
     """
     return the egocentric observation key of the rodent
