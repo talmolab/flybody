@@ -14,7 +14,7 @@ policy_network_params:
   num_dimensions: 10  # Example value
   tanh_mean: true
   init_scale: 0.01
-  fixed_scale: false
+  fixed_scale: true
   use_tfd_independent: false
 
 learner_network:
