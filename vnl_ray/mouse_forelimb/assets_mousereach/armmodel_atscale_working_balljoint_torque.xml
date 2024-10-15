@@ -112,6 +112,7 @@ so it can be hard to tell.
 	<motor joint="shoulder_ball_joint" ctrllimited="true" ctrlrange="-1 1" gear="1 0 0"/>
     <motor joint="shoulder_ball_joint" ctrllimited="true" ctrlrange="-1 1" gear="0 1 0"/>
     <motor joint="shoulder_ball_joint" ctrllimited="true" ctrlrange="-1 1" gear="0 0 1"/>
+	<motor joint="elbow" ctrllimited="true" ctrlrange="-1 1"/>
 </actuator>
 
 </mujoco>
