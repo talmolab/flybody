@@ -19,14 +19,28 @@ class TestPolicyWrapper:
         self._policy = policy
         self._sample = sample
 
-    def __call__(self, observation: types.NestedArray) -> np.ndarray:
+    def __call__(self, observation: types.NestedArray, return_activations=False):
         # Add a dummy batch dimension and as a side effect convert numpy to TF,
         # batched_observation: types.NestedTensor.
         batched_observation = tf2_utils.add_batch_dim(observation)
-        distribution = self._policy(batched_observation)
+
+        # Call the policy. Pass 'return_activations' if needed by the policy
+        if return_activations:
+            distribution, activations = self._policy(batched_observation, return_activations=True)
+        else:
+            distribution = self._policy(batched_observation)
+            activations = None
+
+        # Get either the sample or mean from the distribution
         if self._sample:
             action = distribution.sample()
         else:
             action = distribution.mean()
+
         action = action[0, :].numpy()  # Remove batch dimension.
-        return action
+
+        # Return action and activations (if any)
+        if return_activations:
+            return action, activations
+        else:
+            return action
