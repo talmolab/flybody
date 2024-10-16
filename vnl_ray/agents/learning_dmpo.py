@@ -17,6 +17,8 @@ import sonnet as snt
 import tensorflow as tf
 import tensorflow_probability as tfp
 
+from vnl_ray.agents.utils_sonnet import Sequential
+
 tfd = tfp.distributions
 
 from vnl_ray.utils import vision_rollout_and_render
@@ -54,6 +56,7 @@ class DistributionalMPOLearner(acme.Learner):
         checkpoint_to_load: Optional[str] = None,
         load_decoder_only: bool = False,  # whether we only load the decoder from the previous checkpoint, but not other network.
         froze_decoder: bool = False,  # whether we want to froze the weight of the decoder
+        froze_mid_level_encoder: bool = False, # whether we want to froze the mid level encoder weights.
         time_delta_minutes: float = 15.0,
         kickstart_teacher_cps_path: str = None,  # specify the location of the kickstarter teacher policy's cps
         kickstart_epsilon: float = 0.005,
@@ -173,7 +176,7 @@ class DistributionalMPOLearner(acme.Learner):
                 "num_steps": self._num_steps,
             }
             if isinstance(self._target_policy_network, IntentionNetwork):
-                objects_to_save["policy_decoder"] = self._target_policy_network.high_level_encoder
+                objects_to_save["policy_decoder"] = self._target_policy_network.decoder
                 if self._target_policy_network.use_multi_encoder:
                     objects_to_save["policy_high_level_encoder"] = self._target_policy_network.high_level_encoder
                     objects_to_save["policy_mid_level_encoder"] = self._target_policy_network.mid_level_encoder
@@ -188,7 +191,7 @@ class DistributionalMPOLearner(acme.Learner):
             )
 
             objects_to_save = {
-                "policy-0": snt.Sequential([self._target_observation_network, self._target_policy_network]),
+                "policy-0": Sequential([self._target_observation_network, self._target_policy_network]),
                 # "policy-only-no-obs-network-0": snt.Sequential([self._target_policy_network]), '
                 # we don't need to do kickstarting for now
             }
@@ -241,6 +244,11 @@ class DistributionalMPOLearner(acme.Learner):
         if froze_decoder:
             self._target_policy_network.decoder.trainable = False  # freeze the weights of decoder
             print(f"CKPTS: Decoder weight frozen.")
+        if froze_mid_level_encoder:
+            if not self._target_policy_network.use_multi_encoder:
+                raise ValueError("Multi-layer encoder not enabled, cannot froze mid level encoder weights")
+            self._target_policy_network.mid_level_encoder.trainable = False # freeze the weights of the mid layer encoder
+            print(f"CKPTS: Mid-level decoder weights frozen.")
 
         # Do not record timestamps until after the first learning step is done.
         # This is to avoid including the time it takes for actors to come online and
