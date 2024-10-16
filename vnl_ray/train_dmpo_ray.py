@@ -105,7 +105,7 @@ tasks = {
 @hydra.main(
     version_base=None,
     config_path="./config",
-    config_name="train_config_mouse_reach",
+    config_name="train_config_mouse_reach_offline",
 )
 def main(config: DictConfig) -> None:
     print("CONFIG:", config)
