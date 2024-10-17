@@ -75,7 +75,7 @@ def render_with_rewards(env, policy, observation_spec, rollout_length=150):
     """
     render with the rewards progression graph concat alongside with the rendering
     """
-    frames, reset_idx, reward_channels, activation_collection = render_with_rewards_info(env, policy, observation_spec, rollout_length=rollout_length)
+    frames, reset_idx, reward_channels, activation_collection, kinematics_collection = render_with_rewards_info(env, policy, observation_spec, rollout_length=rollout_length)
     rewards = defaultdict(list)
     reward_keys = env.task._reward_keys
     for key in reward_keys:
@@ -92,29 +92,120 @@ def render_with_rewards(env, policy, observation_spec, rollout_length=150):
             episode_start=idx
             continue
         concat_frames.append(np.hstack([frame, plot_reward(idx, episode_start, rewards)]))
-    return concat_frames, activation_collection
+    return concat_frames, activation_collection, kinematics_collection
 
 def render_with_rewards_info(env, policy, observation_spec, rollout_length=150, render_vision_if_available=True):
     """
-    Generate rollout with the reward related information.
+    Generate rollout with the reward-related information and collect kinematic data
+    for all geoms, bodies, joint angles, velocities, and accelerations.
     """
     reward_channels = []
     frames = []
     reset_idx = []
     timestep = env.reset()
     activation_collection = []
-
+    kinematics_collection = []
+    
+    prev_geom_positions = None  # To compute velocity as finite difference
+    prev_body_positions = None  # To compute velocity for bodies
+    
     render_kwargs = {"width": 640, "height": 480}
+    
+    # Get all geom names
+    geom_names = [env.physics.model.id2name(i, 'geom') for i in range(env.physics.model.ngeom)]
+    
+    # Get all body names
+    body_names = [env.physics.model.id2name(i, 'body') for i in range(env.physics.model.nbody)]
+    
+    # Get joint names
+    joint_names = [env.physics.model.id2name(i, 'joint') for i in range(env.physics.model.njnt)]
+
     for i in range(rollout_length):
         pixels = env.physics.render(camera_id=1, **render_kwargs)
-        # optionally also render the vision.
         frames.append(pixels)
+
+        # Collect kinematic data for geoms
+        geom_positions = {}
+        geom_velocities = {}
+        geom_accelerations = {}
+
+        for geom_name in geom_names:
+            try:
+                geom_positions[geom_name] = env.physics.named.data.geom_xpos[geom_name].copy()
+                
+                # Calculate velocity as finite difference between positions
+                if prev_geom_positions:
+                    geom_velocities[geom_name] = geom_positions[geom_name] - prev_geom_positions[geom_name]
+                else:
+                    geom_velocities[geom_name] = np.zeros(3)  # No velocity for the first step
+
+                # Acceleration as difference of velocities
+                if prev_geom_positions:
+                    geom_accelerations[geom_name] = geom_velocities[geom_name]  # Current velocity as acceleration for first difference
+                else:
+                    geom_accelerations[geom_name] = np.zeros(3)  # No acceleration for the first step
+            except KeyError:
+                print(f"Warning: Geom '{geom_name}' not found.")
+        
+        # Collect kinematic data for bodies (use position difference to estimate velocity)
+        body_positions = {}
+        body_velocities = {}
+        body_accelerations = {}
+        body_orientations = {}
+
+        for body_name in body_names:
+            try:
+                body_positions[body_name] = env.physics.named.data.xpos[body_name].copy()
+                
+                # Calculate velocity as finite difference between positions
+                if prev_body_positions:
+                    body_velocities[body_name] = body_positions[body_name] - prev_body_positions[body_name]
+                else:
+                    body_velocities[body_name] = np.zeros(3)  # No velocity for the first step
+
+                # Acceleration as difference of velocities
+                if prev_body_positions:
+                    body_accelerations[body_name] = body_velocities[body_name]  # Current velocity as acceleration for first difference
+                else:
+                    body_accelerations[body_name] = np.zeros(3)  # No acceleration for the first step
+
+                # Orientation using quaternions or rotation matrix
+                body_orientations[body_name] = env.physics.named.data.xquat[body_name].copy()  # Or use xmat for rotation matrix
+            except KeyError:
+                print(f"Warning: Body '{body_name}' not found.")
+        
+        # Collect joint angles
+        joint_angles = {}
+        for joint_name in joint_names:
+            try:
+                joint_angles[joint_name] = env.physics.named.data.qpos[joint_name].copy()
+            except KeyError:
+                print(f"Warning: Joint '{joint_name}' not found.")
+        
+        # Store positions, velocities, accelerations, orientations, and joint angles for this timestep
+        kinematics_collection.append({
+            "geoms": {
+                "positions": geom_positions,
+                "velocities": geom_velocities,
+                "accelerations": geom_accelerations,
+            },
+            "bodies": {
+                "positions": body_positions,
+                "velocities": body_velocities,
+                "accelerations": body_accelerations,
+                "orientations": body_orientations,
+            },
+            "joints": joint_angles
+        })
+        
+        # Update previous positions for velocity and acceleration calculation
+        prev_geom_positions = geom_positions
+        prev_body_positions = body_positions
 
         inputs = tf2_utils.add_batch_dim(timestep.observation)
         inputs = tf2_utils.batch_concat(inputs)
 
         action, activations = policy(inputs, True)
-        
         activation_collection.append(activations)
 
         action = action.sample()
@@ -123,7 +214,7 @@ def render_with_rewards_info(env, policy, observation_spec, rollout_length=150, 
         if timestep.step_type == 2:
             reset_idx.append(i)
     
-    return frames, reset_idx, reward_channels, activation_collection
+    return frames, reset_idx, reward_channels, activation_collection, kinematics_collection
 
 def process_and_save_activation_collection(activation_collections, h5_file_path):
     """
@@ -183,50 +274,117 @@ def process_and_save_activation_collection(activation_collections, h5_file_path)
 
     print(f"Activation data saved to {h5_file_path}")
 
+def process_and_save_kinematics_collection(kinematics_collections, h5_file_path):
+    """
+    Processes the kinematics collections and saves them as a DataFrame in HDF5 format.
+    - Rows: Timesteps.
+    - Columns: Geom positions, body positions, joint angles, velocities, accelerations, and episode number.
+
+    Parameters:
+    - kinematics_collections: List of lists, where each sublist contains the kinematics data for one episode.
+    - h5_file_path: Path to the HDF5 file where the data will be saved.
+    """
+    kinematics_dfs = []
+
+    for episode_idx, kinematics_collection in enumerate(kinematics_collections):
+        # Prepare a list to collect kinematics data for each timestep
+        timestep_data = []
+
+        # Iterate over each timestep and extract positions, velocities, accelerations, and joint angles
+        for timestep_idx, kinematics in enumerate(kinematics_collection):
+            # Create a flat dictionary for this timestep
+            timestep_dict = {'episode': episode_idx + 1, 'timestep': timestep_idx}
+
+            # Add geom data (positions, velocities, accelerations) to the timestep dictionary
+            for geom_name, position in kinematics['geoms']['positions'].items():
+                timestep_dict[f"{geom_name}_geom_x"] = position[0]
+                timestep_dict[f"{geom_name}_geom_y"] = position[1]
+                timestep_dict[f"{geom_name}_geom_z"] = position[2]
+            for geom_name, velocity in kinematics['geoms']['velocities'].items():
+                timestep_dict[f"{geom_name}_geom_vel_x"] = velocity[0]
+                timestep_dict[f"{geom_name}_geom_vel_y"] = velocity[1]
+                timestep_dict[f"{geom_name}_geom_vel_z"] = velocity[2]
+            for geom_name, acceleration in kinematics['geoms']['accelerations'].items():
+                timestep_dict[f"{geom_name}_geom_acc_x"] = acceleration[0]
+                timestep_dict[f"{geom_name}_geom_acc_y"] = acceleration[1]
+                timestep_dict[f"{geom_name}_geom_acc_z"] = acceleration[2]
+
+            # Add body data (positions, velocities, accelerations) to the timestep dictionary
+            for body_name, position in kinematics['bodies']['positions'].items():
+                timestep_dict[f"{body_name}_body_x"] = position[0]
+                timestep_dict[f"{body_name}_body_y"] = position[1]
+                timestep_dict[f"{body_name}_body_z"] = position[2]
+            for body_name, velocity in kinematics['bodies']['velocities'].items():
+                timestep_dict[f"{body_name}_body_vel_x"] = velocity[0]
+                timestep_dict[f"{body_name}_body_vel_y"] = velocity[1]
+                timestep_dict[f"{body_name}_body_vel_z"] = velocity[2]
+            for body_name, acceleration in kinematics['bodies']['accelerations'].items():
+                timestep_dict[f"{body_name}_body_acc_x"] = acceleration[0]
+                timestep_dict[f"{body_name}_body_acc_y"] = acceleration[1]
+                timestep_dict[f"{body_name}_body_acc_z"] = acceleration[2]
+
+            # Add joint angles to the timestep dictionary
+            for joint_name, angle in kinematics['joints'].items():
+                timestep_dict[f"{joint_name}_joint_angle"] = angle
+
+            timestep_data.append(timestep_dict)
+
+        # Create a DataFrame for this episode
+        df_kinematics = pd.DataFrame(timestep_data)
+        kinematics_dfs.append(df_kinematics)
+
+    # Concatenate the DataFrames from all episodes
+    final_kinematics_df = pd.concat(kinematics_dfs, ignore_index=True)
+
+    # Save the final DataFrame to HDF5
+    with pd.HDFStore(h5_file_path) as store:
+        store['kinematics'] = final_kinematics_df
+
+    print(f"Kinematics data saved to {h5_file_path}")
+
 def run_simulation(learner):
-        
-        # Begin simulation
-        num_episodes=3
-        rollout_length=15
-        all_activations_per_episode = []
+    # Begin simulation
+    num_episodes = 3
+    rollout_length = 15
+    all_activations_per_episode = []
+    all_kinematics_per_episode = []
 
-        # Create the environment
-        video_dir = "/root/vast/eric/vnl-ray/videos/"
-        actuator_type = "torque"
-        env = lambda: mouse_reach(actuator_type=actuator_type)
+    # Create the environment
+    video_dir = "/root/vast/eric/vnl-ray/videos/"
+    actuator_type = "torque"
+    env = lambda: mouse_reach(actuator_type=actuator_type)
+    env = env()
 
-        env = env()
+    # Apply wrappers
+    env = wrappers.SinglePrecisionWrapper(env)
+    env = wrappers.CanonicalSpecWrapper(env, clip=False)
+    action_spec = env.action_spec()
+    observation_spec = env.observation_spec()
 
-        # Apply wrappers
-        env = wrappers.SinglePrecisionWrapper(env)
-        env = wrappers.CanonicalSpecWrapper(env, clip=False)
-        action_spec = env.action_spec()
-        observation_spec = env.observation_spec()
+    ts = env.reset()
+    inputs = ts.observation
+    inputs_add = tf2_utils.add_batch_dim(inputs)
+    inputs_concat = tf2_utils.batch_concat(inputs_add)
+    policy = learner._policy_network
 
-        ts = env.reset()
+    # Run the simulation for the specified number of episodes
+    for episode in range(num_episodes):
+        print(f"Starting Episode {episode + 1}")
+        frames, activation_collection, kinematics_collection = render_with_rewards(
+            env, policy, observation_spec, rollout_length=rollout_length
+        )
 
-        inputs = ts.observation
-        inputs_add = tf2_utils.add_batch_dim(inputs)
-        inputs_concat = tf2_utils.batch_concat(inputs_add)
-        
-        #learner._policy_network(inputs_concat, True)
-        policy = learner._policy_network
+        all_activations_per_episode.append(activation_collection)
+        all_kinematics_per_episode.append(kinematics_collection)
 
-        # Run the simulation for the specified number of episodes
-        for episode in range(num_episodes):
-            print(f"Starting Episode {episode + 1}")
-            frames, activation_collection = render_with_rewards(env, policy, observation_spec, rollout_length=rollout_length)
+        # Save the video for each episode
+        video_path = f"{video_dir}mouse_reach_episode_{episode + 1}_checkpoint.mp4"
+        with imageio.get_writer(video_path, fps=1 / env.control_timestep()) as video:
+            for frame in frames:
+                video.append_data(frame)
 
-            all_activations_per_episode.append(activation_collection)
-
-            # Save the video for each episode
-            video_path = f"{video_dir}mouse_reach_episode_{episode + 1}_checkpoint.mp4"
-            with imageio.get_writer(video_path, fps=1 / env.control_timestep()) as video:
-                for frame in frames:
-                    video.append_data(frame)
-
-            print(f"Episode {episode + 1} finished and saved at {video_path}")
-        return all_activations_per_episode
+        print(f"Episode {episode + 1} finished and saved at {video_path}")
+    return all_activations_per_episode, all_kinematics_per_episode
 
 PYHTONPATH = os.path.dirname(os.path.dirname(vnl_ray.__file__))
 LD_LIBRARY_PATH = os.environ["LD_LIBRARY_PATH"] if "LD_LIBRARY_PATH" in os.environ else ""
@@ -569,11 +727,18 @@ def main(config: DictConfig) -> None:
 
     print(learner)
 
-    h5_file_path = "/root/vast/eric/vnl-ray/vnl_ray/training/activations/activations_test.h5"
+    # Run the simulation and collect data
+    all_activations_per_episode, all_kinematics_per_episode = run_simulation(learner)
 
-    all_activations_per_episode = run_simulation(learner)
+    # Paths to save the data
+    activations_h5_file_path = "/root/vast/eric/vnl-ray/training/activations/activations_test.h5"
+    kinematics_h5_file_path = "/root/vast/eric/vnl-ray/training/kinematics/kinematics_test.h5"
 
-    process_and_save_activation_collection(all_activations_per_episode, h5_file_path)
+    # Process and save activations
+    process_and_save_activation_collection(all_activations_per_episode, activations_h5_file_path)
+
+    # Process and save kinematics
+    process_and_save_kinematics_collection(all_kinematics_per_episode, kinematics_h5_file_path)
 
 if __name__ == "__main__":
     main()
