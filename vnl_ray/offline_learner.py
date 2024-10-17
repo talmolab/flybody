@@ -125,10 +125,70 @@ def render_with_rewards_info(env, policy, observation_spec, rollout_length=150, 
     
     return frames, reset_idx, reward_channels, activation_collection
 
+def process_and_save_activation_collection(activation_collections, h5_file_path):
+    """
+    Processes the activation collections and saves them as two DataFrames in HDF5 format.
+    - Rows: Timesteps.
+    - Columns: Neurons and episode number.
+
+    Parameters:
+    - activation_collections: List of lists, where each sublist contains the activations for one episode.
+    - h5_file_path: Path to the HDF5 file where the data will be saved.
+    """
+    layernorm_dfs = []
+    mlp_elu_dfs = []
+    
+    for episode_idx, activation_collection in enumerate(activation_collections):
+        # Prepare empty lists to collect activations for each timestep
+        layernorm_activations = []
+        mlp_elu_activations = []
+
+        # Iterate over each timestep and extract activations
+        for timestep in range(len(activation_collection)):
+            activations = activation_collection[timestep]
+            layernorm_activations.append(activations["layernorm_tanh"])
+            mlp_elu_activations.append(activations["mlp_elu"])
+
+        # Convert lists to 2D numpy arrays (timesteps x neurons)
+        layernorm_array = np.squeeze(np.array(layernorm_activations))  # Ensure it's (timesteps, neurons)
+        mlp_elu_array = np.squeeze(np.array(mlp_elu_activations))      # Ensure it's (timesteps, neurons)   
+
+        # Add the episode number as a column (broadcasted for all timesteps)
+        episode_column = np.full((layernorm_array.shape[0], 1), episode_idx + 1)
+
+        # Combine neuron activations with the episode column
+        layernorm_combined = np.hstack((layernorm_array, episode_column))
+        mlp_elu_combined = np.hstack((mlp_elu_array, episode_column))
+
+        # Create column labels (neuron_1, neuron_2, ..., episode)
+        neuron_columns = [f"neuron_{i+1}" for i in range(layernorm_array.shape[1])]
+        columns_with_episode = neuron_columns + ["episode"]
+
+        # Create DataFrames with timesteps as rows, neurons + episode as columns
+        df_layernorm = pd.DataFrame(layernorm_combined, columns=columns_with_episode)
+        df_mlp_elu = pd.DataFrame(mlp_elu_combined, columns=columns_with_episode)
+
+        # Store DataFrames for later concatenation
+        layernorm_dfs.append(df_layernorm)
+        mlp_elu_dfs.append(df_mlp_elu)
+
+    # Concatenate the DataFrames from all episodes (append them in time direction)
+    final_layernorm_df = pd.concat(layernorm_dfs, ignore_index=True)
+    final_mlp_elu_df = pd.concat(mlp_elu_dfs, ignore_index=True)
+
+    # Save the final DataFrames to HDF5
+    with pd.HDFStore(h5_file_path) as store:
+        store['layernorm_tanh'] = final_layernorm_df
+        store['mlp_elu'] = final_mlp_elu_df
+
+    print(f"Activation data saved to {h5_file_path}")
+
 def run_simulation(learner):
+        
         # Begin simulation
-        num_episodes=10
-        rollout_length=150
+        num_episodes=3
+        rollout_length=15
+        all_activations_per_episode = []
 
         # Create the environment
         video_dir = "/root/vast/eric/vnl-ray/videos/"
@@ -157,6 +217,8 @@ def run_simulation(learner):
             print(f"Starting Episode {episode + 1}")
             frames, activation_collection = render_with_rewards(env, policy, observation_spec, rollout_length=rollout_length)
 
+            all_activations_per_episode.append(activation_collection)
+
             # Save the video for each episode
             video_path = f"{video_dir}mouse_reach_episode_{episode + 1}_checkpoint.mp4"
             with imageio.get_writer(video_path, fps=1 / env.control_timestep()) as video:
@@ -164,6 +226,7 @@ def run_simulation(learner):
                     video.append_data(frame)
 
             print(f"Episode {episode + 1} finished and saved at {video_path}")
+        return all_activations_per_episode
 
 PYHTONPATH = os.path.dirname(os.path.dirname(vnl_ray.__file__))
 LD_LIBRARY_PATH = os.environ["LD_LIBRARY_PATH"] if "LD_LIBRARY_PATH" in os.environ else ""
@@ -506,7 +569,11 @@ def main(config: DictConfig) -> None:
 
     print(learner)
 
-    run_simulation(learner)
+    h5_file_path = "/root/vast/eric/vnl-ray/vnl_ray/training/activations/activations_test.h5"
+
+    all_activations_per_episode = run_simulation(learner)
+
+    process_and_save_activation_collection(all_activations_per_episode, h5_file_path)
 
 if __name__ == "__main__":
     main()
