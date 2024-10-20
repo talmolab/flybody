@@ -1,0 +1,18 @@
+export PATH="/root/anaconda3/bin:$PATH"; conda init; 
+# Restart
+cd /root/vast/eric/vnl-ray/; conda activate flybody; pip install -e .[ray]
+
+# Start:
+ray start --head
+
+# Head 1
+#conda activate flybody; cd /root/vast/eric/vnl_ray/; RAY_memory_monitor_refresh_ms=0 ray start --address='10.244.7.44:6379'
+
+# make sure to start the ray cluster under same dir, otherwise some rendering or checkpointing might be faulty.
+
+ray job submit -- python vnl_ray/train_dmpo_ray.py --config-name train_config_mouse_reach_muscle_simple
+
+# maybe need to pin down the ray version
+conda activate flybody; pip install ray==2.35.0 
+
+# click little cloud in VS Code Extensions to install all Python, Pylance, Black and Debugger
