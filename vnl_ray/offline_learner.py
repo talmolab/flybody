@@ -276,7 +276,8 @@ def process_and_save_activation_collection(activation_collections, h5_file_path)
 
 def process_and_save_kinematics_collection(kinematics_collections, h5_file_path):
     """
-    Processes the kinematics collections and saves them as a DataFrame in HDF5 format.
+    Processes the kinematics collections and saves them into separate keys in HDF5 format.
+    - Separate keys for geom positions, velocities, accelerations, etc.
     - Rows: Timesteps.
     - Columns: Geom positions, body positions, joint angles, velocities, accelerations, and episode number.
 
@@ -284,74 +285,177 @@ def process_and_save_kinematics_collection(kinematics_collections, h5_file_path)
     - kinematics_collections: List of lists, where each sublist contains the kinematics data for one episode.
     - h5_file_path: Path to the HDF5 file where the data will be saved.
     """
-    kinematics_dfs = []
+    # Ensure the directory exists
+    directory = os.path.dirname(h5_file_path)
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    
+    # Initialize dictionaries to store DataFrames for each key
+    geoms_positions_dfs = []
+    geoms_velocities_dfs = []
+    geoms_accelerations_dfs = []
+    
+    bodies_positions_dfs = []
+    bodies_velocities_dfs = []
+    bodies_accelerations_dfs = []
+    bodies_orientations_dfs = []
+    
+    joints_angles_dfs = []
 
     for episode_idx, kinematics_collection in enumerate(kinematics_collections):
-        # Prepare a list to collect kinematics data for each timestep
-        timestep_data = []
+        # Prepare lists to collect kinematics data for each key
+        geoms_positions = []
+        geoms_velocities = []
+        geoms_accelerations = []
+        
+        bodies_positions = []
+        bodies_velocities = []
+        bodies_accelerations = []
+        bodies_orientations = []
+        
+        joints_angles = []
 
         # Iterate over each timestep and extract positions, velocities, accelerations, and joint angles
         for timestep_idx, kinematics in enumerate(kinematics_collection):
-            # Create a flat dictionary for this timestep
-            timestep_dict = {'episode': episode_idx + 1, 'timestep': timestep_idx}
-
-            # Add geom data (positions, velocities, accelerations) to the timestep dictionary
+            # Geoms: Positions, Velocities, Accelerations
             for geom_name, position in kinematics['geoms']['positions'].items():
-                timestep_dict[f"{geom_name}_geom_x"] = position[0]
-                timestep_dict[f"{geom_name}_geom_y"] = position[1]
-                timestep_dict[f"{geom_name}_geom_z"] = position[2]
+                geoms_positions.append({'episode': episode_idx + 1, 'timestep': timestep_idx, 'geom_name': geom_name, 'x': position[0], 'y': position[1], 'z': position[2]})
             for geom_name, velocity in kinematics['geoms']['velocities'].items():
-                timestep_dict[f"{geom_name}_geom_vel_x"] = velocity[0]
-                timestep_dict[f"{geom_name}_geom_vel_y"] = velocity[1]
-                timestep_dict[f"{geom_name}_geom_vel_z"] = velocity[2]
+                geoms_velocities.append({'episode': episode_idx + 1, 'timestep': timestep_idx, 'geom_name': geom_name, 'vx': velocity[0], 'vy': velocity[1], 'vz': velocity[2]})
             for geom_name, acceleration in kinematics['geoms']['accelerations'].items():
-                timestep_dict[f"{geom_name}_geom_acc_x"] = acceleration[0]
-                timestep_dict[f"{geom_name}_geom_acc_y"] = acceleration[1]
-                timestep_dict[f"{geom_name}_geom_acc_z"] = acceleration[2]
+                geoms_accelerations.append({'episode': episode_idx + 1, 'timestep': timestep_idx, 'geom_name': geom_name, 'ax': acceleration[0], 'ay': acceleration[1], 'az': acceleration[2]})
 
-            # Add body data (positions, velocities, accelerations) to the timestep dictionary
+            # Bodies: Positions, Velocities, Accelerations, Orientations
             for body_name, position in kinematics['bodies']['positions'].items():
-                timestep_dict[f"{body_name}_body_x"] = position[0]
-                timestep_dict[f"{body_name}_body_y"] = position[1]
-                timestep_dict[f"{body_name}_body_z"] = position[2]
+                bodies_positions.append({'episode': episode_idx + 1, 'timestep': timestep_idx, 'body_name': body_name, 'x': position[0], 'y': position[1], 'z': position[2]})
             for body_name, velocity in kinematics['bodies']['velocities'].items():
-                timestep_dict[f"{body_name}_body_vel_x"] = velocity[0]
-                timestep_dict[f"{body_name}_body_vel_y"] = velocity[1]
-                timestep_dict[f"{body_name}_body_vel_z"] = velocity[2]
+                bodies_velocities.append({'episode': episode_idx + 1, 'timestep': timestep_idx, 'body_name': body_name, 'vx': velocity[0], 'vy': velocity[1], 'vz': velocity[2]})
             for body_name, acceleration in kinematics['bodies']['accelerations'].items():
-                timestep_dict[f"{body_name}_body_acc_x"] = acceleration[0]
-                timestep_dict[f"{body_name}_body_acc_y"] = acceleration[1]
-                timestep_dict[f"{body_name}_body_acc_z"] = acceleration[2]
+                bodies_accelerations.append({'episode': episode_idx + 1, 'timestep': timestep_idx, 'body_name': body_name, 'ax': acceleration[0], 'ay': acceleration[1], 'az': acceleration[2]})
+            for body_name, orientation in kinematics['bodies']['orientations'].items():
+                bodies_orientations.append({'episode': episode_idx + 1, 'timestep': timestep_idx, 'body_name': body_name, 'qw': orientation[0], 'qx': orientation[1], 'qy': orientation[2], 'qz': orientation[3]})
 
-            # Add joint angles to the timestep dictionary
+            # Joints: Angles
             for joint_name, angle in kinematics['joints'].items():
-                timestep_dict[f"{joint_name}_joint_angle"] = angle
+                joints_angles.append({'episode': episode_idx + 1, 'timestep': timestep_idx, 'joint_name': joint_name, 'angle': angle})
 
-            timestep_data.append(timestep_dict)
+        # Create DataFrames for each category
+        geoms_positions_dfs.append(pd.DataFrame(geoms_positions))
+        geoms_velocities_dfs.append(pd.DataFrame(geoms_velocities))
+        geoms_accelerations_dfs.append(pd.DataFrame(geoms_accelerations))
+        
+        bodies_positions_dfs.append(pd.DataFrame(bodies_positions))
+        bodies_velocities_dfs.append(pd.DataFrame(bodies_velocities))
+        bodies_accelerations_dfs.append(pd.DataFrame(bodies_accelerations))
+        bodies_orientations_dfs.append(pd.DataFrame(bodies_orientations))
+        
+        joints_angles_dfs.append(pd.DataFrame(joints_angles))
 
-        # Create a DataFrame for this episode
-        df_kinematics = pd.DataFrame(timestep_data)
-        kinematics_dfs.append(df_kinematics)
+    # Concatenate the DataFrames from all episodes for each key
+    final_geoms_positions_df = pd.concat(geoms_positions_dfs, ignore_index=True)
+    final_geoms_velocities_df = pd.concat(geoms_velocities_dfs, ignore_index=True)
+    final_geoms_accelerations_df = pd.concat(geoms_accelerations_dfs, ignore_index=True)
+    
+    final_bodies_positions_df = pd.concat(bodies_positions_dfs, ignore_index=True)
+    final_bodies_velocities_df = pd.concat(bodies_velocities_dfs, ignore_index=True)
+    final_bodies_accelerations_df = pd.concat(bodies_accelerations_dfs, ignore_index=True)
+    final_bodies_orientations_df = pd.concat(bodies_orientations_dfs, ignore_index=True)
+    
+    final_joints_angles_df = pd.concat(joints_angles_dfs, ignore_index=True)
 
-    # Concatenate the DataFrames from all episodes
-    final_kinematics_df = pd.concat(kinematics_dfs, ignore_index=True)
-
-    # Save the final DataFrame to HDF5
+    # Save the DataFrames to separate keys in HDF5
     with pd.HDFStore(h5_file_path) as store:
-        store['kinematics'] = final_kinematics_df
+        store['geoms/positions'] = final_geoms_positions_df
+        store['geoms/velocities'] = final_geoms_velocities_df
+        store['geoms/accelerations'] = final_geoms_accelerations_df
+        
+        store['bodies/positions'] = final_bodies_positions_df
+        store['bodies/velocities'] = final_bodies_velocities_df
+        store['bodies/accelerations'] = final_bodies_accelerations_df
+        store['bodies/orientations'] = final_bodies_orientations_df
+        
+        store['joints/angles'] = final_joints_angles_df
 
     print(f"Kinematics data saved to {h5_file_path}")
 
-def run_simulation(learner):
+# verbose
+# def process_and_save_kinematics_collection(kinematics_collections, h5_file_path):
+#     """
+#     Processes the kinematics collections and saves them as a DataFrame in HDF5 format.
+#     - Rows: Timesteps.
+#     - Columns: Geom positions, body positions, joint angles, velocities, accelerations, and episode number.
+
+#     Parameters:
+#     - kinematics_collections: List of lists, where each sublist contains the kinematics data for one episode.
+#     - h5_file_path: Path to the HDF5 file where the data will be saved.
+#     """
+#     kinematics_dfs = []
+
+#     for episode_idx, kinematics_collection in enumerate(kinematics_collections):
+#         # Prepare a list to collect kinematics data for each timestep
+#         timestep_data = []
+
+#         # Iterate over each timestep and extract positions, velocities, accelerations, and joint angles
+#         for timestep_idx, kinematics in enumerate(kinematics_collection):
+#             # Create a flat dictionary for this timestep
+#             timestep_dict = {'episode': episode_idx + 1, 'timestep': timestep_idx}
+
+#             # Add geom data (positions, velocities, accelerations) to the timestep dictionary
+#             for geom_name, position in kinematics['geoms']['positions'].items():
+#                 timestep_dict[f"{geom_name}_geom_x"] = position[0]
+#                 timestep_dict[f"{geom_name}_geom_y"] = position[1]
+#                 timestep_dict[f"{geom_name}_geom_z"] = position[2]
+#             for geom_name, velocity in kinematics['geoms']['velocities'].items():
+#                 timestep_dict[f"{geom_name}_geom_vel_x"] = velocity[0]
+#                 timestep_dict[f"{geom_name}_geom_vel_y"] = velocity[1]
+#                 timestep_dict[f"{geom_name}_geom_vel_z"] = velocity[2]
+#             for geom_name, acceleration in kinematics['geoms']['accelerations'].items():
+#                 timestep_dict[f"{geom_name}_geom_acc_x"] = acceleration[0]
+#                 timestep_dict[f"{geom_name}_geom_acc_y"] = acceleration[1]
+#                 timestep_dict[f"{geom_name}_geom_acc_z"] = acceleration[2]
+
+#             # Add body data (positions, velocities, accelerations) to the timestep dictionary
+#             for body_name, position in kinematics['bodies']['positions'].items():
+#                 timestep_dict[f"{body_name}_body_x"] = position[0]
+#                 timestep_dict[f"{body_name}_body_y"] = position[1]
+#                 timestep_dict[f"{body_name}_body_z"] = position[2]
+#             for body_name, velocity in kinematics['bodies']['velocities'].items():
+#                 timestep_dict[f"{body_name}_body_vel_x"] = velocity[0]
+#                 timestep_dict[f"{body_name}_body_vel_y"] = velocity[1]
+#                 timestep_dict[f"{body_name}_body_vel_z"] = velocity[2]
+#             for body_name, acceleration in kinematics['bodies']['accelerations'].items():
+#                 timestep_dict[f"{body_name}_body_acc_x"] = acceleration[0]
+#                 timestep_dict[f"{body_name}_body_acc_y"] = acceleration[1]
+#                 timestep_dict[f"{body_name}_body_acc_z"] = acceleration[2]
+
+#             # Add joint angles to the timestep dictionary
+#             for joint_name, angle in kinematics['joints'].items():
+#                 timestep_dict[f"{joint_name}_joint_angle"] = angle
+
+#             timestep_data.append(timestep_dict)
+
+#         # Create a DataFrame for this episode
+#         df_kinematics = pd.DataFrame(timestep_data)
+#         kinematics_dfs.append(df_kinematics)
+
+#     # Concatenate the DataFrames from all episodes
+#     final_kinematics_df = pd.concat(kinematics_dfs, ignore_index=True)
+
+#     # Save the final DataFrame to HDF5
+#     with pd.HDFStore(h5_file_path) as store:
+#         store['kinematics'] = final_kinematics_df
+
+#     print(f"Kinematics data saved to {h5_file_path}")
+
+def run_simulation(learner, actuator_type):
     # Begin simulation
-    num_episodes = 3
-    rollout_length = 15
+    num_episodes = 10
+    rollout_length = 150
     all_activations_per_episode = []
     all_kinematics_per_episode = []
 
     # Create the environment
     video_dir = "/root/vast/eric/vnl-ray/videos/"
-    actuator_type = "torque"
     env = lambda: mouse_reach(actuator_type=actuator_type)
     env = env()
 
@@ -727,12 +831,14 @@ def main(config: DictConfig) -> None:
 
     print(learner)
 
+    actuator_type = config.run_config.actuator_type
+
     # Run the simulation and collect data
-    all_activations_per_episode, all_kinematics_per_episode = run_simulation(learner)
+    all_activations_per_episode, all_kinematics_per_episode = run_simulation(learner, actuator_type)
 
     # Paths to save the data
-    activations_h5_file_path = "/root/vast/eric/vnl-ray/training/activations/activations_test.h5"
-    kinematics_h5_file_path = "/root/vast/eric/vnl-ray/training/kinematics/kinematics_test.h5"
+    activations_h5_file_path = f"/root/vast/eric/vnl-ray/training/activations/activations_test_{actuator_type}.h5"
+    kinematics_h5_file_path = f"/root/vast/eric/vnl-ray/training/kinematics/kinematics_test_{actuator_type}.h5"
 
     # Process and save activations
     process_and_save_activation_collection(all_activations_per_episode, activations_h5_file_path)
