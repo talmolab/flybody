@@ -2,8 +2,8 @@ run_config:
   agent_name: mouse
   algo_name: dmpo
   task_name: mouse_reach
-  run_name:  mouse-forelimb-reach-torque
-  actuator_type: torque
+  run_name:  mouse-forelimb-reach-muscle
+  actuator_type: muscle_simple
 
 obs_network:
   # observation network params

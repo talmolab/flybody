@@ -2,7 +2,7 @@ run_config:
   agent_name: mouse
   algo_name: dmpo
   task_name: mouse_reach
-  run_name:  mouse-forelimb-reach
+  run_name:  mouse-forelimb-reach-muscle
   actuator_type: muscle
 
 obs_network:
