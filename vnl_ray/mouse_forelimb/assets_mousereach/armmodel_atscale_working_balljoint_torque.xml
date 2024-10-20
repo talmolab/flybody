@@ -15,6 +15,7 @@ so it can be hard to tell.
 		<lengthrange mode="muscle"/>
 	</compiler>
 	<default>
+	<geom contype="0" conaffinity="0"/>
 	<joint limited="true" damping="0.5" armature=".1" stiffness="0"></joint>
 	<tendon width="0.005" rgba=".95 .3 .3 1" limited="false"></tendon>
 	</default>
@@ -52,7 +53,7 @@ so it can be hard to tell.
 			<geom type="mesh" mesh="Bone_Segmentation_Segment_8" pos="0 0 0"/>
 			<!--Inertia Values-->
 			<inertial pos="0 0 0" mass="0.000035" diaginertia="0.000004 0.000004 0.000004"/>
-		</body>
+		</body> 
 		<!--SOB Scapula-->
 		
 		<body name="scapula" pos="-.012 0 .008" euler="1.5707 1.5707 0">
@@ -62,11 +63,14 @@ so it can be hard to tell.
 			<geom type="mesh" mesh="Bones_Scapula" pos="0 0 0"/>
 			<!--Inertia Values-->
 			<inertial pos="0.0106 0.0013 0.0115" mass="0.0003" diaginertia="5.3e-06 5.3e-06 5.3e-06"/>
-			<site name="interial_center_scapula" pos="0.0106 0.0013 0.0115" rgba=".6 .6 .6 .1" size="0.001"/>ß		
-			<body name="humerus" pos="0 0 0" euler="0 0 0">
+			<site name="interial_center_scapula" pos="0.0106 0.0013 0.0115" rgba=".6 .6 .6 .1" size="0.001"/>		
+			<body name="humerus" pos="0.0035 -0.006 0" euler="0 0 .8">
 				<!--it might be smart to replace this with a balljoint-->
 				<!-- Replacing shoulder joints with a ball joint -->
-				<joint name="shoulder_ball_joint" type="ball" pos="0.0084 0.0014 0.0123" damping="1" range="0 1.5" stiffness="0"/>ß
+				<!-- <joint name="shoulder_ball_joint" type="ball" pos="0.0084 0.0014 0.0123" damping="1" range="0 1.5" stiffness="0"/> -->
+				<joint name="sh_elv" pos="0.0084 0.0014 0.0123" axis=".001 .001 .5" range="-2 1" ref="0" limited="true"/>
+				<joint name="sh_extension" pos="0.0084 0.0014 0.0123" axis=".001 .5 .001" range="-2.3 -1" ref="-1" limited="true"/>
+				<joint name="sh_rotation"  pos="0.0084 0.0014 0.0123" axis=".5 .001 .001" range="-3 -1" ref="-1" limited="true"/>
 
 				<site name="shoulder_joint_viz_large" pos="0.0084 0.0014 0.0123" rgba="1 .2 .6 .2" size="0.0010"/>
 				<site name="shoulder_joint_viz_small" pos="0.0084 0.0014 0.0123" rgba="1 .2 .6 .6" size="0.0005"/>
@@ -91,7 +95,7 @@ so it can be hard to tell.
 						<site name="interial_center_radius" pos="-0.0003 .001 0.0099" rgba=".6 .6 .6 .1" size="0.0008"/>
 						
 						<body name="hand" pos="0 0 0">
-							<geom type="mesh" mesh="Bone_Segments_Hand" pos="0 0 0"/>ß
+							<geom type="mesh" mesh="Bone_Segments_Hand" pos="0 0 0"/>
 							<geom name="finger_tip" type="sphere" size="0.001" material="target" pos="-0.0071999999999999998 0.0019 0.012999999999999999" contype="0" conaffinity="0"/>
 							<inertial pos="-0.0048 0.0019 0.012" mass=" 0.00071" diaginertia="7e-07 7e-07 7e-07"/>
 							<site name="interial_center_hand" pos="-0.0048 0.0019 0.012" rgba=".6 .6 .6 .1" size="0.0008"/>
@@ -109,10 +113,10 @@ so it can be hard to tell.
 	</body>
 </worldbody>
 <actuator>
-	<motor joint="shoulder_ball_joint" ctrllimited="true" ctrlrange="-1 1" gear="1 0 0"/>
-    <motor joint="shoulder_ball_joint" ctrllimited="true" ctrlrange="-1 1" gear="0 1 0"/>
-    <motor joint="shoulder_ball_joint" ctrllimited="true" ctrlrange="-1 1" gear="0 0 1"/>
-	<motor joint="elbow" ctrllimited="true" ctrlrange="-1 1"/>
+	<motor name="sh_elv_act" joint="sh_elv" ctrllimited="true" ctrlrange="-1 1"/>
+	<motor name="sh_extension_act" joint="sh_extension" ctrllimited="true" ctrlrange="-1 1"/>
+	<motor name="sh_rotation_act" joint="sh_rotation" ctrllimited="true" ctrlrange="-1 1"/>
+	<motor name="elbow_act" joint="elbow" ctrllimited="true" ctrlrange="-1 1"/>
 </actuator>
 
 </mujoco>

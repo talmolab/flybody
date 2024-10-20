@@ -93,7 +93,7 @@ so it can be hard to tell.
 				<!-- <joint name="shoulder_ball_joint" type="ball" pos="0.0084 0.0014 0.0123" damping="1" range="0 1.5" stiffness="0"/> -->
 				<joint name="sh_elv" pos="0.0084 0.0014 0.0123" axis=".001 .001 .5" range="-2 1" ref="0" limited="true"/>
 				<joint name="sh_extension" pos="0.0084 0.0014 0.0123" axis=".001 .5 .001" range="-2.3 -1" ref="-1" limited="true"/>
-				<joint name="sh_rotation"  pos="0.0084 0.0014 0.0123" axis=".5 .001 .001" range="-3 -1" ref="-1" limited="true"/>
+				<joint name="sh_rotation"  pos="0.0084 0.0014 0.0123" axis=".5 .001 .001" range="-2 -1" ref="-1" limited="true"/>
 				<!-- <joint name="sh_elv_angle" pos="0.0084 0.0014 0.0123" axis=".001 .001 .5" damping="0.001" range="-1.745 0" ref="-.8" limited="true"/>
 				<joint name="sh_extension_angle" pos="0.0084 0.0014 0.0123" axis=".001 .5 .001" damping="0.001" range="-0.524 3" ref="2.5"  limited="true"/>
 				<joint name="sh_rotation_angle" pos="0.0084 0.0014 0.0123" axis=".5 .001 .001" damping="0.001" range="-0.524 0.524" ref="-2" limited="true"/> -->
@@ -186,11 +186,11 @@ so it can be hard to tell.
 	</body>
 </worldbody>
 <tendon>
-	<spatial width=".0001" rgba=".9 0 0 .5" name="Pectoralis_Clavicle_Head">
+	<!-- <spatial width=".0001" rgba=".9 0 0 .5" name="Pectoralis_Clavicle_Head">
 		<site site="Pec_Insertion"/>
 		<site site="Pec_Midpoint_01"/>
 		<site site="Pec_Origin_Clav"/>
-	</spatial>
+	</spatial> -->
 	<spatial width=".0001" rgba=".9 0 0 .5" name="Biceps_Long_Head" springlength="-1">
 		<site site="Biceps_Long_Head-P1"/>
 		<site site="Biceps_Long_Head-P2"/>
@@ -223,15 +223,15 @@ so it can be hard to tell.
 		<site site="MaybeBrachialis_InnerHead-P3"/>
 		<site site="MaybeBrachialis_InnerHead-P4"/>
 	</spatial>
-	<spatial width=".0001" rgba=".9 0 0 .5" name="Brachialis_Distal_Head" springlength="-1">
+	<!-- <spatial width=".0001" rgba=".9 0 0 .5" name="Brachialis_Distal_Head" springlength="-1">
 		<site site="MaybeBrachialis_OuterrHead-P1"/>
 		<site site="MaybeBrachialis_OuterrHead-P2"/>
 		<site site="MaybeBrachialis_OuterrHead-P3"/>
-	</spatial>
-	<spatial width=".0001" rgba=".9 0 0 .5" name="Anconeus" springlength="-1">
+	</spatial> -->
+	<!-- <spatial width=".0001" rgba=".9 0 0 .5" name="Anconeus" springlength="-1">
 		<site site="Anconeus_Origin"/>
 		<site site="Anconeus-Insertion"/>
-	</spatial>
+	</spatial> -->
 	<spatial width=".0001" rgba=".9 0 0 .5" name="Deltoid_Posterior" springlength="-1">
 		<site site="Deltoid_M_Insertion"/>
 		<site site="Deltoid_M_Origin"/>
@@ -249,41 +249,41 @@ so it can be hard to tell.
 		<site site="Infraspinatus_P1"/>
 		<site site="Infraspinatus_Origin"/>
 	</spatial>
-	<spatial width=".0001" rgba=".9 0 0 .5" name="PronatorTeres" springlength="-1">
+	<!-- <spatial width=".0001" rgba=".9 0 0 .5" name="PronatorTeres" springlength="-1">
 		<site site="PronatorTeres-P1"/>
 		<site site="PronatorTeres-P2"/>
-	</spatial>
+	</spatial> -->
 	<spatial width=".0001" rgba=".9 0 0 .5" name="FlexorCarpiRadialis" springlength="-1">
 		<site site="FlexorCarpiRadialis-P1"/>
 		<site site="FlexorCarpiRadialis-P2"/>
 		<site site="FlexorCarpiRadialis-P3"/>
 	</spatial>
-	<spatial width=".0001" rgba=".9 0 0 .5" name="Brachioradialis" springlength="-1">
+	<!-- <spatial width=".0001" rgba=".9 0 0 .5" name="Brachioradialis" springlength="-1">
 		<site site="Brachioradialis-P1"/>
 		<site site="Brachioradialis-P2"/>
-	</spatial>
-	<spatial width=".0001" rgba=".9 0 0 .5" name="Triceps_Medial_Head" springlength="-1">
+	</spatial> -->
+	<!-- <spatial width=".0001" rgba=".9 0 0 .5" name="Triceps_Medial_Head" springlength="-1">
 		<site site="Triceps_Short_Head_Insertion"/>
       	<site site="Triceps_Short_Head_Origin"/>
-	</spatial>
+	</spatial> -->
 	<spatial width=".0001" rgba=".9 0 0 .5" name="Latissimus_Dorsi_Rostral" springlength="-1">
 		<site site="Latissimus_Dorsi-P1"/>
 		<site site="Latissimus_Dorsi-P2"/>
 		<site site="Latissimus_Dorsi_Rostral-P3"/>
 	</spatial>
-	<spatial width=".0001" rgba=".9 0 0 .5" name="Latissimus_Dorsi_Caudal" springlength="-1">
+	<!-- <spatial width=".0001" rgba=".9 0 0 .5" name="Latissimus_Dorsi_Caudal" springlength="-1">
 		<site site="Latissimus_Dorsi_Caudal1-P1"/>
 		<site site="Latissimus_Dorsi_Caudal1-P2"/>
 		<site site="Latissimus_Dorsi_Caudal-P3"/>
-	</spatial>
+	</spatial> -->
 	<spatial width=".0001" rgba=".9 0 0 .5" name="Pectoralis_Major_Anterior" springlength="-1">
 		<site site="Pectoralis_Major-P1"/>
 		<site site="Pectoralis_Major-P2"/>
 	</spatial>
-	<spatial width=".0001" rgba=".9 0 0 .5" name="Pectoralis_Major_Posterior" springlength="-1">
+	<!-- <spatial width=".0001" rgba=".9 0 0 .5" name="Pectoralis_Major_Posterior" springlength="-1">
 		<site site="Pectoralis_Major_Posterior-P1"/>
 		<site site="Pectoralis_Major_Posterior-P2"/>
-	</spatial>
+	</spatial> -->
 </tendon>
 <actuator>
 	<!-- <position name="sh1" joint="sh_elv"/> 
@@ -291,27 +291,27 @@ so it can be hard to tell.
 	<position name="sh3" joint="sh_rotation"/>
 	<position name="el1" joint="elbow"/> -->
    <!-- <motor joint="shoulder_ball_joint" ctrllimited="true" ctrlrange="-1 1"/> -->
-	<muscle name="Pectoralis_Clavicle_Head_act" tendon="Pectoralis_Clavicle_Head" lengthrange="0.001 0.01" fpmax=".001" force="1000"/>
-	<muscle name="Biceps_Long_Head_act" tendon="Biceps_Long_Head" lengthrange="0.001 0.02" fpmax=".001" force="1000"/>
-	<muscle name="Biceps_Short_Head_act" tendon="Biceps_Short_Head" lengthrange="0.001 0.02" fpmax=".001" force="1000"/>
-	<muscle name="Deltoid_Medial_CHK_MMTARM_act" tendon="Deltoid_Medial_CHK_MMTARM" lengthrange="0.001 0.01" fpmax=".001" force="1000"/>
-	<muscle name="Triceps_Lat_Head_act" tendon="Triceps_Lat_Head" lengthrange="0.001 0.02" fpmax=".001" force="1000"/>
-	<muscle name="Triceps_Long_Head_act" tendon="Triceps_Long_Head" lengthrange="0.001 0.02" fpmax=".001" force="1000"/>
-	<muscle name="Brachialis_Proximal_Head_act" tendon="Brachialis_Proximal_Head" lengthrange="0.001 0.01" fpmax=".001" force="1000"/>
-	<!-- <muscle name="Brachialis_Distal_Head_act" tendon="Brachialis_Distal_Head" lengthrange="0.001 0.01" fpmax=".001" force="1000"/> -->
-	<!-- <muscle name="Anconeus_act" tendon="Anconeus" lengthrange="0.00 0.005" fpmax=".001" force="1000"/> -->
-	<muscle name="Deltoid_Posterior_act" tendon="Deltoid_Posterior" lengthrange="0.001 0.005" fpmax=".001" force="1000"/>
-	<!-- <muscle name="Short_Anconeus_act" tendon="Short_Anconeus" lengthrange="0.001 0.01" fpmax=".001" force="1000"/> -->
-	<muscle name="Subscapularis_SuperiorHead_act" tendon="Subscapularis_SuperiorHead" lengthrange="0.001 0.01" fpmax=".001" force="1000"/>
-	<muscle name="Infraspinatus_act" tendon="Infraspinatus" lengthrange="0.001 0.01" fpmax=".001" force="1000"/>
-	<muscle name="PronatorTeres_act" tendon="PronatorTeres" lengthrange="0.001 0.05" fpmax=".001" force="1000"/>
-	<muscle name="FlexorCarpiRadialis_act" tendon="FlexorCarpiRadialis" lengthrange="0.001 0.01" fpmax=".001" force="1000"/>
-	<!-- <muscle name="Brachioradialis_act" tendon="Brachioradialis" lengthrange="0.001 0.01" fpmax=".001" force="1000"/> -->
-	<!-- <muscle name="Triceps_Medial_Head_act" tendon="Triceps_Medial_Head" lengthrange="0.003 0.005" fpmax=".001" force="1000"/> -->
-	<muscle name="Latissimus_Dorsi_Rostral_act" tendon="Latissimus_Dorsi_Rostral" lengthrange="0.001 0.02" fpmax=".001" force="1000"/>
-	<muscle name="Latissimus_Dorsi_Caudal_act" tendon="Latissimus_Dorsi_Caudal" lengthrange="0.001 0.03" fpmax=".001" force="1000"/>
-	<muscle name="Pectoralis_Major_Anterior_act" tendon="Pectoralis_Major_Anterior" lengthrange="0.001 0.01" fpmax=".001" force="2000"/>
-	<muscle name="Pectoralis_Major_Posterior_act" tendon="Pectoralis_Major_Posterior" lengthrange="0.001 0.01" fpmax=".001" force="2000"/>
+	<!-- <muscle name="Pectoralis_Clavicle_Head_act" tendon="Pectoralis_Clavicle_Head" lengthrange="0.001 0.01" fpmax=".001"/> -->
+	<muscle name="Biceps_Long_Head_act" tendon="Biceps_Long_Head" lengthrange="0.001 0.02" fpmax=".001" force="1500"/>
+	<muscle name="Biceps_Short_Head_act" tendon="Biceps_Short_Head" lengthrange="0.001 0.02" fpmax=".001" force="1500"/>
+	<muscle name="Deltoid_Medial_CHK_MMTARM_act" tendon="Deltoid_Medial_CHK_MMTARM" lengthrange="0.001 0.01" fpmax=".001" force="1500"/>
+	<muscle name="Triceps_Lat_Head_act" tendon="Triceps_Lat_Head" lengthrange="0.001 0.02" fpmax=".001" force="1500"/>
+	<muscle name="Triceps_Long_Head_act" tendon="Triceps_Long_Head" lengthrange="0.001 0.02" fpmax=".001" force="1500"/>
+	<muscle name="Brachialis_Proximal_Head_act" tendon="Brachialis_Proximal_Head" lengthrange="0.001 0.01" fpmax=".001" force="1500"/>
+	<!-- <muscle name="Brachialis_Distal_Head_act" tendon="Brachialis_Distal_Head" lengthrange="0.001 0.01" fpmax=".001"/> -->
+	<!-- <muscle name="Anconeus_act" tendon="Anconeus" lengthrange="0.00 0.005" fpmax=".001"/> -->
+	<muscle name="Deltoid_Posterior_act" tendon="Deltoid_Posterior" lengthrange="0.001 0.005" fpmax=".001" force="1500"/>
+	<!-- <muscle name="Short_Anconeus_act" tendon="Short_Anconeus" lengthrange="0.001 0.01" fpmax=".001"/> -->
+	<muscle name="Subscapularis_SuperiorHead_act" tendon="Subscapularis_SuperiorHead" lengthrange="0.001 0.01" fpmax=".001" force="1500"/>
+	<muscle name="Infraspinatus_act" tendon="Infraspinatus" lengthrange="0.001 0.01" fpmax=".001" force="1500"/>
+	<!-- <muscle name="PronatorTeres_act" tendon="PronatorTeres" lengthrange="0.001 0.05" fpmax=".001"/> -->
+	<muscle name="FlexorCarpiRadialis_act" tendon="FlexorCarpiRadialis" lengthrange="0.001 0.01" fpmax=".001" force="1500"/>
+	<!-- <muscle name="Brachioradialis_act" tendon="Brachioradialis" lengthrange="0.001 0.01" fpmax=".001"/> -->
+	<!-- <muscle name="Triceps_Medial_Head_act" tendon="Triceps_Medial_Head" lengthrange="0.003 0.005" fpmax=".001"/> -->
+	<muscle name="Latissimus_Dorsi_Rostral_act" tendon="Latissimus_Dorsi_Rostral" lengthrange="0.001 0.02" fpmax=".001" force="1500"/>
+	<!-- <muscle name="Latissimus_Dorsi_Caudal_act" tendon="Latissimus_Dorsi_Caudal" lengthrange="0.001 0.03" fpmax=".001"/> -->
+	<muscle name="Pectoralis_Major_Anterior_act" tendon="Pectoralis_Major_Anterior" lengthrange="0.001 0.01" fpmax=".001" force="1500"/>
+	<!-- <muscle name="Pectoralis_Major_Posterior_act" tendon="Pectoralis_Major_Posterior" lengthrange="0.001 0.01" fpmax=".001"/> -->
 </actuator>
 
 </mujoco>
