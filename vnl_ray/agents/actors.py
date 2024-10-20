@@ -58,6 +58,7 @@ class DelayedFeedForwardActor(core.Actor):
 
     @tf.function
     def _policy(self, observation: types.NestedArray) -> types.NestedTensor:
+        # print(f"DEBUG: obs at actors: {observation}")
         # Add a dummy batch dimension and as a side effect convert numpy to TF.
         batched_observation = tf2_utils.add_batch_dim(observation)
 

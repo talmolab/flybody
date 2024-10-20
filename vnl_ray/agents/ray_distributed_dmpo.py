@@ -66,7 +66,8 @@ class DMPOConfig:
     logger_save_csv_data: bool = False
     checkpoint_to_load: str | None = None  # Path to checkpoint.
     load_decoder_only: bool = False  # whether only loads decoder
-    froze_decoder: bool = False  # whether we froze the weight of the decoder
+    froze_decoder: bool = False  # whether we freeze the weight of the decoder
+    froze_mid_level_encoder: bool = False # whether we freeze the weight of the mid level encoder
     checkpoint_max_to_keep: int | None = 1  # None: keep all checkpoints.
     checkpoint_directory: str | None = "~/ray-ckpts/"  # None: no checkpointing.
     time_delta_minutes: float = 30
@@ -136,7 +137,7 @@ class Learner(DistributionalMPOLearner):
         replay_server_addresses: dict,  # Allow multiple replay server address here. Modify corresponding logics.
         counter: counting.Counter,
         environment_spec: specs.EnvironmentSpec,
-        dmpo_config,
+        dmpo_config: DMPOConfig,
         network_factory,
         label="learner",
     ):
@@ -225,6 +226,7 @@ class Learner(DistributionalMPOLearner):
             KL_weights=self._config.KL_weights,
             load_decoder_only=self._config.load_decoder_only,
             froze_decoder=self._config.froze_decoder,
+            froze_mid_level_encoder=self._config.froze_mid_level_encoder,
         )
 
     def _step(self, iterator):
@@ -460,6 +462,7 @@ class EnvironmentLoop(acme.EnvironmentLoop):
             # Frame width and height for rendering.
             render_kwargs = {"width": 640, "height": 480}
             try:
+                from vnl_ray.agents.utils_sonnet import Sequential
                 policy = tf.saved_model.load(str(self._latest_snapshot))
                 policy = TestPolicyWrapper(policy)
             except OSError as e:

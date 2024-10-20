@@ -82,6 +82,7 @@ def network_factory_dmpo(
     init_scale=0.7,
     fixed_scale=False,
     use_tfd_independent=True,
+    use_visual_network: bool = False, # whether use RNN visual network for the tasks
 ):
     """Networks for DMPO agent."""
     action_size = np.prod(action_spec.shape, dtype=int)
@@ -111,6 +112,11 @@ def network_factory_dmpo(
             networks.DiscreteValuedHead(vmin=vmin, vmax=vmax, num_atoms=num_atoms),
         ]
     )
+    
+    networks_out = {
+        "policy": policy_network,
+        "critic": critic_network,
+    }
 
     return {
         "policy": policy_network,
@@ -131,6 +137,7 @@ def make_network_factory_dmpo(
     init_scale=0.7,
     fixed_scale=False,
     use_tfd_independent=True,
+    use_visual_network: bool = False, # whether use RNN visual network for the tasks
 ):
     """Returns network factory for distributed DMPO agent."""
 
@@ -147,6 +154,7 @@ def make_network_factory_dmpo(
             init_scale=init_scale,
             fixed_scale=fixed_scale,
             use_tfd_independent=use_tfd_independent,
+            use_visual_network=use_visual_network,
         )
 
     return network_factory

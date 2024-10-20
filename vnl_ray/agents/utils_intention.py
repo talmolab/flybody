@@ -25,6 +25,9 @@ def separate_observation(observation: types.NestedTensor) -> tf.Tensor:
 
     egocentric_obs = {k: observation.pop(k) for k in egocentric_obs_keys}
     task_obs = {k: observation.pop(k) for k in task_obs_keys}
+    
+    # print(f"DEBUG: Tasks Obs: {task_obs}")
+    # print(f"DEBUG: Ego Obs: {egocentric_obs}")
 
     # concatenate the observations
     task_obs_tensor = tf2_utils.batch_concat(task_obs)  # 1520 # this should be 1558

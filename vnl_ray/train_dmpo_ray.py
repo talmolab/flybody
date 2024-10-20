@@ -219,7 +219,7 @@ def main(config: DictConfig) -> None:
         policy_layer_sizes=config.learner_network["policy_layer_sizes"] if not use_intention else None,
         critic_layer_sizes=config.learner_network["critic_layer_sizes"],
         intention_size=config.learner_network["intention_size"] if use_intention else 0,
-        use_tfd_independent=True,  # for easier KL calculation
+        use_tfd_independent=False,  # for easier KL calculation
         use_visual_network=config.obs_network["use_visual_network"],
         use_intention_policy=config.learner_network["use_intention"],
         visual_feature_size=config.obs_network["visual_feature_size"],
@@ -237,13 +237,13 @@ def main(config: DictConfig) -> None:
 
     # This callable will be calculating penalization cost by converting canonical
     # actions to real (not wrapped) environment actions inside DMPO agent.
-    penalization_cost = None  # PenalizationCostRealActions(dummy_env.environment.action_spec())
+    penalization_cost = PenalizationCostRealActions(dummy_env.environment.action_spec())
     # Distributed DMPO agent configuration.
     dmpo_config = DMPOConfig(
         num_actors=config.env_params["num_actors"],
         batch_size=config.learner_params["batch_size"],
         discount=config.learner_params["discount"],
-        prefetch_size=1024,  # aggresive prefetch param, because we have large amount of data
+        prefetch_size=128,  # aggresive prefetch param, because we have large amount of data
         num_learner_steps=1000,
         min_replay_size=50_000,
         max_replay_size=4_000_000,
@@ -282,7 +282,7 @@ def main(config: DictConfig) -> None:
         ),
         time_delta_minutes=30,
         eval_average_over=config.eval_params["eval_average_over"],
-        KL_weights=(0, 0),
+        KL_weights=config.learner_network["KL_weights"],
         # specify the KL with intention & action output layer # do not penalize the output layer # disabled it for now.
         load_decoder_only=(
             config.learner_params["load_decoder_only"] if "load_decoder_only" in config.learner_params else False
