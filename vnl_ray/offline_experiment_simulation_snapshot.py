@@ -21,28 +21,32 @@ from vnl_ray.agents.policy_network_activations import IntermediateActivationsPol
 _CONTROL_TIMESTEP = 0.02
 _PHYSICS_TIMESTEP = 0.001
 
+
 def render_with_rewards(env, policy, observation_spec, rollout_length=150):
     """
     render with the rewards progression graph concat alongside with the rendering
     """
-    frames, reset_idx, reward_channels = render_with_rewards_info(env, policy, observation_spec, rollout_length=rollout_length)
+    frames, reset_idx, reward_channels = render_with_rewards_info(
+        env, policy, observation_spec, rollout_length=rollout_length
+    )
     rewards = defaultdict(list)
     reward_keys = env.task._reward_keys
     for key in reward_keys:
         rewards[key] += [rcs[key] for rcs in reward_channels]
     concat_frames = []
     episode_start = 0
-     # implement reset logics of the reward graph too.
+    # implement reset logics of the reward graph too.
     for idx, frame in enumerate(frames):
         if len(reset_idx) != 0 and idx == reset_idx[0]:
             reward_plot = plot_reward(idx, episode_start, rewards, terminated=True)
             for _ in range(50):
-                concat_frames.append(np.hstack([frame, reward_plot])) # create stoppage when episode terminates
+                concat_frames.append(np.hstack([frame, reward_plot]))  # create stoppage when episode terminates
             reset_idx.pop(0)
-            episode_start=idx
+            episode_start = idx
             continue
         concat_frames.append(np.hstack([frame, plot_reward(idx, episode_start, rewards)]))
     return concat_frames
+
 
 def render_with_rewards_info(env, policy, observation_spec, rollout_length=150, render_vision_if_available=True):
     """
@@ -65,6 +69,7 @@ def render_with_rewards_info(env, policy, observation_spec, rollout_length=150, 
             reset_idx.append(i)
     return frames, reset_idx, reward_channels
 
+
 def flatten_observation(observation_dict, observation_spec):
     observation_tensors = []
     for key, spec in observation_spec.items():
@@ -72,6 +77,7 @@ def flatten_observation(observation_dict, observation_spec):
         flattened_tensor = tf.reshape(tensor, [-1])  # Ensure rank 1 tensor
         observation_tensors.append(flattened_tensor)
     return tf.concat(observation_tensors, axis=0)
+
 
 def run_simulation(env_factory, snapshot_path, video_dir, num_episodes=10, rollout_length=150):
     """Run the simulation for a number of episodes and render them."""
@@ -89,7 +95,7 @@ def run_simulation(env_factory, snapshot_path, video_dir, num_episodes=10, rollo
 
     loaded_policy = tf.saved_model.load(snapshot_path)
 
-    # instantiate 
+    # instantiate
     policy = TestPolicyWrapper(loaded_policy)
 
     # Run the simulation for the specified number of episodes
@@ -105,15 +111,15 @@ def run_simulation(env_factory, snapshot_path, video_dir, num_episodes=10, rollo
 
         print(f"Episode {episode + 1} finished and saved at {video_path}")
 
+
 if __name__ == "__main__":
     # Configure the paths
-    #snapshot_path = "/root/vast/eric/vnl-ray/training/ray-mouse-mouse_reach-ckpts/325f0606-8a96-11ef-882c-2e7de45e22fb/snapshots/policy-5/"  # Update with the correct snapshot path
-    snapshot_path = "/root/vast/eric/vnl-ray/training/ray-mouse-mouse_reach-ckpts/325f0606-8a96-11ef-882c-2e7de45e22fb/snapshots/policy-5/"
+    # snapshot_path = "/root/vast/eric/vnl-ray/training/ray-mouse-mouse_reach-ckpts/325f0606-8a96-11ef-882c-2e7de45e22fb/snapshots/policy-5/"  # Update with the correct snapshot path
+    snapshot_path = "/root/vast/eric/vnl-ray/training/ray-mouse-mouse_reach-ckpts/dcc08836-8df2-11ef-9013-b2d5d63c6371/snapshots/policy-15/"
     video_dir = "/root/vast/eric/vnl-ray/videos/"
-    
+
     # Configure the actuator type (e.g., 'muscle', 'torque', or 'position')
-    actuator_type = "torque"  # Update as needed
+    actuator_type = "muscle_simple"  # Update as needed
 
     # Run the simulation for 10 episodes
     run_simulation(lambda: mouse_reach(actuator_type=actuator_type), snapshot_path, video_dir, num_episodes=10)
-    
