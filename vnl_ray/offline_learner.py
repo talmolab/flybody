@@ -8,6 +8,10 @@ import logging
 import os
 import pandas as pd
 import tables
+from tqdm import tqdm
+from datetime import datetime
+import tensorflow_probability as tfp
+
 
 os.environ["RAY_memory_usage_threshold"] = "1"
 
@@ -71,33 +75,66 @@ from vnl_ray.tasks.task_utils import get_task_obs_size
 from vnl_ray.utils import plot_reward
 from collections import defaultdict
 
-def render_with_rewards(env, policy, observation_spec, rollout_length=150):
+
+def render_with_rewards(env, policy, observation_spec, episode_num, rollout_length=150, render=False):
     """
-    render with the rewards progression graph concat alongside with the rendering
+    Renders the environment with the rewards progression graph alongside the rendering frames.
+
+    Args:
+        env (composer.Environment): The environment to simulate.
+        policy (snt.Module): The policy network used to compute actions.
+        observation_spec (specs.Array): The observation spec from the environment.
+        rollout_length (int, optional): Number of steps to render in each rollout. Defaults to 150.
+
+    Returns:
+        tuple: A tuple containing:
+            - concat_frames (list of np.ndarray): Rendered frames with reward plot concatenated.
+            - activation_collection (list): Collected activations for each timestep.
+            - kinematics_collection (list): Collected kinematic data for each timestep.
     """
-    frames, reset_idx, reward_channels, activation_collection, kinematics_collection = render_with_rewards_info(env, policy, observation_spec, rollout_length=rollout_length)
+    frames, reset_idx, reward_channels, activation_collection, kinematics_collection = render_with_rewards_info(
+        env, policy, observation_spec, episode_num, rollout_length=rollout_length, render=render
+    )
     rewards = defaultdict(list)
     reward_keys = env.task._reward_keys
     for key in reward_keys:
         rewards[key] += [rcs[key] for rcs in reward_channels]
     concat_frames = []
     episode_start = 0
-     # implement reset logics of the reward graph too.
-    for idx, frame in enumerate(frames):
-        if len(reset_idx) != 0 and idx == reset_idx[0]:
-            reward_plot = plot_reward(idx, episode_start, rewards, terminated=True)
-            for _ in range(50):
-                concat_frames.append(np.hstack([frame, reward_plot])) # create stoppage when episode terminates
-            reset_idx.pop(0)
-            episode_start=idx
-            continue
-        concat_frames.append(np.hstack([frame, plot_reward(idx, episode_start, rewards)]))
+    # implement reset logics of the reward graph too.
+    if render == True:
+        for idx, frame in enumerate(frames):
+            if len(reset_idx) != 0 and idx == reset_idx[0]:
+                reward_plot = plot_reward(idx, episode_start, rewards, terminated=True)
+                for _ in range(50):
+                    concat_frames.append(np.hstack([frame, reward_plot]))  # create stoppage when episode terminates
+                reset_idx.pop(0)
+                episode_start = idx
+                continue
+            concat_frames.append(np.hstack([frame, plot_reward(idx, episode_start, rewards)]))
     return concat_frames, activation_collection, kinematics_collection
 
-def render_with_rewards_info(env, policy, observation_spec, rollout_length=150, render_vision_if_available=True):
+
+def render_with_rewards_info(
+    env, policy, observation_spec, episode_num, rollout_length=150, render_vision_if_available=False, render=False
+):
     """
-    Generate rollout with the reward-related information and collect kinematic data
-    for all geoms, bodies, joint angles, velocities, and accelerations.
+    Generates a rollout with reward-related information and collects kinematic data for geoms, bodies, joint angles, velocities, and accelerations.
+
+    Args:
+        env (composer.Environment): The environment to simulate.
+        policy (snt.Module): The policy network used to compute actions.
+        observation_spec (specs.Array): The observation spec from the environment.
+        rollout_length (int, optional): Number of steps to render in each rollout. Defaults to 150.
+        render_vision_if_available (bool, optional): Whether to render vision-based output. Defaults to True.
+
+    Returns:
+        tuple: A tuple containing:
+            - frames (list of np.ndarray): Rendered frames.
+            - reset_idx (list of int): Indexes where the episode resets occurred.
+            - reward_channels (list of dict): Collected reward values at each timestep.
+            - activation_collection (list): Collected activations at each timestep.
+            - kinematics_collection (list): Collected kinematics at each timestep.
     """
     reward_channels = []
     frames = []
@@ -105,23 +142,27 @@ def render_with_rewards_info(env, policy, observation_spec, rollout_length=150, 
     timestep = env.reset()
     activation_collection = []
     kinematics_collection = []
-    
+
     prev_geom_positions = None  # To compute velocity as finite difference
     prev_body_positions = None  # To compute velocity for bodies
-    
+    prev_finger_positions = None
+
     render_kwargs = {"width": 640, "height": 480}
-    
+
     # Get all geom names
-    geom_names = [env.physics.model.id2name(i, 'geom') for i in range(env.physics.model.ngeom)]
-    
+    geom_names = [env.physics.model.id2name(i, "geom") for i in range(env.physics.model.ngeom)]
+
     # Get all body names
-    body_names = [env.physics.model.id2name(i, 'body') for i in range(env.physics.model.nbody)]
-    
+    body_names = [env.physics.model.id2name(i, "body") for i in range(env.physics.model.nbody)]
+
     # Get joint names
-    joint_names = [env.physics.model.id2name(i, 'joint') for i in range(env.physics.model.njnt)]
+    joint_names = [env.physics.model.id2name(i, "joint") for i in range(env.physics.model.njnt)]
 
     for i in range(rollout_length):
-        pixels = env.physics.render(camera_id=1, **render_kwargs)
+        if render == True:
+            pixels = env.physics.render(camera_id=1, **render_kwargs)
+        else:
+            pixels = np.zeros((1, 1, 1))
         frames.append(pixels)
 
         # Collect kinematic data for geoms
@@ -132,7 +173,7 @@ def render_with_rewards_info(env, policy, observation_spec, rollout_length=150, 
         for geom_name in geom_names:
             try:
                 geom_positions[geom_name] = env.physics.named.data.geom_xpos[geom_name].copy()
-                
+
                 # Calculate velocity as finite difference between positions
                 if prev_geom_positions:
                     geom_velocities[geom_name] = geom_positions[geom_name] - prev_geom_positions[geom_name]
@@ -141,12 +182,14 @@ def render_with_rewards_info(env, policy, observation_spec, rollout_length=150, 
 
                 # Acceleration as difference of velocities
                 if prev_geom_positions:
-                    geom_accelerations[geom_name] = geom_velocities[geom_name]  # Current velocity as acceleration for first difference
+                    geom_accelerations[geom_name] = geom_velocities[
+                        geom_name
+                    ]  # Current velocity as acceleration for first difference
                 else:
                     geom_accelerations[geom_name] = np.zeros(3)  # No acceleration for the first step
             except KeyError:
                 print(f"Warning: Geom '{geom_name}' not found.")
-        
+
         # Collect kinematic data for bodies (use position difference to estimate velocity)
         body_positions = {}
         body_velocities = {}
@@ -156,7 +199,7 @@ def render_with_rewards_info(env, policy, observation_spec, rollout_length=150, 
         for body_name in body_names:
             try:
                 body_positions[body_name] = env.physics.named.data.xpos[body_name].copy()
-                
+
                 # Calculate velocity as finite difference between positions
                 if prev_body_positions:
                     body_velocities[body_name] = body_positions[body_name] - prev_body_positions[body_name]
@@ -165,15 +208,19 @@ def render_with_rewards_info(env, policy, observation_spec, rollout_length=150, 
 
                 # Acceleration as difference of velocities
                 if prev_body_positions:
-                    body_accelerations[body_name] = body_velocities[body_name]  # Current velocity as acceleration for first difference
+                    body_accelerations[body_name] = body_velocities[
+                        body_name
+                    ]  # Current velocity as acceleration for first difference
                 else:
                     body_accelerations[body_name] = np.zeros(3)  # No acceleration for the first step
 
                 # Orientation using quaternions or rotation matrix
-                body_orientations[body_name] = env.physics.named.data.xquat[body_name].copy()  # Or use xmat for rotation matrix
+                body_orientations[body_name] = env.physics.named.data.xquat[
+                    body_name
+                ].copy()  # Or use xmat for rotation matrix
             except KeyError:
                 print(f"Warning: Body '{body_name}' not found.")
-        
+
         # Collect joint angles
         joint_angles = {}
         for joint_name in joint_names:
@@ -181,26 +228,60 @@ def render_with_rewards_info(env, policy, observation_spec, rollout_length=150, 
                 joint_angles[joint_name] = env.physics.named.data.qpos[joint_name].copy()
             except KeyError:
                 print(f"Warning: Joint '{joint_name}' not found.")
-        
+
+        # Calculate additional pose and trial information
+        to_target = timestep.observation["mouse/to_target"]
+        target_size = timestep.observation["mouse/target_size"][0]
+        reward = timestep.reward
+        target_pos = env.physics.named.data.geom_xpos["mouse/target"].copy()
+        finger_pos = env.physics.named.data.geom_xpos["mouse/finger_tip"].copy()
+
+        # Calculate velocity vector (finite difference)
+        if prev_finger_positions:
+            finger_velocity = finger_pos - prev_finger_positions["mouse/finger_tip"]
+        else:
+            finger_velocity = np.zeros(3)
+
         # Store positions, velocities, accelerations, orientations, and joint angles for this timestep
-        kinematics_collection.append({
-            "geoms": {
-                "positions": geom_positions,
-                "velocities": geom_velocities,
-                "accelerations": geom_accelerations,
-            },
-            "bodies": {
-                "positions": body_positions,
-                "velocities": body_velocities,
-                "accelerations": body_accelerations,
-                "orientations": body_orientations,
-            },
-            "joints": joint_angles
-        })
-        
+        kinematics_collection.append(
+            {
+                "geoms": {
+                    "positions": geom_positions,
+                    "velocities": geom_velocities,
+                    "accelerations": geom_accelerations,
+                },
+                "bodies": {
+                    "positions": body_positions,
+                    "velocities": body_velocities,
+                    "accelerations": body_accelerations,
+                    "orientations": body_orientations,
+                },
+                "joints": joint_angles,
+                "pose_and_trial_info": {
+                    "index": i,
+                    "to_target_x": to_target[0],
+                    "to_target_y": to_target[1],
+                    "to_target_z": to_target[2],
+                    "episode_number": episode_num,
+                    "target_size": target_size,
+                    "reward": reward,
+                    "target_position_x": target_pos[0],
+                    "target_position_y": target_pos[1],
+                    "target_position_z": target_pos[2],
+                    "finger_tip_x": finger_pos[0],
+                    "finger_tip_y": finger_pos[1],
+                    "finger_tip_z": finger_pos[2],
+                    "velocity_x": finger_velocity[0],
+                    "velocity_y": finger_velocity[1],
+                    "velocity_z": finger_velocity[2],
+                },
+            }
+        )
+
         # Update previous positions for velocity and acceleration calculation
         prev_geom_positions = geom_positions
         prev_body_positions = body_positions
+        prev_finger_positions = {"mouse/finger_tip": finger_pos}
 
         inputs = tf2_utils.add_batch_dim(timestep.observation)
         inputs = tf2_utils.batch_concat(inputs)
@@ -208,27 +289,42 @@ def render_with_rewards_info(env, policy, observation_spec, rollout_length=150, 
         action, activations = policy(inputs, True)
         activation_collection.append(activations)
 
-        action = action.sample()
+        # Scale the standard deviation of the action distribution
+        stddev_scale = 0.1  # You can adjust this scaling factor to control the amount of variation
+
+        # Get the mean and standard deviation from the original action distribution
+        action_mean = action.mean()
+        action_stddev = action.stddev() * stddev_scale  # Scale down the standard deviation
+
+        # print(f"ACTION SCALE: {action_stddev}")
+
+        # Create a new normal distribution with the scaled-down standard deviation
+        scaled_action_distribution = tfp.distributions.Normal(loc=action_mean, scale=action_stddev)
+
+        # Sample from the new distribution
+        scaled_action_sample = scaled_action_distribution.sample()
+
+        # action = action.mean()
+        action = scaled_action_sample
         timestep = env.step(action)
         reward_channels.append(env.task.last_reward_channels)
         if timestep.step_type == 2:
             reset_idx.append(i)
-    
+
     return frames, reset_idx, reward_channels, activation_collection, kinematics_collection
+
 
 def process_and_save_activation_collection(activation_collections, h5_file_path):
     """
     Processes the activation collections and saves them as two DataFrames in HDF5 format.
-    - Rows: Timesteps.
-    - Columns: Neurons and episode number.
 
-    Parameters:
-    - activation_collections: List of lists, where each sublist contains the activations for one episode.
-    - h5_file_path: Path to the HDF5 file where the data will be saved.
+    Args:
+        activation_collections (list): List of activations for each episode.
+        h5_file_path (str): The path to the HDF5 file where the data will be saved.
     """
     layernorm_dfs = []
     mlp_elu_dfs = []
-    
+
     for episode_idx, activation_collection in enumerate(activation_collections):
         # Prepare empty lists to collect activations for each timestep
         layernorm_activations = []
@@ -242,7 +338,7 @@ def process_and_save_activation_collection(activation_collections, h5_file_path)
 
         # Convert lists to 2D numpy arrays (timesteps x neurons)
         layernorm_array = np.squeeze(np.array(layernorm_activations))  # Ensure it's (timesteps, neurons)
-        mlp_elu_array = np.squeeze(np.array(mlp_elu_activations))      # Ensure it's (timesteps, neurons)   
+        mlp_elu_array = np.squeeze(np.array(mlp_elu_activations))  # Ensure it's (timesteps, neurons)
 
         # Add the episode number as a column (broadcasted for all timesteps)
         episode_column = np.full((layernorm_array.shape[0], 1), episode_idx + 1)
@@ -269,10 +365,11 @@ def process_and_save_activation_collection(activation_collections, h5_file_path)
 
     # Save the final DataFrames to HDF5
     with pd.HDFStore(h5_file_path) as store:
-        store['layernorm_tanh'] = final_layernorm_df
-        store['mlp_elu'] = final_mlp_elu_df
+        store["layernorm_tanh"] = final_layernorm_df
+        store["mlp_elu"] = final_mlp_elu_df
 
     print(f"Activation data saved to {h5_file_path}")
+
 
 def process_and_save_kinematics_collection(kinematics_collections, h5_file_path):
     """
@@ -289,168 +386,117 @@ def process_and_save_kinematics_collection(kinematics_collections, h5_file_path)
     directory = os.path.dirname(h5_file_path)
     if not os.path.exists(directory):
         os.makedirs(directory)
-    
+
     # Initialize dictionaries to store DataFrames for each key
-    geoms_positions_dfs = []
-    geoms_velocities_dfs = []
-    geoms_accelerations_dfs = []
-    
-    bodies_positions_dfs = []
-    bodies_velocities_dfs = []
-    bodies_accelerations_dfs = []
-    bodies_orientations_dfs = []
-    
-    joints_angles_dfs = []
+    geoms_positions = []
+    geoms_velocities = []
+    geoms_accelerations = []
+
+    bodies_positions = []
+    bodies_velocities = []
+    bodies_accelerations = []
+    bodies_orientations = []
+
+    joints_angles = []
 
     for episode_idx, kinematics_collection in enumerate(kinematics_collections):
-        # Prepare lists to collect kinematics data for each key
-        geoms_positions = []
-        geoms_velocities = []
-        geoms_accelerations = []
-        
-        bodies_positions = []
-        bodies_velocities = []
-        bodies_accelerations = []
-        bodies_orientations = []
-        
-        joints_angles = []
-
         # Iterate over each timestep and extract positions, velocities, accelerations, and joint angles
         for timestep_idx, kinematics in enumerate(kinematics_collection):
+            # Create a flat dictionary for each key based on the timestep
+            timestep_dict = {"episode": episode_idx + 1, "timestep": timestep_idx}
+
             # Geoms: Positions, Velocities, Accelerations
-            for geom_name, position in kinematics['geoms']['positions'].items():
-                geoms_positions.append({'episode': episode_idx + 1, 'timestep': timestep_idx, 'geom_name': geom_name, 'x': position[0], 'y': position[1], 'z': position[2]})
-            for geom_name, velocity in kinematics['geoms']['velocities'].items():
-                geoms_velocities.append({'episode': episode_idx + 1, 'timestep': timestep_idx, 'geom_name': geom_name, 'vx': velocity[0], 'vy': velocity[1], 'vz': velocity[2]})
-            for geom_name, acceleration in kinematics['geoms']['accelerations'].items():
-                geoms_accelerations.append({'episode': episode_idx + 1, 'timestep': timestep_idx, 'geom_name': geom_name, 'ax': acceleration[0], 'ay': acceleration[1], 'az': acceleration[2]})
+            for geom_name, position in kinematics["geoms"]["positions"].items():
+                timestep_dict[f"{geom_name}"] = position  # Store [x, y, z]
+            geoms_positions.append(timestep_dict)
+
+            for geom_name, velocity in kinematics["geoms"]["velocities"].items():
+                timestep_dict[f"{geom_name}"] = velocity  # Store [vx, vy, vz]
+            geoms_velocities.append(timestep_dict)
+
+            for geom_name, acceleration in kinematics["geoms"]["accelerations"].items():
+                timestep_dict[f"{geom_name}"] = acceleration  # Store [ax, ay, az]
+            geoms_accelerations.append(timestep_dict)
 
             # Bodies: Positions, Velocities, Accelerations, Orientations
-            for body_name, position in kinematics['bodies']['positions'].items():
-                bodies_positions.append({'episode': episode_idx + 1, 'timestep': timestep_idx, 'body_name': body_name, 'x': position[0], 'y': position[1], 'z': position[2]})
-            for body_name, velocity in kinematics['bodies']['velocities'].items():
-                bodies_velocities.append({'episode': episode_idx + 1, 'timestep': timestep_idx, 'body_name': body_name, 'vx': velocity[0], 'vy': velocity[1], 'vz': velocity[2]})
-            for body_name, acceleration in kinematics['bodies']['accelerations'].items():
-                bodies_accelerations.append({'episode': episode_idx + 1, 'timestep': timestep_idx, 'body_name': body_name, 'ax': acceleration[0], 'ay': acceleration[1], 'az': acceleration[2]})
-            for body_name, orientation in kinematics['bodies']['orientations'].items():
-                bodies_orientations.append({'episode': episode_idx + 1, 'timestep': timestep_idx, 'body_name': body_name, 'qw': orientation[0], 'qx': orientation[1], 'qy': orientation[2], 'qz': orientation[3]})
+            for body_name, position in kinematics["bodies"]["positions"].items():
+                timestep_dict[f"{body_name}"] = position  # Store [x, y, z]
+            bodies_positions.append(timestep_dict)
+
+            for body_name, velocity in kinematics["bodies"]["velocities"].items():
+                timestep_dict[f"{body_name}"] = velocity  # Store [vx, vy, vz]
+            bodies_velocities.append(timestep_dict)
+
+            for body_name, acceleration in kinematics["bodies"]["accelerations"].items():
+                timestep_dict[f"{body_name}"] = acceleration  # Store [ax, ay, az]
+            bodies_accelerations.append(timestep_dict)
+
+            for body_name, orientation in kinematics["bodies"]["orientations"].items():
+                timestep_dict[f"{body_name}"] = orientation  # Store [qw, qx, qy, qz]
+            bodies_orientations.append(timestep_dict)
 
             # Joints: Angles
-            for joint_name, angle in kinematics['joints'].items():
-                joints_angles.append({'episode': episode_idx + 1, 'timestep': timestep_idx, 'joint_name': joint_name, 'angle': angle})
+            for joint_name, angle in kinematics["joints"].items():
+                timestep_dict[f"{joint_name}"] = angle  # Store single angle value
+            joints_angles.append(timestep_dict)
 
-        # Create DataFrames for each category
-        geoms_positions_dfs.append(pd.DataFrame(geoms_positions))
-        geoms_velocities_dfs.append(pd.DataFrame(geoms_velocities))
-        geoms_accelerations_dfs.append(pd.DataFrame(geoms_accelerations))
-        
-        bodies_positions_dfs.append(pd.DataFrame(bodies_positions))
-        bodies_velocities_dfs.append(pd.DataFrame(bodies_velocities))
-        bodies_accelerations_dfs.append(pd.DataFrame(bodies_accelerations))
-        bodies_orientations_dfs.append(pd.DataFrame(bodies_orientations))
-        
-        joints_angles_dfs.append(pd.DataFrame(joints_angles))
+    # Convert to DataFrames
+    geoms_positions_df = pd.DataFrame(geoms_positions)
+    geoms_velocities_df = pd.DataFrame(geoms_velocities)
+    geoms_accelerations_df = pd.DataFrame(geoms_accelerations)
 
-    # Concatenate the DataFrames from all episodes for each key
-    final_geoms_positions_df = pd.concat(geoms_positions_dfs, ignore_index=True)
-    final_geoms_velocities_df = pd.concat(geoms_velocities_dfs, ignore_index=True)
-    final_geoms_accelerations_df = pd.concat(geoms_accelerations_dfs, ignore_index=True)
-    
-    final_bodies_positions_df = pd.concat(bodies_positions_dfs, ignore_index=True)
-    final_bodies_velocities_df = pd.concat(bodies_velocities_dfs, ignore_index=True)
-    final_bodies_accelerations_df = pd.concat(bodies_accelerations_dfs, ignore_index=True)
-    final_bodies_orientations_df = pd.concat(bodies_orientations_dfs, ignore_index=True)
-    
-    final_joints_angles_df = pd.concat(joints_angles_dfs, ignore_index=True)
+    bodies_positions_df = pd.DataFrame(bodies_positions)
+    bodies_velocities_df = pd.DataFrame(bodies_velocities)
+    bodies_accelerations_df = pd.DataFrame(bodies_accelerations)
+    bodies_orientations_df = pd.DataFrame(bodies_orientations)
+
+    joints_angles_df = pd.DataFrame(joints_angles)
+
+    # Extract 'pose_and_trial_info' from each timestep across all episodes
+    pose_and_trial_info_list = [
+        timestep["pose_and_trial_info"]
+        for episode in kinematics_collections
+        for timestep in episode
+        if "pose_and_trial_info" in timestep
+    ]
+
+    # Convert to DataFrame
+    pose_and_trial_info_df = pd.DataFrame(pose_and_trial_info_list)
 
     # Save the DataFrames to separate keys in HDF5
     with pd.HDFStore(h5_file_path) as store:
-        store['geoms/positions'] = final_geoms_positions_df
-        store['geoms/velocities'] = final_geoms_velocities_df
-        store['geoms/accelerations'] = final_geoms_accelerations_df
-        
-        store['bodies/positions'] = final_bodies_positions_df
-        store['bodies/velocities'] = final_bodies_velocities_df
-        store['bodies/accelerations'] = final_bodies_accelerations_df
-        store['bodies/orientations'] = final_bodies_orientations_df
-        
-        store['joints/angles'] = final_joints_angles_df
+        store["/geoms/positions"] = geoms_positions_df
+        store["/geoms/velocities"] = geoms_velocities_df
+        store["/geoms/accelerations"] = geoms_accelerations_df
+
+        store["/bodies/positions"] = bodies_positions_df
+        store["/bodies/velocities"] = bodies_velocities_df
+        store["/bodies/accelerations"] = bodies_accelerations_df
+        store["/bodies/orientations"] = bodies_orientations_df
+
+        store["/joints/angles"] = joints_angles_df
+
+        store["/pose_and_trial_info"] = pose_and_trial_info_df
 
     print(f"Kinematics data saved to {h5_file_path}")
 
-# verbose
-# def process_and_save_kinematics_collection(kinematics_collections, h5_file_path):
-#     """
-#     Processes the kinematics collections and saves them as a DataFrame in HDF5 format.
-#     - Rows: Timesteps.
-#     - Columns: Geom positions, body positions, joint angles, velocities, accelerations, and episode number.
 
-#     Parameters:
-#     - kinematics_collections: List of lists, where each sublist contains the kinematics data for one episode.
-#     - h5_file_path: Path to the HDF5 file where the data will be saved.
-#     """
-#     kinematics_dfs = []
+def run_simulation(learner, actuator_type, num_episodes, rollout_length, render=False):
+    """
+    Runs the simulation for a specified number of episodes and collects activation and kinematic data.
 
-#     for episode_idx, kinematics_collection in enumerate(kinematics_collections):
-#         # Prepare a list to collect kinematics data for each timestep
-#         timestep_data = []
+    Args:
+        learner (Learner): The RL learner.
+        actuator_type (str): The type of actuator used in the simulation.
 
-#         # Iterate over each timestep and extract positions, velocities, accelerations, and joint angles
-#         for timestep_idx, kinematics in enumerate(kinematics_collection):
-#             # Create a flat dictionary for this timestep
-#             timestep_dict = {'episode': episode_idx + 1, 'timestep': timestep_idx}
-
-#             # Add geom data (positions, velocities, accelerations) to the timestep dictionary
-#             for geom_name, position in kinematics['geoms']['positions'].items():
-#                 timestep_dict[f"{geom_name}_geom_x"] = position[0]
-#                 timestep_dict[f"{geom_name}_geom_y"] = position[1]
-#                 timestep_dict[f"{geom_name}_geom_z"] = position[2]
-#             for geom_name, velocity in kinematics['geoms']['velocities'].items():
-#                 timestep_dict[f"{geom_name}_geom_vel_x"] = velocity[0]
-#                 timestep_dict[f"{geom_name}_geom_vel_y"] = velocity[1]
-#                 timestep_dict[f"{geom_name}_geom_vel_z"] = velocity[2]
-#             for geom_name, acceleration in kinematics['geoms']['accelerations'].items():
-#                 timestep_dict[f"{geom_name}_geom_acc_x"] = acceleration[0]
-#                 timestep_dict[f"{geom_name}_geom_acc_y"] = acceleration[1]
-#                 timestep_dict[f"{geom_name}_geom_acc_z"] = acceleration[2]
-
-#             # Add body data (positions, velocities, accelerations) to the timestep dictionary
-#             for body_name, position in kinematics['bodies']['positions'].items():
-#                 timestep_dict[f"{body_name}_body_x"] = position[0]
-#                 timestep_dict[f"{body_name}_body_y"] = position[1]
-#                 timestep_dict[f"{body_name}_body_z"] = position[2]
-#             for body_name, velocity in kinematics['bodies']['velocities'].items():
-#                 timestep_dict[f"{body_name}_body_vel_x"] = velocity[0]
-#                 timestep_dict[f"{body_name}_body_vel_y"] = velocity[1]
-#                 timestep_dict[f"{body_name}_body_vel_z"] = velocity[2]
-#             for body_name, acceleration in kinematics['bodies']['accelerations'].items():
-#                 timestep_dict[f"{body_name}_body_acc_x"] = acceleration[0]
-#                 timestep_dict[f"{body_name}_body_acc_y"] = acceleration[1]
-#                 timestep_dict[f"{body_name}_body_acc_z"] = acceleration[2]
-
-#             # Add joint angles to the timestep dictionary
-#             for joint_name, angle in kinematics['joints'].items():
-#                 timestep_dict[f"{joint_name}_joint_angle"] = angle
-
-#             timestep_data.append(timestep_dict)
-
-#         # Create a DataFrame for this episode
-#         df_kinematics = pd.DataFrame(timestep_data)
-#         kinematics_dfs.append(df_kinematics)
-
-#     # Concatenate the DataFrames from all episodes
-#     final_kinematics_df = pd.concat(kinematics_dfs, ignore_index=True)
-
-#     # Save the final DataFrame to HDF5
-#     with pd.HDFStore(h5_file_path) as store:
-#         store['kinematics'] = final_kinematics_df
-
-#     print(f"Kinematics data saved to {h5_file_path}")
-
-def run_simulation(learner, actuator_type):
+    Returns:
+        tuple: A tuple containing:
+            - all_activations_per_episode (list): Collected activations for each episode.
+            - all_kinematics_per_episode (list): Collected kinematics for each episode.
+    """
     # Begin simulation
-    num_episodes = 10
-    rollout_length = 150
+    num_episodes = num_episodes
+    rollout_length = rollout_length
     all_activations_per_episode = []
     all_kinematics_per_episode = []
 
@@ -472,55 +518,63 @@ def run_simulation(learner, actuator_type):
     policy = learner._policy_network
 
     # Run the simulation for the specified number of episodes
-    for episode in range(num_episodes):
+    for episode in tqdm(range(num_episodes)):
         print(f"Starting Episode {episode + 1}")
         frames, activation_collection, kinematics_collection = render_with_rewards(
-            env, policy, observation_spec, rollout_length=rollout_length
+            env, policy, observation_spec, episode, rollout_length=rollout_length, render=render
         )
 
         all_activations_per_episode.append(activation_collection)
         all_kinematics_per_episode.append(kinematics_collection)
 
-        # Save the video for each episode
-        video_path = f"{video_dir}mouse_reach_episode_{episode + 1}_checkpoint.mp4"
-        with imageio.get_writer(video_path, fps=1 / env.control_timestep()) as video:
-            for frame in frames:
-                video.append_data(frame)
-
-        print(f"Episode {episode + 1} finished and saved at {video_path}")
+        if render == True:
+            # Save the video for each episode
+            video_path = f"{video_dir}mouse_reach_episode_{actuator_type}_{episode + 1}_checkpoint.mp4"
+            with imageio.get_writer(video_path, fps=1 / env.control_timestep()) as video:
+                for frame in frames:
+                    video.append_data(frame)
+            print(f"Episode {episode + 1} finished and saved at {video_path}")
     return all_activations_per_episode, all_kinematics_per_episode
 
-PYHTONPATH = os.path.dirname(os.path.dirname(vnl_ray.__file__))
-LD_LIBRARY_PATH = os.environ["LD_LIBRARY_PATH"] if "LD_LIBRARY_PATH" in os.environ else ""
 
-# Defer specifying CUDA_VISIBLE_DEVICES to sub-processes.
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+def instantiate_learner(config):
+    """
+    Initializes and returns a distributed learner for reinforcement learning using
+    the DMPO (Distributed Maximum a Posteriori Policy Optimization) algorithm.
 
-tasks = {
-    "run-gaps": rodent_run_gaps,
-    "maze-forage": rodent_maze_forage,
-    "escape-bowl": rodent_escape_bowl,
-    "two-taps": rodent_two_touch,
-    "rodent_imitation": rodent_walk_imitation,
-    "fly_imitation": fly_walk_imitation,
-    "humanoid_imitation": walk_humanoid,
-    "mouse_reach": mouse_reach,
-}
+    This function sets up the environment, network, and learner configurations based on
+    the provided configuration dictionary. It also handles creating multiple replay servers,
+    network factories, and learner specifications.
 
-@hydra.main(
-    version_base=None,
-    config_path="./config",
-    config_name="train_config_mouse_reach_offline",
-)
-def main(config: DictConfig) -> None:
-    print("CONFIG:", config)
+    Args:
+        config (DictConfig): A configuration object that contains the following keys:
 
+    Returns:
+        Learner: A configured instance of the Learner class, which is ready for training.
+    """
     from vnl_ray.agents.ray_distributed_dmpo import (
         DMPOConfig,
         ReplayServer,
         Learner,
         EnvironmentLoop,
     )
+
+    PYHTONPATH = os.path.dirname(os.path.dirname(vnl_ray.__file__))
+    LD_LIBRARY_PATH = os.environ["LD_LIBRARY_PATH"] if "LD_LIBRARY_PATH" in os.environ else ""
+
+    # Defer specifying CUDA_VISIBLE_DEVICES to sub-processes.
+    os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+
+    tasks = {
+        "run-gaps": rodent_run_gaps,
+        "maze-forage": rodent_maze_forage,
+        "escape-bowl": rodent_escape_bowl,
+        "two-taps": rodent_two_touch,
+        "rodent_imitation": rodent_walk_imitation,
+        "fly_imitation": fly_walk_imitation,
+        "humanoid_imitation": walk_humanoid,
+        "mouse_reach": mouse_reach,
+    }
 
     print("\nRay context:")
     print(ray_context)
@@ -532,10 +586,10 @@ def main(config: DictConfig) -> None:
     # Create environment factory RL task.
     # Cannot parametrize it because it failed to serialize functions
     def environment_factory_mouse_reach() -> "composer.Environment":
-            env = tasks["mouse_reach"](actuator_type=config.run_config.actuator_type)
-            env = wrappers.SinglePrecisionWrapper(env)
-            env = wrappers.CanonicalSpecWrapper(env)
-            return env
+        env = tasks["mouse_reach"](actuator_type=config.run_config.actuator_type)
+        env = wrappers.SinglePrecisionWrapper(env)
+        env = wrappers.CanonicalSpecWrapper(env)
+        return env
 
     def environment_factory_run_gaps() -> "composer.Environment":
         env = tasks["run-gaps"]()
@@ -627,7 +681,7 @@ def main(config: DictConfig) -> None:
     else:
         # online settings
         network_factory = make_network_factory_dmpo(
-            action_spec = dummy_env.action_spec(),
+            action_spec=dummy_env.action_spec(),
             policy_layer_sizes=config.learner_network["policy_layer_sizes"],
             critic_layer_sizes=config.learner_network["critic_layer_sizes"],
         )
@@ -704,7 +758,6 @@ def main(config: DictConfig) -> None:
     print("\naction_spec:\n", dummy_env.action_spec())
     print("\ndiscount_spec:\n", dummy_env.discount_spec())
     print("\nreward_spec:\n", dummy_env.reward_spec(), "\n")
-
 
     # Environment variables for learner, actor, and replay buffer processes.
     runtime_env_learner = {
@@ -828,23 +881,43 @@ def main(config: DictConfig) -> None:
         dmpo_config,
         network_factory,
     )
+    return learner
 
-    print(learner)
+
+@hydra.main(
+    version_base=None,
+    config_path="./config",
+    config_name="train_config_mouse_reach_offline_muscle",
+)
+def main(config: DictConfig) -> None:
+    print("CONFIG:", config)
+
+    learner = instantiate_learner(config)
 
     actuator_type = config.run_config.actuator_type
 
     # Run the simulation and collect data
-    all_activations_per_episode, all_kinematics_per_episode = run_simulation(learner, actuator_type)
+    all_activations_per_episode, all_kinematics_per_episode = run_simulation(
+        learner, actuator_type, num_episodes=10, rollout_length=100, render=True
+    )
 
-    # Paths to save the data
-    activations_h5_file_path = f"/root/vast/eric/vnl-ray/training/activations/activations_test_{actuator_type}.h5"
-    kinematics_h5_file_path = f"/root/vast/eric/vnl-ray/training/kinematics/kinematics_test_{actuator_type}.h5"
+    # Get the current date and time
+    datetime_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # Paths to save the data with datetime included
+    activations_h5_file_path = (
+        f"/root/vast/eric/vnl-ray/training/activations/activations_test_{actuator_type}_{datetime_str}.h5"
+    )
+    kinematics_h5_file_path = (
+        f"/root/vast/eric/vnl-ray/training/kinematics/kinematics_test_{actuator_type}_{datetime_str}.h5"
+    )
 
     # Process and save activations
     process_and_save_activation_collection(all_activations_per_episode, activations_h5_file_path)
 
     # Process and save kinematics
     process_and_save_kinematics_collection(all_kinematics_per_episode, kinematics_h5_file_path)
+
 
 if __name__ == "__main__":
     main()
