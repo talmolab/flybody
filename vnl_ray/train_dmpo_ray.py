@@ -105,7 +105,7 @@ tasks = {
 @hydra.main(
     version_base=None,
     config_path="./config",
-    config_name="train_config_mouse_reach_offline",
+    config_name="train_config_mouse_reach_offline_torque",
 )
 def main(config: DictConfig) -> None:
     print("CONFIG:", config)
@@ -127,10 +127,10 @@ def main(config: DictConfig) -> None:
     # Create environment factory RL task.
     # Cannot parametrize it because it failed to serialize functions
     def environment_factory_mouse_reach() -> "composer.Environment":
-            env = tasks["mouse_reach"](actuator_type=config.run_config.actuator_type)
-            env = wrappers.SinglePrecisionWrapper(env)
-            env = wrappers.CanonicalSpecWrapper(env)
-            return env
+        env = tasks["mouse_reach"](actuator_type=config.run_config.actuator_type)
+        env = wrappers.SinglePrecisionWrapper(env)
+        env = wrappers.CanonicalSpecWrapper(env)
+        return env
 
     def environment_factory_run_gaps() -> "composer.Environment":
         env = tasks["run-gaps"]()
@@ -222,7 +222,7 @@ def main(config: DictConfig) -> None:
     else:
         # online settings
         network_factory = make_network_factory_dmpo(
-            action_spec = dummy_env.action_spec(),
+            action_spec=dummy_env.action_spec(),
             policy_layer_sizes=config.learner_network["policy_layer_sizes"],
             critic_layer_sizes=config.learner_network["critic_layer_sizes"],
         )
@@ -492,8 +492,8 @@ def main(config: DictConfig) -> None:
                     actors += create_actors(
                         num_actors,
                         environment_factories[name],
-                        replay_servers["general"], 
-                    ) # mixed experience replay buffer
+                        replay_servers["general"],
+                    )  # mixed experience replay buffer
                 elif "num_replay_servers" in config and config["num_replay_servers"] != 0:
                     for i in range(config["num_replay_servers"]):
                         _name = f"{name}-{i+1}"
