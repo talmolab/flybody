@@ -23,15 +23,17 @@ class MouseReachTask(composer.Task):
         _failure_termination: Boolean indicating whether the episode should be terminated.
     """
 
-    def __init__(self,
-                 mouse,
-                 arena,
-                 target_positions=None,
-                 randomize_pose=False,
-                 randomize_target=False,
-                 contact_termination=False,
-                 physics_timestep=0.002,
-                 control_timestep=0.025):
+    def __init__(
+        self,
+        mouse,
+        arena,
+        target_list="old_targets",
+        randomize_pose=False,
+        randomize_target=False,
+        contact_termination=False,
+        physics_timestep=0.002,
+        control_timestep=0.025,
+    ):
         """
         Initializes the MouseReachTask.
 
@@ -51,29 +53,22 @@ class MouseReachTask(composer.Task):
         self._randomize_pose = randomize_pose
         self._randomize_target = randomize_target
         self._contact_termination = contact_termination
-        self._target_pos = target_positions or [
-                                                [-0.0045,     -0.00740453,  0.01371433],
-                                                [-0.00598663, -0.00475719,  0.01332173],
-                                                [-0.00660241, -0.00295503,  0.01092473],
-                                                [-0.00598663, -0.00305373,  0.00792745],
-                                                [-0.0045,     -0.00499547,  0.00608567],
-                                                [-0.00301337, -0.00764281,  0.00647827],
-                                                [-0.00239759, -0.00944497,  0.00887527],
-                                                [-0.00301337, -0.00934627,  0.01187255]]
+        self._target_list = target_list
 
-        self._reward_keys = ['distance_reward']
+        self._reward_keys = ["distance_reward"]
 
         # Attach the mouse to the arena
         self._arena.attach(self._mouse)
 
         # Enable default observables
         enabled_observables = self._mouse.observables
-        
+
         # Set physics and control timesteps
-        self.set_timesteps(
-            physics_timestep=physics_timestep, control_timestep=control_timestep)
-        
+        self.set_timesteps(physics_timestep=physics_timestep, control_timestep=control_timestep)
+
         self.last_reward_channels = []  # Initialize the last_reward_channels attribute
+
+        self._target_sizes = [0.001, 0.002, 0.003]
 
     @property
     def root_entity(self):
@@ -104,35 +99,111 @@ class MouseReachTask(composer.Task):
             physics: A Physics object used for simulating the environment.
             random_state: A NumPy random state instance for consistent randomization.
         """
-        self._target_sizes = [0.001, 0.002, 0.003]
-
-        self._target_size = random.choice([self._target_sizes])[0]
-
-        physics.named.model.geom_size['mouse/target',0] = self._target_size
-
-        # Randomize the target position
-        shoulder_to_fingertip = np.array([-0.0129, -0.0076, -0.0024])
-
-        # Normalize the vector so it has a length of 1
-        shoulder_to_fingertip = shoulder_to_fingertip / np.linalg.norm(shoulder_to_fingertip)
-
-        selected_target = random.choice(self._target_pos)
-
-        # Convert selected_target to a numpy array for easier manipulation
-        selected_target = np.array(selected_target)
-
-        shift_distance = self._target_size - .001
-
-        shift_vector = shift_distance * shoulder_to_fingertip
-
-        adjusted_target = selected_target + shift_vector
-
-        physics.named.model.geom_pos['mouse/target', 'x'] = adjusted_target[0]
-        physics.named.model.geom_pos['mouse/target', 'y'] = adjusted_target[1]
-        physics.named.model.geom_pos['mouse/target', 'z'] = adjusted_target[2]
-
         # Reinitialize the mouse's pose
         self._mouse.reinitialize_pose(physics, random_state)
+        self._mouse.disable_contacts(physics)
+
+        self._target_size = random.choice(self._target_sizes)
+
+        # Set the target size in the physics model using the MouseEntity's method
+        self._mouse.set_target_size(physics, self._target_size)
+        shoulder_pos = physics.model.joint("mouse/sh_elv").pos
+        fingertip_pos = physics.named.data.geom_xpos["mouse/finger_tip"]
+
+        # GENERATE TARGET LISTS
+        if self._target_list == "old_targets":
+            adjusted_targets = [
+                [0.00119973, -0.00581181, 0.00323079],
+                [-0.0016287, -0.00581181, 0.00440236],
+                [-0.00280027, -0.00581181, 0.00723079],
+                [-0.0016287, -0.00581181, 0.01005922],
+                [0.00119973, -0.00581181, 0.01123079],
+                [0.00402816, -0.00581181, 0.01005922],
+                [0.00519973, -0.00581181, 0.00723079],
+                [0.00402816, -0.00581181, 0.00440236],
+            ]
+        elif self._target_list == "new_targets":
+            # Compute the differences in x and y
+            dx = fingertip_pos[0] - shoulder_pos[0]
+            dy = fingertip_pos[1] - shoulder_pos[1]
+
+            # Compute the radius in the x-y plane and adjust as needed
+            radius_xy = np.sqrt(dx**2 + dy**2)
+
+            # Compute the angle between shoulder and fingertip in x-y plane
+            angle_ft = np.arctan2(dy, dx)
+
+            # Number of points per row
+            N = 4
+
+            # Target angle (adjust as needed)
+            target_angle = np.pi  # 180 degrees
+
+            # Compute the angular difference (total_span) between angle_ft and target_angle
+            total_span = np.arctan2(np.sin(target_angle - angle_ft), np.cos(target_angle - angle_ft))
+
+            # Generate angles from angle_ft towards the target_angle
+            angles = angle_ft + np.linspace(0, total_span, N)
+
+            # Center coordinates (shoulder position)
+            x_center = shoulder_pos[0]
+            y_center = shoulder_pos[1]
+
+            # Compute x and y coordinates of the target points
+            x_points = x_center + radius_xy * np.cos(angles)
+            y_points = y_center + radius_xy * np.sin(angles)
+
+            # Define two z positions, z1 and z2, 0.003 units apart
+            z1 = fingertip_pos[2]
+            z2 = z1 + 0.003
+
+            # Create two rows of z positions
+            z_points_row1 = np.full(N, z1)
+            z_points_row2 = np.full(N, z2)
+
+            # Combine x, y, z into two separate arrays for each row
+            # First row
+            points_row1 = np.vstack((x_points, y_points, z_points_row1)).T
+            # Second row
+            points_row2 = np.vstack((x_points, y_points, z_points_row2)).T
+
+            # Combine both rows into a single array of 8 points
+            circle_points = np.vstack((points_row1, points_row2))
+
+            # Smallest sphere radius
+            r_smallest = min(self._target_sizes)
+
+            # Adjust target positions based on sphere sizes
+            adjusted_targets = []
+
+            # Combine both rows into a single array of 8 points
+            circle_points = np.vstack((points_row1, points_row2))
+
+            # Smallest sphere radius
+            r_smallest = min(self._target_sizes)
+
+            # Adjust target positions based on sphere sizes
+            adjusted_targets = []
+
+            # Compute the vector from the fingertip to each target point and adjust positions
+            for point in circle_points:
+                v = point - fingertip_pos
+                v_mag = np.linalg.norm(v)
+                v_hat = v / v_mag  # Unit vector
+
+                # Compute the shift needed to keep the sphere's edge at the same distance from the fingertip
+                delta = self._target_size - r_smallest
+                # Adjust the center position
+                adjusted_center = point + delta * v_hat
+                adjusted_targets.append(adjusted_center)
+
+        # Randomly select one of the adjusted target points
+        target_index = random_state.randint(len(adjusted_targets))
+        selected_target = adjusted_targets[target_index]
+
+        physics.named.model.geom_pos["mouse/target", "x"] = selected_target[0]
+        physics.named.model.geom_pos["mouse/target", "y"] = selected_target[1]
+        physics.named.model.geom_pos["mouse/target", "z"] = selected_target[2]
 
         # Reset failure termination condition
         self._failure_termination = False
@@ -148,8 +219,7 @@ class MouseReachTask(composer.Task):
             Boolean indicating whether the contact is disallowed.
         """
         set1, set2 = self._mouse_nonfoot_geomids, self._ground_geomids
-        return ((contact.geom1 in set1 and contact.geom2 in set2) or
-                (contact.geom1 in set2 and contact.geom2 in set1))
+        return (contact.geom1 in set1 and contact.geom2 in set2) or (contact.geom1 in set2 and contact.geom2 in set1)
 
     def before_step(self, physics, action, random_state):
         """
@@ -161,6 +231,7 @@ class MouseReachTask(composer.Task):
             random_state: A NumPy random state instance for consistent randomization.
         """
         clipped_action = np.clip(action, -1.0, 1.0)
+        physics.data.ncon = 0  # disable contacts, joint limits will serve as constraints
         self._mouse.apply_action(physics, clipped_action, random_state)
 
     def after_step(self, physics, random_state):
@@ -190,12 +261,13 @@ class MouseReachTask(composer.Task):
             Float representing the calculated reward based on the proximity to the target.
         """
         # Check for valid physics object and geom_xpos attribute
-        if not hasattr(physics.named.data, 'geom_xpos'):
+        if not hasattr(physics.named.data, "geom_xpos"):
             raise ValueError("Invalid physics object: missing geom_xpos attribute")
         finger_to_target_dist = np.linalg.norm(
-            physics.named.data.geom_xpos['mouse/target'] - physics.named.data.geom_xpos['mouse/finger_tip'])
+            physics.named.data.geom_xpos["mouse/target"] - physics.named.data.geom_xpos["mouse/finger_tip"]
+        )
         reward = rewards.tolerance(finger_to_target_dist, bounds=(0, self._target_size), margin=0.006)
-        self.last_reward_channels = {'distance_reward': reward}
+        self.last_reward_channels = {"distance_reward": reward}
         return reward
 
     def should_terminate_episode(self, physics):
@@ -222,4 +294,4 @@ class MouseReachTask(composer.Task):
             Float representing the discount factor. Returns 0 if the episode should terminate,
             otherwise returns 1.
         """
-        return 0. if self._failure_termination else 1.
+        return 0.0 if self._failure_termination else 1.0
