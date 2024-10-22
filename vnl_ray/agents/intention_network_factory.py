@@ -88,7 +88,7 @@ def network_factory_dmpo(
     if use_visual_network:
         if visual_feature_size == 0:
             raise ValueError("Use visual network but vis feature size is 0")
-        networks_out["observation"] = AlexNet(vis_output_dim=visual_feature_size) # use Alex Net for now
+        networks_out["observation"] = VisNetRodent(vis_output_dim=visual_feature_size) # use Alex Net for now
     else:
         if use_intention_policy:
             networks_out["observation"] = separate_observation

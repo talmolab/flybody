@@ -69,6 +69,8 @@ from vnl_ray.tasks.basic_rodent_2020 import (
 )
 from vnl_ray.tasks.humanoid import walk_humanoid, walk_humanoid_imitation
 
+import vnl_ray.wrapper as vnl_wrapper
+
 from vnl_ray.fly_envs import (
     walk_on_ball,
     vision_guided_flight,
@@ -108,7 +110,7 @@ tasks = {
 @hydra.main(
     version_base=None,
     config_path="./config",
-    config_name="train_config_rodent_imitation",
+    config_name="train_config_bowl_transfer",
 )
 def main(config: DictConfig) -> None:
     print("CONFIG:", config)
@@ -151,6 +153,8 @@ def main(config: DictConfig) -> None:
         env = tasks["escape-bowl"]()
         env = wrappers.SinglePrecisionWrapper(env)
         env = wrappers.CanonicalSpecWrapper(env)
+        print('REMOVE OBS')
+        env = vnl_wrapper.RemoveObsWrapper(env)
         return env
 
     def environment_factory_imitation_rodent(
@@ -269,7 +273,7 @@ def main(config: DictConfig) -> None:
         logger_save_csv_data=False,
         checkpoint_max_to_keep=None,
         checkpoint_directory=f"./training/ray-{config.run_config['agent_name']}-{config.run_config['task_name']}-ckpts/",
-        checkpoint_to_load=config.learner_params["checkpoint_to_load"],
+        checkpoint_to_load=None,#config.learner_params["checkpoint_to_load"],
         print_fn=None,  # print # this causes issue pprint does not work
         userdata=dict(),
         kickstart_teacher_cps_path=(

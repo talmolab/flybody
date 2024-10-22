@@ -22,6 +22,9 @@ from acme import specs
 from acme import types
 from acme.wrappers import base
 
+from typing import Dict
+from dm_env import specs
+
 import dm_env
 import numpy as np
 import tree
@@ -106,3 +109,86 @@ class RemoveVisionWrapper(base.EnvironmentWrapper):
 
     def reset(self) -> dm_env.TimeStep:
         return self._convert_timestep(self._environment.reset())
+
+class RemoveObsWrapper(dm_env.Environment):
+    """Wrapper that filters observations to keep only specified walker observations."""
+    
+    # Define the set of observations to keep
+    KEEP_OBSERVATIONS = {
+        'qpos', 
+        'qvel',
+        'walker/egocentric_camera',
+        'walker/actuator_activation',
+        'walker/appendages_pos',
+        'walker/body_height',
+        'walker/end_effectors_pos',
+        'walker/joints_pos',
+        'walker/joints_vel',
+        'walker/sensors_accelerometer',
+        'walker/sensors_force',
+        'walker/sensors_gyro',
+        'walker/sensors_torque',
+        'walker/sensors_touch',
+        'walker/sensors_velocimeter',
+        'walker/tendons_pos',
+        'walker/tendons_vel',
+        'walker/world_zaxis',
+        'walker/visual_features',
+        'task_logic'
+    }
+    
+    def __init__(self, environment: dm_env.Environment):
+        self._environment = environment
+        self._observation_spec = self._get_filtered_spec(environment.observation_spec())
+        
+        # Validate that all required observations are present in the environment
+        missing_obs = self.KEEP_OBSERVATIONS - set(environment.observation_spec().keys())
+        if missing_obs:
+            print(f"Warning: The following requested observations are not present in the environment: {missing_obs}")
+    
+    def _get_filtered_spec(self, obs_spec: Dict) -> Dict:
+        """Returns a filtered observation spec with only the specified observations."""
+        return {k: obs_spec[k] for k in obs_spec if k in self.KEEP_OBSERVATIONS}
+    
+    def _filter_observation(self, observation: Dict) -> Dict:
+        """Filters the observation dictionary to only include specified observations."""
+        return {k: observation[k] for k in observation if k in self.KEEP_OBSERVATIONS}
+    
+    def reset(self) -> dm_env.TimeStep:
+        timestep = self._environment.reset()
+        return timestep._replace(observation=self._filter_observation(timestep.observation))
+    
+    def step(self, action) -> dm_env.TimeStep:
+        timestep = self._environment.step(action)
+        return timestep._replace(observation=self._filter_observation(timestep.observation))
+    
+    def observation_spec(self):
+        return self._observation_spec
+    
+    def action_spec(self):
+        return self._environment.action_spec()
+    
+    def reward_spec(self):
+        return self._environment.reward_spec()
+    
+    def discount_spec(self):
+        return self._environment.discount_spec()
+    
+    def get_state(self):
+        return self._environment.get_state()
+    
+    def set_state(self, state):
+        return self._environment.set_state(state)
+    
+    def physics(self):
+        return self._environment.physics()
+    
+    def control_timestep(self):
+        return self._environment.control_timestep()
+    
+    @property
+    def environment(self):
+        return self._environment
+    
+    def __getattr__(self, name):
+        return getattr(self._environment, name)
