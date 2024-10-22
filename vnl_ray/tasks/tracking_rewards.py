@@ -100,14 +100,10 @@ def multi_term_pose_reward_fn(walker_features, reference_features, **unused_kwar
     """A reward based on com, body quaternions, joints velocities & appendages."""
     differences = compute_squared_differences(walker_features, reference_features)
     # from dm control:
-    # com = .1 * np.exp(-10 * differences['center_of_mass'])
-    # joints_velocity = 1.0 * np.exp(-0.1 * differences['joints_velocity'])
-    # appendages = 0.15 * np.exp(-40. * differences['appendages'])
-    # body_quaternions = 0.65 * np.exp(-2 * differences['body_quaternions'])
-    com = np.exp(-100 * differences['center_of_mass'])
-    joints_velocity = np.exp(-0.1 * differences['joints_velocity'])
-    appendages = np.exp(-400. * differences['appendages'])
-    body_quaternions = np.exp(-2 * differences['body_quaternions'])
+    com = 0.5 * np.exp(-30 * differences['center_of_mass'])
+    joints_velocity = 1.0 * np.exp(-1 * differences['joints_velocity'])
+    appendages = 0.15 * np.exp(-500 * differences['appendages'])
+    body_quaternions = 0.3 * np.exp(-4 * differences['body_quaternions'])
     terms = {
         "center_of_mass": com,
         "joints_velocity": joints_velocity,

@@ -410,10 +410,10 @@ class EnvironmentLoop(acme.EnvironmentLoop):
         if self._actor_or_evaluator == "evaluator":
             self._stats.append(logging_data)
             # self.stats is a [t1_data, t2_data, ...] array.
-            if len(self._stats) >= self._config.eval_average_over:
-                self._stats.pop(0)  # pop out the stats
+            # print("DEBUG: Render Turned-Off")
             self.load_snapshot_and_render(logging_data)
-            logging_data.update(self._eval_agg_stat(True))  # update in place
+            logging_data.update(self._eval_agg_stat())  # update in place
+            # print(f"DEBUG: logging_data: {logging_data}")
         return logging_data
 
     def _eval_agg_stat(self, include_raw=False) -> loggers.LoggingData:
@@ -425,7 +425,7 @@ class EnvironmentLoop(acme.EnvironmentLoop):
         """
         agg = {}
         stats_key = ["episode_length", "episode_return"]
-        if len(self._stats) >= self._config.eval_average_over:  # only report summary statistic one a while
+        if len(self._stats) >= self._config.eval_average_over:  # only report summary statistic once aggregated
             avg = {
                 f"avg_{key}": np.mean([d[key] for d in self._stats])
                 for key in ["episode_length", "episode_return", "steps_per_second"]
@@ -439,6 +439,9 @@ class EnvironmentLoop(acme.EnvironmentLoop):
             agg.update(mini)
             if include_raw:
                 agg.update({f"curr_{key}": np.array([d[key] for d in self._stats]) for key in stats_key})
+            if len(self._stats) >= self._config.eval_average_over:
+                # pop this after calculating the stats
+                self._stats.pop(0)  
         return agg
 
     def load_snapshot_and_render(self, logging_data):
