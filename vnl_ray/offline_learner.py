@@ -76,7 +76,7 @@ from vnl_ray.utils import plot_reward
 from collections import defaultdict
 
 
-def render_with_rewards(env, policy, observation_spec, episode_num, rollout_length=150, render=False):
+def render_with_rewards(env, policy, observation_spec, episode_num, actuator_type, rollout_length=150, render=False):
     """
     Renders the environment with the rewards progression graph alongside the rendering frames.
 
@@ -93,7 +93,7 @@ def render_with_rewards(env, policy, observation_spec, episode_num, rollout_leng
             - kinematics_collection (list): Collected kinematic data for each timestep.
     """
     frames, reset_idx, reward_channels, activation_collection, kinematics_collection = render_with_rewards_info(
-        env, policy, observation_spec, episode_num, rollout_length=rollout_length, render=render
+        env, policy, observation_spec, episode_num, actuator_type, rollout_length=rollout_length, render=render
     )
     rewards = defaultdict(list)
     reward_keys = env.task._reward_keys
@@ -116,7 +116,14 @@ def render_with_rewards(env, policy, observation_spec, episode_num, rollout_leng
 
 
 def render_with_rewards_info(
-    env, policy, observation_spec, episode_num, rollout_length=150, render_vision_if_available=False, render=False
+    env,
+    policy,
+    observation_spec,
+    episode_num,
+    actuator_type,
+    rollout_length=150,
+    render_vision_if_available=False,
+    render=False,
 ):
     """
     Generates a rollout with reward-related information and collects kinematic data for geoms, bodies, joint angles, velocities, and accelerations.
@@ -289,14 +296,9 @@ def render_with_rewards_info(
         action, activations = policy(inputs, True)
         activation_collection.append(activations)
 
-        # Scale the standard deviation of the action distribution
-        stddev_scale = 0.1  # You can adjust this scaling factor to control the amount of variation
-
         # Get the mean and standard deviation from the original action distribution
         action_mean = action.mean()
-        action_stddev = action.stddev() * stddev_scale  # Scale down the standard deviation
-
-        # print(f"ACTION SCALE: {action_stddev}")
+        action_stddev = 0.003
 
         # Create a new normal distribution with the scaled-down standard deviation
         scaled_action_distribution = tfp.distributions.Normal(loc=action_mean, scale=action_stddev)
@@ -316,7 +318,7 @@ def render_with_rewards_info(
 
 def process_and_save_activation_collection(activation_collections, h5_file_path):
     """
-    Processes the activation collections and saves them as two DataFrames in HDF5 format.
+    Processes the activation collections and saves them as DataFrames in HDF5 format.
 
     Args:
         activation_collections (list): List of activations for each episode.
@@ -324,11 +326,13 @@ def process_and_save_activation_collection(activation_collections, h5_file_path)
     """
     layernorm_dfs = []
     mlp_elu_dfs = []
+    mlp_dfs = {}  # Dictionary to hold DataFrames for each MLP layer
 
     for episode_idx, activation_collection in enumerate(activation_collections):
         # Prepare empty lists to collect activations for each timestep
         layernorm_activations = []
         mlp_elu_activations = []
+        mlp_activations = {layer: [] for layer in activation_collection[0]["MLP"].keys()}
 
         # Iterate over each timestep and extract activations
         for timestep in range(len(activation_collection)):
@@ -336,37 +340,49 @@ def process_and_save_activation_collection(activation_collections, h5_file_path)
             layernorm_activations.append(activations["layernorm_tanh"])
             mlp_elu_activations.append(activations["mlp_elu"])
 
+            # Collect MLP layer activations
+            for layer, values in activations["MLP"].items():
+                mlp_activations[layer].append(values)
+
         # Convert lists to 2D numpy arrays (timesteps x neurons)
         layernorm_array = np.squeeze(np.array(layernorm_activations))  # Ensure it's (timesteps, neurons)
         mlp_elu_array = np.squeeze(np.array(mlp_elu_activations))  # Ensure it's (timesteps, neurons)
 
-        # Add the episode number as a column (broadcasted for all timesteps)
-        episode_column = np.full((layernorm_array.shape[0], 1), episode_idx + 1)
-
-        # Combine neuron activations with the episode column
-        layernorm_combined = np.hstack((layernorm_array, episode_column))
-        mlp_elu_combined = np.hstack((mlp_elu_array, episode_column))
-
-        # Create column labels (neuron_1, neuron_2, ..., episode)
+        # Create DataFrames with timesteps as rows, neurons as columns
         neuron_columns = [f"neuron_{i+1}" for i in range(layernorm_array.shape[1])]
-        columns_with_episode = neuron_columns + ["episode"]
-
-        # Create DataFrames with timesteps as rows, neurons + episode as columns
-        df_layernorm = pd.DataFrame(layernorm_combined, columns=columns_with_episode)
-        df_mlp_elu = pd.DataFrame(mlp_elu_combined, columns=columns_with_episode)
+        df_layernorm = pd.DataFrame(layernorm_array, columns=neuron_columns)
+        df_mlp_elu = pd.DataFrame(mlp_elu_array, columns=neuron_columns)
 
         # Store DataFrames for later concatenation
         layernorm_dfs.append(df_layernorm)
         mlp_elu_dfs.append(df_mlp_elu)
 
+        # Process MLP layers
+        for layer, activations in mlp_activations.items():
+            mlp_array = np.squeeze(np.array(activations))  # Ensure it's (timesteps, neurons)
+
+            # Create DataFrame for this layer's activations
+            neuron_columns = [f"neuron_{i+1}" for i in range(mlp_array.shape[1])]
+            df_mlp = pd.DataFrame(mlp_array, columns=neuron_columns)
+
+            # Append to the corresponding list in mlp_dfs
+            if layer not in mlp_dfs:
+                mlp_dfs[layer] = []
+            mlp_dfs[layer].append(df_mlp)
+
     # Concatenate the DataFrames from all episodes (append them in time direction)
     final_layernorm_df = pd.concat(layernorm_dfs, ignore_index=True)
     final_mlp_elu_df = pd.concat(mlp_elu_dfs, ignore_index=True)
+
+    # Concatenate MLP layer DataFrames for each layer
+    final_mlp_dfs = {layer: pd.concat(dfs, ignore_index=True) for layer, dfs in mlp_dfs.items()}
 
     # Save the final DataFrames to HDF5
     with pd.HDFStore(h5_file_path) as store:
         store["layernorm_tanh"] = final_layernorm_df
         store["mlp_elu"] = final_mlp_elu_df
+        for layer, df in final_mlp_dfs.items():
+            store[layer] = df  # Save each MLP layer DataFrame with its name
 
     print(f"Activation data saved to {h5_file_path}")
 
@@ -521,7 +537,7 @@ def run_simulation(learner, actuator_type, num_episodes, rollout_length, render=
     for episode in tqdm(range(num_episodes)):
         print(f"Starting Episode {episode + 1}")
         frames, activation_collection, kinematics_collection = render_with_rewards(
-            env, policy, observation_spec, episode, rollout_length=rollout_length, render=render
+            env, policy, observation_spec, episode, actuator_type, rollout_length=rollout_length, render=render
         )
 
         all_activations_per_episode.append(activation_collection)
@@ -898,7 +914,7 @@ def main(config: DictConfig) -> None:
 
     # Run the simulation and collect data
     all_activations_per_episode, all_kinematics_per_episode = run_simulation(
-        learner, actuator_type, num_episodes=10, rollout_length=100, render=True
+        learner, actuator_type, num_episodes=1000, rollout_length=100, render=False
     )
 
     # Get the current date and time
@@ -906,10 +922,10 @@ def main(config: DictConfig) -> None:
 
     # Paths to save the data with datetime included
     activations_h5_file_path = (
-        f"/root/vast/eric/vnl-ray/training/activations/activations_test_{actuator_type}_{datetime_str}.h5"
+        f"/root/vast/eric/vnl-ray/training/activations/activations_test_{actuator_type}_{datetime_str}_.h5"
     )
     kinematics_h5_file_path = (
-        f"/root/vast/eric/vnl-ray/training/kinematics/kinematics_test_{actuator_type}_{datetime_str}.h5"
+        f"/root/vast/eric/vnl-ray/training/kinematics/kinematics_test_{actuator_type}_{datetime_str}_testMLP.h5"
     )
 
     # Process and save activations
