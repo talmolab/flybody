@@ -30,6 +30,7 @@ from dm_control.suite.utils.randomizers import randomize_limited_and_rotational_
 from dm_control.locomotion.tasks.reference_pose import datasets
 from dm_control.locomotion.tasks.reference_pose import types
 from dm_control.locomotion.tasks.reference_pose import utils
+
 # from dm_control.locomotion.tasks.reference_pose import rewards
 from vnl_ray.tasks import rewards  # use our custom reward
 from dm_control.mujoco.wrapper import mjbindings
@@ -46,7 +47,29 @@ if typing.TYPE_CHECKING:
 
 mjlib = mjbindings.mjlib
 DEFAULT_PHYSICS_TIMESTEP = 0.005
+DEFAULT_CONTROL_TIMESTEP = 0.02
 _MAX_END_STEP = 10000
+
+_BODY_NAMES = [
+    "torso",
+    "pelvis",
+    "upper_leg_L",
+    "lower_leg_L",
+    "foot_L",
+    "upper_leg_R",
+    "lower_leg_R",
+    "foot_R",
+    "skull",
+    "jaw",
+    "scapula_L",
+    "upper_arm_L",
+    "lower_arm_L",
+    "finger_L",
+    "scapula_R",
+    "upper_arm_R",
+    "lower_arm_R",
+    "finger_R",
+]
 
 
 def _strip_reference_prefix(
@@ -116,6 +139,7 @@ class ReferencePosesTask(composer.Task, metaclass=abc.ABCMeta):
         reward_type: Text = "termination_reward",
         reward_term_weights: dict = None,
         physics_timestep: float = DEFAULT_PHYSICS_TIMESTEP,
+        control_timestep: float = DEFAULT_CONTROL_TIMESTEP,
         always_init_at_clip_start: bool = False,
         proto_modifier: Optional[Any] = None,
         prop_factory: Optional[Any] = None,
@@ -179,7 +203,6 @@ class ReferencePosesTask(composer.Task, metaclass=abc.ABCMeta):
         self._actuator_force_coeff = actuator_force_coeff
         logging.info("Reward type %s", reward_type)
 
-
         if isinstance(dataset, Text):
             try:
                 dataset = datasets.DATASETS[dataset]
@@ -198,7 +221,8 @@ class ReferencePosesTask(composer.Task, metaclass=abc.ABCMeta):
         # Create the environment.
         self._arena = arena
         self._walker = utils.add_walker(walker, self._arena)
-        self.set_timesteps(physics_timestep=physics_timestep, control_timestep=self._current_clip.dt)
+        # print(f"PHYSIC STEP IS: {self._current_clip.dt/5}")
+        self.set_timesteps(physics_timestep=self._current_clip.dt / 5, control_timestep=self._current_clip.dt)
 
         # Identify the desired body components.
         try:
@@ -206,8 +230,8 @@ class ReferencePosesTask(composer.Task, metaclass=abc.ABCMeta):
         except AttributeError:
             logging.info("Walker must implement mocap bodies for this task.")
             raise
-
         walker_bodies_names = [bdy.name for bdy in walker_bodies]
+
         self._body_idxs = np.array([walker_bodies_names.index(bdy) for bdy in walker_bodies_names])
 
         self._prop_factory = prop_factory
@@ -327,20 +351,8 @@ class ReferencePosesTask(composer.Task, metaclass=abc.ABCMeta):
             base_observable.Generic(lambda _: self._reference_observations["walker/reference_rel_joints"]),
         )
         self._walker.observables.add_observable(
-            "reference_rel_bodies_pos_global",
-            base_observable.Generic(lambda _: self._reference_observations["walker/reference_rel_bodies_pos_global"]),
-        )
-        self._walker.observables.add_observable(
-            "reference_rel_bodies_quats",
-            base_observable.Generic(lambda _: self._reference_observations["walker/reference_rel_bodies_quats"]),
-        )
-        self._walker.observables.add_observable(
             "reference_rel_bodies_pos_local",
             base_observable.Generic(lambda _: self._reference_observations["walker/reference_rel_bodies_pos_local"]),
-        )
-        self._walker.observables.add_observable(
-            "reference_ego_bodies_quats",
-            base_observable.Generic(lambda _: self._reference_observations["walker/reference_ego_bodies_quats"]),
         )
         self._walker.observables.add_observable(
             "reference_rel_root_quat",
@@ -350,21 +362,10 @@ class ReferencePosesTask(composer.Task, metaclass=abc.ABCMeta):
             "reference_rel_root_pos_local",
             base_observable.Generic(lambda _: self._reference_observations["walker/reference_rel_root_pos_local"]),
         )
-        # pylint: enable=g-long-lambda
-        self._walker.observables.add_observable(
-            "reference_appendages_pos",
-            base_observable.Generic(self.get_reference_appendages_pos),
-        )
 
         if enabled_reference_observables:
             for name, observable in self.observables.items():
                 observable.enabled = name in enabled_reference_observables
-        self._walker.observables.add_observable("clip_id", base_observable.Generic(self.get_clip_id))
-        self._walker.observables.add_observable("velocimeter_control", base_observable.Generic(self.get_veloc_control))
-        self._walker.observables.add_observable("gyro_control", base_observable.Generic(self.get_gyro_control))
-        self._walker.observables.add_observable(
-            "joints_vel_control", base_observable.Generic(self.get_joints_vel_control)
-        )
 
         # add observables for qpos and qvel
         self._walker.observables.add_observable("qpos", base_observable.Generic(lambda physics: physics.data.qpos))
@@ -444,6 +445,7 @@ class ReferencePosesTask(composer.Task, metaclass=abc.ABCMeta):
     def _get_clip_to_track(self, random_state: np.random.RandomState):
         # Randomly select a starting point.
         index = random_state.choice(len(self._possible_starts), p=self._start_probabilities)
+
         clip_index, start_step = self._possible_starts[index]
 
         self._current_clip_index = clip_index
@@ -724,16 +726,8 @@ class ReferencePosesTask(composer.Task, metaclass=abc.ABCMeta):
             physics
         )
         reference_observations["walker/reference_rel_joints"] = self.get_reference_rel_joints(physics)
-        reference_observations["walker/reference_rel_bodies_pos_global"] = self.get_reference_rel_bodies_pos_global(
-            physics
-        )
-        reference_observations["walker/reference_ego_bodies_quats"] = self.get_reference_ego_bodies_quats(physics)
         reference_observations["walker/reference_rel_root_quat"] = self.get_reference_rel_root_quat(physics)
-        reference_observations["walker/reference_rel_bodies_quats"] = self.get_reference_rel_bodies_quats(physics)
         reference_observations["walker/reference_rel_root_pos_local"] = self.get_reference_rel_root_pos_local(physics)
-        if self._props:
-            reference_observations["props/reference_pos_global"] = self.get_reference_props_pos_global(physics)
-            reference_observations["props/reference_quat_global"] = self.get_reference_props_quat_global(physics)
         return reference_observations
 
     def get_reward(self, physics: "mjcf.Physics", return_terms=False) -> float:
@@ -854,7 +848,7 @@ class MultiClipMocapTracking(ReferencePosesTask):
             trajectory.
           reward_type: type of reward to use, must be a string that appears as a key
             in the REWARD_FN dict in rewards.py.
-          reward_term_weights: controls the weights of each reward term. This argument is feed 
+          reward_term_weights: controls the weights of each reward term. This argument is feed
             into that specific reward func in rewards.py
           physics_timestep: Physics timestep to use for simulation.
           always_init_at_clip_start: only initialize epsidodes at the start of a

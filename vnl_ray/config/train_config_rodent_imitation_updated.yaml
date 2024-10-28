@@ -1,0 +1,47 @@
+run_config:
+  agent_name: rodent_updated
+  algo_name: dmpo 
+  task_name: imitation_rodent_updated # for selecting tasks dictionary (Most Important)
+  run_name: mc-imitation # for wandb
+
+obs_network:
+  # observation network params
+  use_visual_network: false
+  visual_feature_size: 0
+
+learner_network:
+  # network factory params
+  use_intention: true
+  encoder_layer_sizes: [512,512,512]
+  decoder_layer_sizes: [512,512,512]
+  critic_layer_sizes: [512,512,512,512]
+  intention_size: 60
+  KL_weights: [1e-4, 0]
+  # if specified, this is the mid_level_encoder size, and the encoder layer size is the high level size
+  use_multi_encoder: false
+  mid_layer_sizes: 
+  high_level_intention_size: 
+
+env_params:
+  # env params
+  num_replay_servers: 3
+  separate_replay_servers: false
+  num_actors: 324
+  termination_error_threshold: 0.3
+  ref_traj_path: /root/vast/scott-yang/flybody/clips/all_snippets.h5 #walk_only_clips.h5
+
+learner_params:
+  # learner parameters
+  batch_size: 1024
+  discount: 0.99
+  policy_optimizer_lr: 1e-4
+  critic_optimizer_lr: 1e-4
+  dual_optimizer_lr: 1e-3
+  checkpoint_to_load:
+  load_decoder_only: false
+  froze_decoder: false # whether the decoder is trainable or not.
+  froze_mid_level_encoder: false
+
+eval_params:
+  # evaluator params
+  eval_average_over: 800

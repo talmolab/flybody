@@ -66,6 +66,7 @@ from vnl_ray.tasks.basic_rodent_2020 import (
     rodent_escape_bowl,
     rodent_two_touch,
     rodent_walk_imitation,
+    rodent_imitation_from_JAX,
 )
 from vnl_ray.tasks.humanoid import walk_humanoid, walk_humanoid_imitation
 
@@ -95,6 +96,7 @@ tasks = {
     "escape-bowl": rodent_escape_bowl,
     "two-taps": rodent_two_touch,
     "rodent_imitation": rodent_walk_imitation,
+    "rodent_imitation_updated": rodent_imitation_from_JAX,
     # fly
     "fly_imitation": fly_walk_imitation,
     "fly_walk_on_ball": walk_on_ball,
@@ -169,6 +171,23 @@ def main(config: DictConfig) -> None:
         env = wrappers.SinglePrecisionWrapper(env)
         env = wrappers.CanonicalSpecWrapper(env)
         return env
+    
+    def environment_factory_imitation_rodent_updated(
+        termination_error_threshold=0.12, always_init_at_clip_start=False
+    ) -> "composer.Environment":
+        """
+        Creates replicas of environment for the agent. random range controls the
+        range of the uniformed distributed termination logics
+        """
+        env = tasks["rodent_imitation_updated"](
+            config.env_params["ref_traj_path"],
+            reward_term_weights=config["reward_term_weights"] if "reward_term_weights" in config else None,
+            termination_error_threshold=termination_error_threshold,
+            always_init_at_clip_start=always_init_at_clip_start,
+        )
+        env = wrappers.SinglePrecisionWrapper(env)
+        env = wrappers.CanonicalSpecWrapper(env)
+        return env
 
     def environment_factory_imitation_humanoid() -> "composer.Environment":
         """Creates replicas of environment for the agent."""
@@ -196,7 +215,11 @@ def main(config: DictConfig) -> None:
         "imitation_humanoid": environment_factory_imitation_humanoid,
         "imitation_rodent": functools.partial(
             environment_factory_imitation_rodent,
-            # termination_error_threshold=config["termination_error_threshold"], # TODO modify the config yaml for the imitation learning too.
+            termination_error_threshold=config.env_params["termination_error_threshold"], # TODO modify the config yaml for the imitation learning too.
+        ),
+        "imitation_rodent_updated": functools.partial(
+            environment_factory_imitation_rodent_updated,
+            termination_error_threshold=config.env_params["termination_error_threshold"], # TODO modify the config yaml for the imitation learning too.
         ),
         "humanoid_walk": environment_factory_humanoid_walk,
     }

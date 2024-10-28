@@ -57,3 +57,35 @@ def get_rodent_egocentric_obs_key() -> List[str]:
         "walker/tendons_vel",
         "walker/world_zaxis",
     ]
+    
+def separate_observation_mjx(observation: types.NestedTensor) -> tf.Tensor:
+    """
+    function similar to tf2_utils.batch_concat, but returns a 2D tensor
+    specifically for the intention network to take input into the encoder
+    and decoder differently
+
+    Observations are separated by egocentric observation (Walker's sensors, actuator activations etc,
+    see the list for details) and tasks specific observations (for imitation, it is reference trajectory,
+    for online RL, it is the vision inputs.) This function separate and sequence egocentric observation,
+    to support routing to the intention network.
+    """
+    observation = observation.copy()
+    # separate reference and non-reference observations
+    egocentric_obs_keys = ["walker/qpos", "walker/qvel"] 
+
+    task_obs_keys = ["walker/reference_rel_root_pos_local", "walker/reference_rel_root_quat", "walker/reference_rel_joints", "walker/reference_rel_bodies_pos_local"]
+    
+    egocentric_obs = {k: observation.pop(k) for k in egocentric_obs_keys} # this needs modification if a second ghost is in the frame
+    for k in egocentric_obs_keys:
+        new = egocentric_obs[k][:, :int(egocentric_obs[k].shape[1] / 2)]
+        egocentric_obs[k] = new
+    task_obs = {k: observation.pop(k) for k in task_obs_keys}
+
+    # concatenate the observations
+    task_obs_tensor = tf2_utils.batch_concat(task_obs)
+    egocentric_obs_tensor = tf2_utils.batch_concat(egocentric_obs)
+    
+    # print(f"EGO: {egocentric_obs_tensor.shape}")
+    # print(f"REF: {task_obs_tensor.shape}")
+
+    return tf.concat([task_obs_tensor, egocentric_obs_tensor], axis=-1)

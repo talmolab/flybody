@@ -36,18 +36,19 @@ import os
 import h5py
 
 from vnl_ray.tasks import rodent_tasks_modified as T
+from vnl_ray.tasks import tracking_JAX as tjax
 
 # from vnl_ray import rodent_walker as rodent
 from dm_control.locomotion.walkers import rodent
 
-from vnl_ray.tasks import (
-    tracking_old as tracking,
-)  # TODO hacky tape, new tracking did not work yet
+from vnl_ray.tasks import tracking_old as tracking  # TODO hacky tape, new tracking did not work yet
+from vnl_ray.tasks.rodent import Rat
 
 from vnl_ray.tasks.trajectory_loaders import (
     HDF5WalkingTrajectoryLoader,
     InferenceWalkingTrajectoryLoader,
 )
+
 
 _CONTROL_TIMESTEP = 0.02
 _PHYSICS_TIMESTEP = 0.001
@@ -276,7 +277,58 @@ def rodent_walk_imitation(
     )
 
 
+def rodent_imitation_from_JAX(
+    ref_path: str | None = None,
+    random_state: np.random.RandomState | None = None,
+    termination_error_threshold: float = 100,
+    reward_term_weights: dict = None,
+    always_init_at_clip_start: bool = False,
+):
+    """
+    Rodent walking imitation, following similar calling with fruitfly imitation
 
+    ref_path: reference path to the imiation h5 file
+    random_state: specify the random state for the environmen
+    termination_error_threshold: threshold that controls the termination of the environment if the imitator deviates from the expert too much
+    reward_term_weights: controls the weights of each reward term. This argument is feed into that specific reward func in rewards.py
+    always_init_at_clip_start: bool, should be False in training but true in eval.
+    """
+    walker = functools.partial(
+        Rat,
+        foot_mods=True,
+    )
+    arena = floors.Floor()
+
+    TEST_FILE_PATH = ref_path
+
+    with h5py.File(TEST_FILE_PATH, "r") as f:
+        dataset_keys = tuple(f.keys())
+        dataset = types.ClipCollection(
+            ids=dataset_keys,
+        )
+
+    # Set up the mocap tracking task
+    task = tjax.MultiClipMocapTracking(
+        walker=walker,
+        arena=arena,
+        ref_path=resources.GetResourceFilename(TEST_FILE_PATH),
+        ref_steps=(1, 2, 3, 4, 5),
+        min_steps=1,
+        dataset=dataset,
+        reward_type="comic",
+        reward_term_weights=reward_term_weights,
+        always_init_at_clip_start=always_init_at_clip_start,
+        ghost_offset=GHOST_OFFSET,
+        termination_error_threshold=termination_error_threshold,  # higher threshold are harder to terminate
+    )
+    time_limit = 10.0
+
+    return composer.Environment(
+        time_limit=time_limit,
+        task=task,
+        random_state=random_state,
+        strip_singleton_obs_buffer_dim=True,
+    )
 
 
 def walk_rendering(

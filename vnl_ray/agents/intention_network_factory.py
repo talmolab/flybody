@@ -9,7 +9,7 @@ import numpy as np
 import sonnet as snt
 
 from vnl_ray.agents import losses_mpo
-from vnl_ray.agents.utils_intention import separate_observation
+from vnl_ray.agents.utils_intention import separate_observation, separate_observation_mjx
 from vnl_ray.agents.intention_network_base import IntentionNetwork
 from vnl_ray.agents.vis_net import VisNetRodent, AlexNet
 
@@ -91,7 +91,7 @@ def network_factory_dmpo(
         networks_out["observation"] = AlexNet(vis_output_dim=visual_feature_size) # use Alex Net for now
     else:
         if use_intention_policy:
-            networks_out["observation"] = separate_observation
+            networks_out["observation"] = separate_observation_mjx #separate_observation # HARDCODED
         else:
             networks_out["observation"] = tf2_utils.batch_concat
     return networks_out

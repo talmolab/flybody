@@ -218,8 +218,10 @@ def com2root(com, quat, offset=None):
 
 def get_task_obs_size(obs_spec: OrderedDict, walker_type: str, visual_feature_size: int = 0) -> int:
     """Calculate the shape of the task specific observation sizes, based on the walker type"""
-    if walker_type != "rodent":
+    if walker_type not in ["rodent", "rodent_updated"]:
         raise ValueError(f"Walker type: {walker_type} did not implement yet. Currently supported rodent")
+    if walker_type == "rodent_updated":
+        return 470
     egocentric_obs_key = get_rodent_egocentric_obs_key()
     obs_shape = 0
     for i in set(obs_spec.keys()) - set(egocentric_obs_key):
